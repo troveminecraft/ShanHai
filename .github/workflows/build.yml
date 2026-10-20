@@ -23,11 +23,14 @@ jobs:
           'C:\Program Files\LLVM\bin' | Out-File -FilePath $env:GITHUB_PATH -Append
           python -m pip install numpy
           if ($LASTEXITCODE) { throw 'NumPy installation failed' }
+      - name: Runtime regression checks
+        shell: pwsh
+        run: ./tests/run.ps1 -BuildDirectory (Join-Path $env:RUNNER_TEMP 'shan-hai-tests') -OutputDirectory (Join-Path $env:RUNNER_TEMP 'shan-hai-test-results')
       - name: Build and package
         shell: pwsh
         run: ./build.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'shan-hai-build')
       - uses: actions/upload-artifact@v4
         with:
-          name: ShanHai-Windows-0.1.0
-          path: ${{ runner.temp }}/shan-hai-build/ShanHai-Windows-0.1.0.zip
+          name: ShanHai-Windows-0.1.1
+          path: ${{ runner.temp }}/shan-hai-build/ShanHai-Windows-0.1.1.zip
           if-no-files-found: error

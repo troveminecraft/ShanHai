@@ -17,7 +17,7 @@ python -m pip install numpy
 - `client/windows/x64/release/karma-worldgen-client.dll`：客户端模组。
 - `kernel/windows/x64/release/native-worldgen-check.exe`：种子生成所需的计算程序。
 - `runtime/`：打包后的种子生成依赖。
-- `ShanHai-Windows-0.1.0.zip`：完整安装包。
+- `ShanHai-Windows-0.1.1.zip`：完整安装包。
 
 安装时使用 ZIP，单独的 DLL 缺少运行依赖。GitHub Actions 中也可手动运行 **Windows LL** 构建工作流；
 构建产物不会自动发布到 Releases。
@@ -39,6 +39,15 @@ python -m pip install numpy
 修改地形规则前应了解缓存标识及已有区块的持久化行为。
 
 ## 检查
+
+结构生命周期、布局检查点、钩子回滚与缓存检查：
+
+```powershell
+./tests/run.ps1 -BuildDirectory O:\build\shan-hai-tests -OutputDirectory O:\build\shan-hai-results
+```
+
+两个植被计算器的并发一致性检查需要一份完整的 `native-input.json`，用测试输出中的
+`structure_prefill_workers.exe <native-input.json>` 运行。它只读输入，不进入游戏或修改存档。
 
 世界封装检查不需要启动游戏：
 
