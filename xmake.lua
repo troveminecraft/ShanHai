@@ -1,0 +1,13 @@
+set_targetdir(path.absolute(path.join(get_config("builddir") or "build", "$(plat)/$(arch)/$(mode)"), os.projectdir()))
+add_rules("mode.debug", "mode.release")
+add_requires("nlohmann_json v3.12.0")
+
+target("native-worldgen-check")
+    set_kind("binary")
+    set_languages("c++20")
+    set_toolchains("clang-cl")
+    add_cxflags("/EHsc", "/utf-8", "/fp:precise", "/clang:-ffp-contract=off", "/arch:AVX2", {tools = {"clang_cl"}})
+    add_packages("nlohmann_json")
+    add_includedirs("src")
+    add_files("tests/native_cli.cpp")
+target_end()

@@ -1,0 +1,549 @@
+{
+  "format": 2,
+  "mode": "on-demand",
+  "version": "karma-terrain-2.193.0-native-agent-a",
+  "terrainSeed": "288493980",
+  "worldSeed": "7536824328494917634",
+  "worldSeedIndependent": true,
+  "origin": {
+    "x": -20000,
+    "z": -20000
+  },
+  "sizeBlocks": 40000,
+  "sizeChunks": 2500,
+  "productionOffset": {
+    "x": 32768,
+    "z": 32768
+  },
+  "minY": -64,
+  "maxY": 319,
+  "spawn": {
+    "x": 128,
+    "y": 67,
+    "z": 0
+  },
+  "palette": [
+    "air",
+    "bedrock",
+    "stone",
+    "dirt",
+    "grass_block",
+    "sand",
+    "sandstone",
+    "snow",
+    "water",
+    "ice",
+    "oak_log",
+    "oak_leaves",
+    "spruce_log",
+    "spruce_leaves",
+    "jungle_log",
+    "jungle_leaves",
+    "acacia_log",
+    "acacia_leaves",
+    "cactus",
+    "oak_planks",
+    "cobblestone",
+    "cut_sandstone",
+    "mossy_cobblestone",
+    "snow",
+    "dark_oak_planks",
+    "oak_log_x",
+    "oak_log_z",
+    "dripstone_block",
+    "pointed_dripstone_up_base",
+    "pointed_dripstone_up_middle",
+    "pointed_dripstone_up_frustum",
+    "pointed_dripstone_up_tip",
+    "podzol",
+    "coarse_dirt",
+    "spruce_log_x",
+    "spruce_log_z",
+    "short_grass",
+    "fern",
+    "tall_grass_lower",
+    "tall_grass_upper",
+    "large_fern_lower",
+    "large_fern_upper",
+    "gravel",
+    "lava",
+    "netherrack",
+    "basalt",
+    "blackstone",
+    "magma",
+    "clay",
+    "seagrass",
+    "kelp",
+    "tube_coral_block",
+    "brain_coral_block",
+    "bubble_coral_block",
+    "fire_coral_block",
+    "horn_coral_block",
+    "tube_coral_fan",
+    "brain_coral_fan",
+    "bubble_coral_fan",
+    "fire_coral_fan",
+    "horn_coral_fan",
+    "spruce_wood",
+    "dandelion",
+    "poppy",
+    "oxeye_daisy",
+    "birch_log",
+    "birch_leaves",
+    "brown_mushroom",
+    "red_mushroom",
+    "oak_wood",
+    "birch_wood",
+    {
+      "name": "minecraft:leaf_litter",
+      "states": {
+        "growth": 3,
+        "minecraft:cardinal_direction": "north"
+      }
+    },
+    {
+      "name": "minecraft:leaf_litter",
+      "states": {
+        "growth": 3,
+        "minecraft:cardinal_direction": "east"
+      }
+    },
+    {
+      "name": "minecraft:leaf_litter",
+      "states": {
+        "growth": 3,
+        "minecraft:cardinal_direction": "south"
+      }
+    },
+    {
+      "name": "minecraft:leaf_litter",
+      "states": {
+        "growth": 3,
+        "minecraft:cardinal_direction": "west"
+      }
+    },
+    "jungle_wood",
+    {
+      "name": "minecraft:vine",
+      "states": {
+        "vine_direction_bits": 1
+      }
+    },
+    {
+      "name": "minecraft:vine",
+      "states": {
+        "vine_direction_bits": 2
+      }
+    },
+    {
+      "name": "minecraft:vine",
+      "states": {
+        "vine_direction_bits": 4
+      }
+    },
+    {
+      "name": "minecraft:vine",
+      "states": {
+        "vine_direction_bits": 8
+      }
+    },
+    "moss_block",
+    "melon_block",
+    {
+      "name": "minecraft:bamboo",
+      "states": {
+        "age_bit": false,
+        "bamboo_leaf_size": "no_leaves",
+        "bamboo_stalk_thickness": "thick"
+      }
+    },
+    {
+      "name": "minecraft:bamboo",
+      "states": {
+        "age_bit": false,
+        "bamboo_leaf_size": "small_leaves",
+        "bamboo_stalk_thickness": "thick"
+      }
+    },
+    {
+      "name": "minecraft:bamboo",
+      "states": {
+        "age_bit": false,
+        "bamboo_leaf_size": "large_leaves",
+        "bamboo_stalk_thickness": "thick"
+      }
+    },
+    "mud",
+    "waterlily",
+    "reeds",
+    "deadbush",
+    "acacia_wood",
+    {
+      "name": "minecraft:cocoa",
+      "states": {
+        "age": 2,
+        "direction": 0
+      }
+    },
+    {
+      "name": "minecraft:cocoa",
+      "states": {
+        "age": 2,
+        "direction": 1
+      }
+    },
+    {
+      "name": "minecraft:cocoa",
+      "states": {
+        "age": 2,
+        "direction": 2
+      }
+    },
+    {
+      "name": "minecraft:cocoa",
+      "states": {
+        "age": 2,
+        "direction": 3
+      }
+    },
+    "calcite",
+    "deepslate",
+    "tuff",
+    "granite",
+    "andesite",
+    "diorite",
+    "coal_ore",
+    "iron_ore",
+    "copper_ore",
+    "gold_ore",
+    "lapis_ore",
+    "redstone_ore",
+    "diamond_ore",
+    "emerald_ore",
+    "deepslate_coal_ore",
+    "deepslate_iron_ore",
+    "deepslate_copper_ore",
+    "deepslate_gold_ore",
+    "deepslate_lapis_ore",
+    "deepslate_redstone_ore",
+    "deepslate_diamond_ore",
+    "deepslate_emerald_ore",
+    "pointed_dripstone_down_base",
+    "pointed_dripstone_down_middle",
+    "pointed_dripstone_down_frustum",
+    "pointed_dripstone_down_tip",
+    "moss_carpet",
+    "azalea",
+    "flowering_azalea",
+    "spore_blossom",
+    "cave_vines",
+    "cave_vines_head_with_berries",
+    {
+      "name": "minecraft:flowing_water",
+      "states": {
+        "liquid_depth": 8
+      }
+    },
+    {
+      "name": "minecraft:big_dripleaf",
+      "states": {
+        "big_dripleaf_head": false,
+        "big_dripleaf_tilt": "none",
+        "minecraft:cardinal_direction": "north"
+      }
+    },
+    {
+      "name": "minecraft:big_dripleaf",
+      "states": {
+        "big_dripleaf_head": false,
+        "big_dripleaf_tilt": "none",
+        "minecraft:cardinal_direction": "east"
+      }
+    },
+    {
+      "name": "minecraft:big_dripleaf",
+      "states": {
+        "big_dripleaf_head": false,
+        "big_dripleaf_tilt": "none",
+        "minecraft:cardinal_direction": "south"
+      }
+    },
+    {
+      "name": "minecraft:big_dripleaf",
+      "states": {
+        "big_dripleaf_head": false,
+        "big_dripleaf_tilt": "none",
+        "minecraft:cardinal_direction": "west"
+      }
+    },
+    {
+      "name": "minecraft:big_dripleaf",
+      "states": {
+        "big_dripleaf_head": true,
+        "big_dripleaf_tilt": "none",
+        "minecraft:cardinal_direction": "north"
+      }
+    },
+    {
+      "name": "minecraft:big_dripleaf",
+      "states": {
+        "big_dripleaf_head": true,
+        "big_dripleaf_tilt": "none",
+        "minecraft:cardinal_direction": "east"
+      }
+    },
+    {
+      "name": "minecraft:big_dripleaf",
+      "states": {
+        "big_dripleaf_head": true,
+        "big_dripleaf_tilt": "none",
+        "minecraft:cardinal_direction": "south"
+      }
+    },
+    {
+      "name": "minecraft:big_dripleaf",
+      "states": {
+        "big_dripleaf_head": true,
+        "big_dripleaf_tilt": "none",
+        "minecraft:cardinal_direction": "west"
+      }
+    },
+    {
+      "name": "minecraft:small_dripleaf_block",
+      "states": {
+        "upper_block_bit": false,
+        "minecraft:cardinal_direction": "north"
+      }
+    },
+    {
+      "name": "minecraft:small_dripleaf_block",
+      "states": {
+        "upper_block_bit": false,
+        "minecraft:cardinal_direction": "east"
+      }
+    },
+    {
+      "name": "minecraft:small_dripleaf_block",
+      "states": {
+        "upper_block_bit": false,
+        "minecraft:cardinal_direction": "south"
+      }
+    },
+    {
+      "name": "minecraft:small_dripleaf_block",
+      "states": {
+        "upper_block_bit": false,
+        "minecraft:cardinal_direction": "west"
+      }
+    },
+    {
+      "name": "minecraft:small_dripleaf_block",
+      "states": {
+        "upper_block_bit": true,
+        "minecraft:cardinal_direction": "north"
+      }
+    },
+    {
+      "name": "minecraft:small_dripleaf_block",
+      "states": {
+        "upper_block_bit": true,
+        "minecraft:cardinal_direction": "east"
+      }
+    },
+    {
+      "name": "minecraft:small_dripleaf_block",
+      "states": {
+        "upper_block_bit": true,
+        "minecraft:cardinal_direction": "south"
+      }
+    },
+    {
+      "name": "minecraft:small_dripleaf_block",
+      "states": {
+        "upper_block_bit": true,
+        "minecraft:cardinal_direction": "west"
+      }
+    },
+    "packed_ice",
+    "blue_ice",
+    {
+      "name": "minecraft:flowing_lava",
+      "states": {
+        "liquid_depth": 8
+      }
+    },
+    {
+      "name": "minecraft:snow_layer",
+      "states": {
+        "covered_bit": false,
+        "height": 0
+      }
+    },
+    {
+      "name": "minecraft:snow_layer",
+      "states": {
+        "covered_bit": false,
+        "height": 1
+      }
+    },
+    {
+      "name": "minecraft:snow_layer",
+      "states": {
+        "covered_bit": false,
+        "height": 2
+      }
+    },
+    {
+      "name": "minecraft:brown_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 1
+      }
+    },
+    {
+      "name": "minecraft:brown_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 2
+      }
+    },
+    {
+      "name": "minecraft:brown_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 3
+      }
+    },
+    {
+      "name": "minecraft:brown_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 4
+      }
+    },
+    {
+      "name": "minecraft:brown_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 5
+      }
+    },
+    {
+      "name": "minecraft:brown_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 6
+      }
+    },
+    {
+      "name": "minecraft:brown_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 7
+      }
+    },
+    {
+      "name": "minecraft:brown_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 8
+      }
+    },
+    {
+      "name": "minecraft:brown_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 9
+      }
+    },
+    {
+      "name": "minecraft:red_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 1
+      }
+    },
+    {
+      "name": "minecraft:red_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 2
+      }
+    },
+    {
+      "name": "minecraft:red_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 3
+      }
+    },
+    {
+      "name": "minecraft:red_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 4
+      }
+    },
+    {
+      "name": "minecraft:red_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 5
+      }
+    },
+    {
+      "name": "minecraft:red_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 6
+      }
+    },
+    {
+      "name": "minecraft:red_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 7
+      }
+    },
+    {
+      "name": "minecraft:red_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 8
+      }
+    },
+    {
+      "name": "minecraft:red_mushroom_block",
+      "states": {
+        "huge_mushroom_bits": 9
+      }
+    },
+    {
+      "name": "minecraft:mushroom_stem",
+      "states": {
+        "huge_mushroom_bits": 10
+      }
+    }
+  ],
+  "biomeNames": [
+    "deep_ocean",
+    "ocean",
+    "frozen_ocean",
+    "beach",
+    "cold_beach",
+    "ice_plains",
+    "taiga",
+    "plains",
+    "plains",
+    "forest",
+    "swampland",
+    "desert",
+    "savanna",
+    "jungle",
+    "extreme_hills",
+    "mesa",
+    "desert",
+    "taiga",
+    "river",
+    "frozen_river",
+    "stone_beach",
+    "warm_ocean",
+    "cold_ocean",
+    "birch_forest",
+    "ice_plains_spikes"
+  ],
+  "regionBlocks": 16,
+  "maxCachedRegions": 0,
+  "calculatorWorkers": 4,
+  "cachedChunks": 1024,
+  "backend": "native-cpp",
+  "previewStatus": "legacy-reference-only",
+  "cpuTarget": "x86_64-avx2",
+  "chunkCodec": "KW2-u16",
+  "vanillaBlocksOnly": true,
+  "blockPacksRequired": false,
+  "spawnPolicy": "natural dry ground; 9x9 solid support and passable headroom; no stone-forest binding"
+}

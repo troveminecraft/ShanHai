@@ -1,0 +1,33 @@
+name: Windows LL
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install build tools
+        shell: pwsh
+        run: |
+          choco install xmake llvm -y --no-progress
+          if ($LASTEXITCODE) { throw 'Build tool installation failed' }
+          'C:\Program Files\xmake' | Out-File -FilePath $env:GITHUB_PATH -Append
+          'C:\Program Files\LLVM\bin' | Out-File -FilePath $env:GITHUB_PATH -Append
+          python -m pip install numpy
+          if ($LASTEXITCODE) { throw 'NumPy installation failed' }
+      - name: Build and package
+        shell: pwsh
+        run: ./build.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'shan-hai-build')
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ShanHai-Windows-0.1.0
+          path: ${{ runner.temp }}/shan-hai-build/ShanHai-Windows-0.1.0.zip
+          if-no-files-found: error

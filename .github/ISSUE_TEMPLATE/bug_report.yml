@@ -1,0 +1,39 @@
+name: 生成或运行问题
+description: 报告可复现的 山&海 问题
+title: "[Bug] "
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: 环境版本
+      description: Windows、Minecraft、LeviLamina、山&海 的准确版本
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: 种子与坐标
+      description: 非地形问题可填写“不适用”
+    validations:
+      required: true
+  - type: dropdown
+    id: world
+    attributes:
+      label: 存档类型
+      options:
+        - 当前版本新建世界
+        - 从旧版本继续的世界
+        - 尚未进入世界
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤、预期和实际表现
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 截图和相关日志
+      description: 请先删除令牌、账号及个人路径，不要上传整个存档或游戏文件。

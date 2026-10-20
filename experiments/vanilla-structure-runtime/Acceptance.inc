@@ -1,0 +1,18 @@
+// Read-only console diagnostics used to build the public acceptance list.
+void safeDestination(Dimension& d,int type,int x,int z){
+ ChunkPos cp{chunk(x),chunk(z)};uint seed=d.getLevel().getLevelData().getSeed().to32BitRandomSeed();BoundingBox b;
+ if(type>=0&&type<12){auto&p=extraPlan(d,type,cp);if(!p.start)throw std::runtime_error("No structure");b=*p.start->boundingBox;}
+ else if(type==12){auto&p=villagePlan(d,cp,seed);if(!p.start)throw std::runtime_error("No village");b=*p.start->boundingBox;}
+ else {auto&p=autoBlueprint(d,cp,seed);if(!p.start)throw std::runtime_error("No scattered structure");b=*p.start->boundingBox;}
+ ensureLoaded(d,b);auto& blocks=d.getBlockSourceFromMainChunkSource();bool aquatic=type==2||type==3||type==5;
+ if(aquatic){int xx=(b.min.x+b.max.x)/2,zz=(b.min.z+b.max.z)/2;for(int y=35;y<60;++y)if(blocks.getBlock({xx,y,zz}).getTypeName()=="minecraft:air"&&blocks.getBlock({xx,y+1,zz}).getTypeName()=="minecraft:air"){std::ofstream(folder/"safe-destination.json")<<J{{"x",xx},{"y",y},{"z",zz},{"kind","surface"},{"verifiedAir",true}}.dump(2);return;}}
+ std::optional<BlockPos> best;int64_t distance=INT64_MAX;
+ for(int z=b.min.z;z<=b.max.z;++z)for(int x=b.min.x;x<=b.max.x;++x)for(int y=std::max(-59,b.min.y);y<=std::min(310,b.max.y+3);++y){
+  auto const&floor=blocks.getBlock({x,y-1,z}).getTypeName();if(floor=="minecraft:air"||floor=="minecraft:water"||floor=="minecraft:lava"||removablePlant(floor))continue;
+  if(blocks.getBlock({x,y,z}).getTypeName()!="minecraft:air"||blocks.getBlock({x,y+1,z}).getTypeName()!="minecraft:air")continue;
+  int64_t dx=x-(b.min.x+b.max.x)/2,dz=z-(b.min.z+b.max.z)/2;int64_t score=dx*dx+dz*dz;if(score<distance){distance=score;best=BlockPos{x,y,z};}
+ }
+ if(!best)throw std::runtime_error("No supported air destination");auto p=*best;std::ofstream(folder/"safe-destination.json")<<J{{"x",p.x},{"y",p.y},{"z",p.z},{"kind",p.y<32?"dry":"surface"},{"verifiedAir",true}}.dump(2);
+}
+void villageActorSources(VillagePlan const&plan){J rows=J::array();for(auto const&ptr:*plan.start->pieces){auto&p=*static_cast<PoolElementStructurePiece*>(ptr.get());auto const&model=*p.mElement.mTemplate;if(!model)continue;J row{{"name",*p.mElement.mLocation},{"pos",{p.mPosition->x,p.mPosition->y,p.mPosition->z}},{"actorRules",p.mElement.mSettings->mActorRules?int(p.mElement.mSettings->mActorRules->size()):0},{"pending",p.mEntitiesToPlace->size()}};auto const&variant=*model->mStructureVariant;if(auto legacy=std::get_if<std::reference_wrapper<LegacyStructureTemplate>>(&variant)){row["legacyActors"]=legacy->get().mEntityInfo->size();LegacyStructureSettings settings(Mirror::None,p.mRotation,nullptr,*p.mBoundingBox);J markers=J::array();for(auto const&[pos,label]:legacy->get().getMarkers(*p.mPosition,settings))markers.push_back({{"label",label},{"pos",{pos.x,pos.y,pos.z}}});row["markers"]=markers;}else row["modernActors"]=std::get<std::reference_wrapper<StructureTemplate>>(variant).get().mStructureTemplateData->mEntityData->size();rows.push_back(row);}std::ofstream(folder/"village-actor-sources.json")<<rows.dump(2);}
+void actorAudit(Level& level){J rows=J::array();for(auto*a:level.getRuntimeActorList()){if(!a->hasTag("karma_native_structure")&&!a->hasTag("karma_igloo_resident"))continue;auto p=a->getPosition();rows.push_back({{"id",a->getOrCreateUniqueID().rawID},{"type",a->getTypeName()},{"alive",a->isAlive()},{"removed",a->isRemoved()},{"pos",{p.x,p.y,p.z}}});}std::ofstream(folder/"actor-audit.json")<<J{{"actors",rows},{"queued",nativeEntityJobs.size()},{"queuedKeys",queuedEntityKeys},{"ledger",entityLedger}}.dump(2);}

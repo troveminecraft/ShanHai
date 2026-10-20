@@ -1,0 +1,1927 @@
+{
+  "source": "Shipped BDS behavior packs; numeric-version overrides by identifier",
+  "bdsVersion": "1.26.20.5",
+  "conditions": {
+    "0": "overworld",
+    "1": "mountains or extreme_hills",
+    "2": "dripstone_caves",
+    "3": "overworld excluding dripstone_caves",
+    "4": "mesa",
+    "5": "mountains only"
+  },
+  "batches": [
+    {
+      "identifier": "minecraft:dripstone_caves_underground_copper_ore_feature",
+      "type": 2,
+      "attempts": 16,
+      "low": -16,
+      "high": 112,
+      "size": 20,
+      "triangle": true,
+      "airDiscard": 0,
+      "chance": 1.0,
+      "condition": 2,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:dripstone_caves_underground_copper_ore_feature",
+            "places_feature": "minecraft:dripstone_caves_copper_ore_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": {
+              "test": "has_biome_tag",
+              "operator": "==",
+              "value": "dripstone_caves"
+            }
+          },
+          "distribution": {
+            "iterations": 16,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "triangle",
+              "extent": [
+                -16,
+                112
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/dripstone_caves_underground_copper_ore_feature.json",
+        "sha256": "fc89f88ed97eacb5c2a1c0403ea78571ba8f60cc7decafbd219a70b6a0f919ba"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:dripstone_caves_copper_ore_feature"
+          },
+          "count": 20,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:copper_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_copper_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.10/features/dripstone_caves_copper_ore_feature.json",
+        "sha256": "0a550ed4d052731cfcc6198a617f22d2a45382d0b2f2f944512a4bb08dcceb2a"
+      }
+    },
+    {
+      "identifier": "minecraft:mesa_underground_gold_ore_feature",
+      "type": 3,
+      "attempts": 50,
+      "low": 32,
+      "high": 256,
+      "size": 9,
+      "triangle": false,
+      "airDiscard": 0,
+      "chance": 1.0,
+      "condition": 4,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:mesa_underground_gold_ore_feature",
+            "places_feature": "minecraft:gold_ore_extra_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "test": "has_biome_tag",
+                "operator": "==",
+                "value": "mesa"
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 50,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "uniform",
+              "extent": [
+                32,
+                256
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/mesa_underground_gold_ore_feature.json",
+        "sha256": "8e8d3f8d0bbe2cb2fc29af10a18788cc82cefde5041feed6e0dcea025517e9f9"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:gold_ore_extra_feature"
+          },
+          "count": 9,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:gold_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_gold_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.0/features/gold_ore_extra_feature.json",
+        "sha256": "b9b2f6346dfd2d904465a7867df1a24c43a9f4d9e13aa520f0a2cc2cd62de068"
+      }
+    },
+    {
+      "identifier": "minecraft:mountains_underground_coal_ore_feature",
+      "type": 0,
+      "attempts": 20,
+      "low": 128,
+      "high": 256,
+      "size": 17,
+      "triangle": false,
+      "airDiscard": 0.5,
+      "chance": 1.0,
+      "condition": 5,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:mountains_underground_coal_ore_feature",
+            "places_feature": "minecraft:coal_ore_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": {
+              "test": "has_biome_tag",
+              "operator": "==",
+              "value": "mountains"
+            }
+          },
+          "distribution": {
+            "iterations": 20,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "uniform",
+              "extent": [
+                128,
+                256
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/mountains_underground_coal_ore_feature.json",
+        "sha256": "73784f4232d1c68c024710181c644969446c2655dade54570ae91e57b2f549ee"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:coal_ore_feature"
+          },
+          "count": 17,
+          "discard_chance_on_air_exposure": 0.5,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:coal_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_coal_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.0/features/coal_ore_feature.json",
+        "sha256": "29328797f594bc1baafbe2245e63d3facc3b9bbab4d83b8906b8c7e12c369efd"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_coal_ore_lower_feature",
+      "type": 0,
+      "attempts": 20,
+      "low": 0,
+      "high": 192,
+      "size": 17,
+      "triangle": true,
+      "airDiscard": 0.5,
+      "chance": 1.0,
+      "condition": 0,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_coal_ore_lower_feature",
+            "places_feature": "minecraft:coal_ore_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld_generation"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 20,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "triangle",
+              "extent": [
+                0,
+                192
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_coal_ore_lower_feature.json",
+        "sha256": "c65be7aacf10d7823c4e327786f91bbf6a1f7f85064a5cf72d6608b01d394bdf"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:coal_ore_feature"
+          },
+          "count": 17,
+          "discard_chance_on_air_exposure": 0.5,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:coal_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_coal_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.0/features/coal_ore_feature.json",
+        "sha256": "29328797f594bc1baafbe2245e63d3facc3b9bbab4d83b8906b8c7e12c369efd"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_coal_ore_upper_feature",
+      "type": 0,
+      "attempts": 30,
+      "low": 136,
+      "high": 320,
+      "size": 17,
+      "triangle": false,
+      "airDiscard": 0,
+      "chance": 1.0,
+      "condition": 0,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_coal_ore_upper_feature",
+            "places_feature": "minecraft:coal_ore_upper_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld_generation"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 30,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "uniform",
+              "extent": [
+                136,
+                320
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_coal_ore_upper_feature.json",
+        "sha256": "b92fba0b1196a09fae6facb32da2ab6a2acfe1d766f0c1d4275617759ee105c9"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:coal_ore_upper_feature"
+          },
+          "count": 17,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:coal_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_coal_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.0/features/coal_ore_upper_feature.json",
+        "sha256": "32b57bdefc584ed6a6030501f3018d708dcaf19b48366e42a23b997fe4d734ea"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_copper_ore_feature",
+      "type": 2,
+      "attempts": 16,
+      "low": -16,
+      "high": 112,
+      "size": 10,
+      "triangle": true,
+      "airDiscard": 0,
+      "chance": 1.0,
+      "condition": 3,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_copper_ore_feature",
+            "places_feature": "minecraft:copper_ore_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": {
+              "all_of": [
+                {
+                  "any_of": [
+                    {
+                      "test": "has_biome_tag",
+                      "operator": "==",
+                      "value": "overworld"
+                    },
+                    {
+                      "test": "has_biome_tag",
+                      "operator": "==",
+                      "value": "overworld_generation"
+                    }
+                  ]
+                },
+                {
+                  "test": "has_biome_tag",
+                  "operator": "!=",
+                  "value": "dripstone_caves"
+                }
+              ]
+            }
+          },
+          "distribution": {
+            "iterations": 16,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "triangle",
+              "extent": [
+                -16,
+                112
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_copper_ore_feature.json",
+        "sha256": "f597ccf1d2f23a3f1c81247de2f02509598bf257ac89f54dc617b37994d3b303"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:copper_ore_feature"
+          },
+          "count": 10,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:copper_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_copper_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.0/features/copper_ore_feature.json",
+        "sha256": "3e0a6a5de06c923205ef53cb44a18df08f22e53d7043c57027aa88cc26763bed"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_diamond_ore_buried_feature",
+      "type": 6,
+      "attempts": 4,
+      "low": -144,
+      "high": 16,
+      "size": 8,
+      "triangle": true,
+      "airDiscard": 1.0,
+      "chance": 1.0,
+      "condition": 0,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_diamond_ore_buried_feature",
+            "places_feature": "minecraft:diamond_ore_buried_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld_generation"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 4,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "triangle",
+              "extent": [
+                -144,
+                16
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_diamond_ore_buried_feature.json",
+        "sha256": "661e6011eb4fcaa7efc020295ff470e9d9ce45647de773606353d28d4ca35dd6"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:diamond_ore_buried_feature"
+          },
+          "count": 8,
+          "discard_chance_on_air_exposure": 1.0,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:diamond_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_diamond_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.0/features/diamond_ore_buried_feature.json",
+        "sha256": "e4feb2ae6a0f36e514e4395d0d2542dab7d19bcd65239c4cb383e8c82d5fff54"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_diamond_ore_feature",
+      "type": 6,
+      "attempts": 7,
+      "low": -144,
+      "high": 16,
+      "size": 4,
+      "triangle": true,
+      "airDiscard": 0.5,
+      "chance": 1.0,
+      "condition": 0,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_diamond_ore_feature",
+            "places_feature": "minecraft:diamond_ore_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld_generation"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 7,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "triangle",
+              "extent": [
+                -144,
+                16
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_diamond_ore_feature.json",
+        "sha256": "7eccd0cff01a567d864fc8665a01866dff9a0cfd437ee879a2fe19faa9ecdee6"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:diamond_ore_feature"
+          },
+          "count": 4,
+          "discard_chance_on_air_exposure": 0.5,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:diamond_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_diamond_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.10/features/diamond_ore_feature.json",
+        "sha256": "3f2dfc30767a71d9c2991e983be4915cdc554356c66bbe338bcb62ef62f137aa"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_diamond_ore_feature_square",
+      "type": 6,
+      "attempts": 2,
+      "low": -64,
+      "high": -4,
+      "size": 4,
+      "triangle": false,
+      "airDiscard": 0.5,
+      "chance": 1.0,
+      "condition": 0,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_diamond_ore_feature_square",
+            "places_feature": "minecraft:diamond_ore_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld_generation"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 2,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "uniform",
+              "extent": [
+                -64,
+                -4
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.20.30/feature_rules/overworld_underground_diamond_ore_feature_square.json",
+        "sha256": "3b03e9ed05e28c3c0c1f1254d31ac2f8823db402ad4ac1b35f49607ca2b96eeb"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:diamond_ore_feature"
+          },
+          "count": 4,
+          "discard_chance_on_air_exposure": 0.5,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:diamond_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_diamond_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.10/features/diamond_ore_feature.json",
+        "sha256": "3f2dfc30767a71d9c2991e983be4915cdc554356c66bbe338bcb62ef62f137aa"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_diamond_ore_large_feature",
+      "type": 6,
+      "attempts": 1,
+      "low": -144,
+      "high": 16,
+      "size": 12,
+      "triangle": true,
+      "airDiscard": 0.7,
+      "chance": 0.1111111111111111,
+      "condition": 0,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_diamond_ore_large_feature",
+            "places_feature": "minecraft:diamond_ore_large_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld_generation"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 1,
+            "scatter_chance": {
+              "numerator": 1,
+              "denominator": 9
+            },
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "triangle",
+              "extent": [
+                -144,
+                16
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_diamond_ore_large_feature.json",
+        "sha256": "c8421b968924505743788d2b792411ff588e1fbb13db4022eb964ba1fa68ed77"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:diamond_ore_large_feature"
+          },
+          "count": 12,
+          "discard_chance_on_air_exposure": 0.7,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:diamond_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_diamond_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.0/features/diamond_ore_large_feature.json",
+        "sha256": "46e0b297a44377f0dec03f6fc62060863c15ea40b8715f9fb937a9c1b58a50be"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_emerald_ore_feature",
+      "type": 7,
+      "attempts": 100,
+      "low": -16,
+      "high": 480,
+      "size": 3,
+      "triangle": true,
+      "airDiscard": 0,
+      "chance": 1.0,
+      "condition": 1,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_emerald_ore_feature",
+            "places_feature": "minecraft:emerald_ore_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "mountains"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "extreme_hills"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 100,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "triangle",
+              "extent": [
+                -16,
+                480
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_emerald_ore_feature.json",
+        "sha256": "b847f218b3043a968b913a310237d491b243c3bb9f319cf1618adcd128c5acdd"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:emerald_ore_feature"
+          },
+          "count": 3,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:emerald_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_emerald_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.0/features/emerald_ore_feature.json",
+        "sha256": "cac573c7d3b731912f0d0f026de1a9ce83a61f31fb4b969183d8516cb0c06ed3"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_gold_ore_feature",
+      "type": 3,
+      "attempts": 4,
+      "low": -64,
+      "high": 32,
+      "size": 9,
+      "triangle": true,
+      "airDiscard": 0.5,
+      "chance": 1.0,
+      "condition": 0,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_gold_ore_feature",
+            "places_feature": "minecraft:gold_ore_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld_generation"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 4,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "triangle",
+              "extent": [
+                -64,
+                32
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_gold_ore_feature.json",
+        "sha256": "7a219b799d78c1b9838224869e2775bd09f3dedee8054b1541779cb995a09221"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:gold_ore_feature"
+          },
+          "count": 9,
+          "discard_chance_on_air_exposure": 0.5,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:gold_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_gold_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.0/features/gold_ore_feature.json",
+        "sha256": "7f41437b216bab5d1c6379c9e2ae98c5936646cb8684646799e35fa22250a1d1"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_gold_ore_lower_feature",
+      "type": 3,
+      "attempts": 1,
+      "low": -64,
+      "high": -48,
+      "size": 9,
+      "triangle": false,
+      "airDiscard": 0.5,
+      "chance": 0.5,
+      "condition": 0,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_gold_ore_lower_feature",
+            "places_feature": "minecraft:gold_ore_lower_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld_generation"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 1,
+            "scatter_chance": {
+              "numerator": 1,
+              "denominator": 2
+            },
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "uniform",
+              "extent": [
+                -64,
+                -48
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_gold_ore_lower_feature.json",
+        "sha256": "cf7b9eba78f75fad93f3fb47c387ff4bf73c1a177631457ad9e361c27e5859b7"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:gold_ore_lower_feature"
+          },
+          "count": 9,
+          "discard_chance_on_air_exposure": 0.5,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:gold_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_gold_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.0/features/gold_ore_lower_feature.json",
+        "sha256": "08b93d2afbbcf9b9d4207133c61df3745e120f905c473712fa319c171afe3387"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_iron_ore_middle_feature",
+      "type": 1,
+      "attempts": 10,
+      "low": -24,
+      "high": 56,
+      "size": 10,
+      "triangle": true,
+      "airDiscard": 0,
+      "chance": 1.0,
+      "condition": 0,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_iron_ore_middle_feature",
+            "places_feature": "minecraft:iron_ore_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld_generation"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 10,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "triangle",
+              "extent": [
+                -24,
+                56
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_iron_ore_middle_feature.json",
+        "sha256": "6edc4031c9ba6a5bb9a213929a40bbf60ccc217401f31dec0b8c3c4889726852"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:iron_ore_feature"
+          },
+          "count": 10,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:iron_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_iron_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.0/features/iron_ore_feature.json",
+        "sha256": "ac987e76671d96feaf96ecefa6185558c09785cad9273a080c0b91e81fb08765"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_iron_ore_small_feature",
+      "type": 1,
+      "attempts": 10,
+      "low": -64,
+      "high": 72,
+      "size": 4,
+      "triangle": false,
+      "airDiscard": 0,
+      "chance": 1.0,
+      "condition": 0,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_iron_ore_small_feature",
+            "places_feature": "minecraft:iron_ore_small_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld_generation"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 10,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "uniform",
+              "extent": [
+                -64,
+                72
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_iron_ore_small_feature.json",
+        "sha256": "8da96668d84cd2e681d60273bab0b1e428661000c5656712bdaea712da5f21e0"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:iron_ore_small_feature"
+          },
+          "count": 4,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:iron_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_iron_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.0/features/iron_ore_small_feature.json",
+        "sha256": "e0188429bb2fc1fcafdccf1268aa84237ec8551594498e3fff70d2d250f75ad9"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_iron_ore_upper_feature",
+      "type": 1,
+      "attempts": 90,
+      "low": 80,
+      "high": 384,
+      "size": 10,
+      "triangle": true,
+      "airDiscard": 0,
+      "chance": 1.0,
+      "condition": 0,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_iron_ore_upper_feature",
+            "places_feature": "minecraft:iron_ore_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld_generation"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 90,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "triangle",
+              "extent": [
+                80,
+                384
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_iron_ore_upper_feature.json",
+        "sha256": "66626eb612a6ed4b98e1ce20bc736f0462ad7e4413b8ffb67539619e203286a0"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:iron_ore_feature"
+          },
+          "count": 10,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:iron_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_iron_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.0/features/iron_ore_feature.json",
+        "sha256": "ac987e76671d96feaf96ecefa6185558c09785cad9273a080c0b91e81fb08765"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_lapis_ore_buried_feature",
+      "type": 4,
+      "attempts": 4,
+      "low": -64,
+      "high": 64,
+      "size": 7,
+      "triangle": false,
+      "airDiscard": 1.0,
+      "chance": 1.0,
+      "condition": 0,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_lapis_ore_buried_feature",
+            "places_feature": "minecraft:lapis_ore_buried_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld_generation"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 4,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "uniform",
+              "extent": [
+                -64,
+                64
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_lapis_ore_buried_feature.json",
+        "sha256": "dc299f9feace4e0d0143a4d50988b7a1cb1bcdb982e2d9006e625167183d0a64"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:lapis_ore_buried_feature"
+          },
+          "count": 7,
+          "discard_chance_on_air_exposure": 1.0,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:lapis_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_lapis_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.18.0/features/lapis_ore_buried_feature.json",
+        "sha256": "8901d33929a9a2102f93496942c8134770791a39e4797c7a6b33de75c291af97"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_lapis_ore_feature",
+      "type": 4,
+      "attempts": 2,
+      "low": -32,
+      "high": 32,
+      "size": 7,
+      "triangle": true,
+      "airDiscard": 0,
+      "chance": 1.0,
+      "condition": 0,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_lapis_ore_feature",
+            "places_feature": "minecraft:lapis_ore_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld_generation"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 2,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "triangle",
+              "extent": [
+                -32,
+                32
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_lapis_ore_feature.json",
+        "sha256": "80b3061127ce263c9c4972f0b7b4fe92c84e20cbac749820735325ee3e657115"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:lapis_ore_feature"
+          },
+          "count": 7,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:lapis_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_lapis_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.17.0/features/lapis_ore_feature.json",
+        "sha256": "6c0b72830e22fac3f7adbf99f0456f093bd34b40d7ee92b09f48c4162f034c54"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_redstone_ore_feature",
+      "type": 5,
+      "attempts": 4,
+      "low": -64,
+      "high": 15,
+      "size": 8,
+      "triangle": false,
+      "airDiscard": 0,
+      "chance": 1.0,
+      "condition": 0,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_redstone_ore_feature",
+            "places_feature": "minecraft:redstone_ore_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld_generation"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 4,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "uniform",
+              "extent": [
+                -64,
+                15
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_redstone_ore_feature.json",
+        "sha256": "792a434112df156266c2727f2c2aa31f224d91fb8643e23603a60cee8975d26f"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:redstone_ore_feature"
+          },
+          "count": 8,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:redstone_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_redstone_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.17.0/features/redstone_ore_feature.json",
+        "sha256": "a64f16a146de4f3ebf73d271f24117a7f33e47da07ac43928b950103a85e121e"
+      }
+    },
+    {
+      "identifier": "minecraft:overworld_underground_redstone_ore_lower_feature",
+      "type": 5,
+      "attempts": 8,
+      "low": -96,
+      "high": -32,
+      "size": 8,
+      "triangle": true,
+      "airDiscard": 0,
+      "chance": 1.0,
+      "condition": 0,
+      "rule": {
+        "kind": "minecraft:feature_rules",
+        "value": {
+          "description": {
+            "identifier": "minecraft:overworld_underground_redstone_ore_lower_feature",
+            "places_feature": "minecraft:redstone_ore_feature"
+          },
+          "conditions": {
+            "placement_pass": "underground_pass",
+            "minecraft:biome_filter": [
+              {
+                "any_of": [
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld"
+                  },
+                  {
+                    "test": "has_biome_tag",
+                    "operator": "==",
+                    "value": "overworld_generation"
+                  }
+                ]
+              }
+            ]
+          },
+          "distribution": {
+            "iterations": 8,
+            "coordinate_eval_order": "zyx",
+            "x": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            },
+            "y": {
+              "distribution": "triangle",
+              "extent": [
+                -96,
+                -32
+              ]
+            },
+            "z": {
+              "distribution": "uniform",
+              "extent": [
+                0,
+                16
+              ]
+            }
+          }
+        },
+        "source": "vanilla_1.18.0/feature_rules/overworld_underground_redstone_ore_lower_feature.json",
+        "sha256": "a384ccae8e3a5d8f68efbd70a93f7120f125d1dbbb7090e5826f20e5e91d2974"
+      },
+      "feature": {
+        "kind": "minecraft:ore_feature",
+        "value": {
+          "description": {
+            "identifier": "minecraft:redstone_ore_feature"
+          },
+          "count": 8,
+          "replace_rules": [
+            {
+              "places_block": "minecraft:redstone_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:stone"
+                }
+              ]
+            },
+            {
+              "places_block": "minecraft:deepslate_redstone_ore",
+              "may_replace": [
+                {
+                  "name": "minecraft:deepslate"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "vanilla_1.17.0/features/redstone_ore_feature.json",
+        "sha256": "a64f16a146de4f3ebf73d271f24117a7f33e47da07ac43928b950103a85e121e"
+      }
+    }
+  ]
+}

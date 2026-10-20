@@ -1,0 +1,52 @@
+# 构建 Windows LL 模组
+
+需要 Windows x64、Visual Studio C++ Build Tools、LLVM/clang-cl、xmake、
+Python 3.13（安装 NumPy）和 Node.js 24。将 `xmake`、`clang-cl`、`python`、`node` 加入 PATH。
+使用完整 Node.js 官方发行包，保留 `node.exe` 旁的 `LICENSE` 文件，打包时会一同带入。
+构建器会获取 LeviLamina **26.20.7 客户端 SDK**、LeviBuildScript 和 nlohmann/json **3.12.0**。
+
+在仓库根目录运行：
+
+```powershell
+python -m pip install numpy
+./build.ps1 -OutputDirectory ../shan-hai-build
+```
+
+输出目录包含：
+
+- `client/windows/x64/release/karma-worldgen-client.dll`：客户端模组。
+- `kernel/windows/x64/release/native-worldgen-check.exe`：种子生成所需的计算程序。
+- `runtime/`：打包后的种子生成依赖。
+- `ShanHai-Windows-0.1.0.zip`：完整安装包。
+
+安装时使用 ZIP，单独的 DLL 缺少运行依赖。GitHub Actions 中也可手动运行 **Windows LL** 构建工作流；
+构建产物不会自动发布到 Releases。
+
+## 源码布局
+
+| 目录 | 用途 |
+| --- | --- |
+| `src/native` | 地形、植被、矿石与洞穴内核 |
+| `src/rules` | 结构选址、地基、道路和放置规则 |
+| `src` | 区块生成、缓存、调度和运行时接入 |
+| `experiments/vanilla-structure-runtime` | 编译进客户端的结构运行时，保留原目录以维持包含关系 |
+| `ports/windows-client` | Windows 游戏接口、新建世界与种子服务 |
+| `tools` | 种子与水系准备，包括 Python 和 JavaScript 依赖 |
+| `data` | 生成规则模板 |
+| `tests` | 内核及结构回归检查；空白世界模板用于创建世界 |
+
+源码中的共享实现保留服务端兼容代码，但本仓库不发布服务端插件或安卓安装包。
+修改地形规则前应了解缓存标识及已有区块的持久化行为。
+
+## 检查
+
+世界封装检查不需要启动游戏：
+
+```powershell
+$env:PYTHONPATH = (Join-Path $PWD "tools")
+python -B ports/windows-client/test_world_package.py
+```
+
+`build_runtime.py` 会使用打包的 Python 解释器检查运行时导入；
+`package_windows.py` 会逐项核对运行时文件的 SHA-256。
+这些检查不能代替游戏内地形和结构的验收。

@@ -1,0 +1,55 @@
+{
+  "format_version": 3,
+  "format_uuid": "289f771f-2c9a-4d73-9f3f-8492495a924d",
+  "tooth": "github.com/troveminecraft/ShanHai",
+  "version": "0.1.0",
+  "info": {
+    "name": "山&海",
+    "description": "Minecraft 基岩版 Windows LL 地形生成模组",
+    "tags": [
+      "platform:levilamina",
+      "type:mod",
+      "worldgen",
+      "terrain"
+    ],
+    "avatar_url": "https://raw.githubusercontent.com/troveminecraft/ShanHai/main/docs/assets/shan-hai.png"
+  },
+  "variants": [
+    {
+      "label": "client",
+      "platform": "win-x64",
+      "dependencies": {
+        "github.com/LiteLDev/LeviLamina#client": "26.20.7"
+      },
+      "assets": [
+        {
+          "type": "zip",
+          "urls": [
+            "https://{{tooth}}/releases/download/v{{version}}/ShanHai-Windows-{{version}}.zip"
+          ],
+          "placements": [
+            {
+              "type": "dir",
+              "src": "karma-worldgen-client/",
+              "dest": "mods/karma-worldgen-client/"
+            }
+          ]
+        }
+      ],
+      "preserve_files": [
+        "mods/karma-worldgen-client/client-config.json"
+      ],
+      "remove_files": [],
+      "scripts": {
+        "pre_install": [],
+        "install": [],
+        "post_install": [],
+        "pre_pack": [],
+        "post_pack": [],
+        "pre_uninstall": [],
+        "uninstall": [],
+        "post_uninstall": []
+      }
+    }
+  ]
+}
