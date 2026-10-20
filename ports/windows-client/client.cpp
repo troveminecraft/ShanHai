@@ -48,6 +48,12 @@ void writeStatus(Level&level,bool closed=false){
   {"structureErrors",lab::stageErrors.load()},{"entityLedgerReady",lab::entityLedgerReady.load()},
   {"ticks",sessionTicks},{"closed",closed},{"worldPath",terrain::worldPath().string()}};
  status["tickErrors"]=tickErrors;
+ status["structurePaused"]=lab::structureStageFailed.load();
+ status["structureLock"]={{"acquisitions",lab::stageMutex.acquisitions.load()},
+  {"waitNs",lab::stageMutex.waitNanos.load()},{"holdNs",lab::stageMutex.holdNanos.load()}};
+ status["streaming"]={{"loadRequests",terrain::loadRequests},{"ready",terrain::loadReady},
+  {"pending",terrain::pendingLoads.size()},{"gapRepairs",terrain::viewGapRepairs},
+  {"gapResolved",terrain::viewGapResolved},{"priorityBoosts",terrain::priorityBoosts.load()}};
  status["villageTemplatesReady"]=lab::villageTemplatesReady;
  status["fossilTemplatesReady"]=lab::fossilTemplatesReady;
  status["players"]=Json::array();
@@ -62,6 +68,8 @@ void clearWorld(Level* level){
  terrain::unboundedWorld=false;
  terrain::requested=false;terrain::view.reset();terrain::playerStreams.clear();
  terrain::glacierWeatherPlayers.clear();terrain::streamingPolicy=nullptr;
+ terrain::streamingFocus.store(std::make_shared<std::vector<terrain::StreamFocus> const>());
+ terrain::streamTicks=0;terrain::logTicks=0;
  terrain::cacheWriter.stop();for(auto&r:terrain::runtimes)r.stop();
  terrain::memoryCache.clear();terrain::palette.clear();terrain::biomes.clear();
  terrain::registryOnce=std::make_unique<std::once_flag>();
@@ -70,6 +78,7 @@ void clearWorld(Level* level){
  std::lock_guard lock(lab::stageMutex);
  lab::structurePalette.reset();lab::cityNaturalBlockCache.clear();
  lab::extraPlans.clear();lab::extraDelegates.clear();lab::prefilteredChunks.clear();
+ lab::clearPrefillWorkers();
  lab::cityNeighbourCache.clear();lab::cityLinks.clear();
  lab::villages.clear();lab::iglooPopulationPlans.clear();lab::automaticBlueprints.clear();lab::vegetationPairs.clear();
  lab::pending.reset();lab::pendingIgloo.reset();lab::nativeEntityJobs.clear();
@@ -117,7 +126,7 @@ void bindWorld(Level&level,std::string const&name,LevelSettings const&settings){
  lab::folder=terrain::Base/"structures";std::filesystem::create_directories(lab::folder);
  lab::initialize();
  {std::lock_guard lock(lab::stageMutex);lab::initializeSmallHistory();lab::initializeFossilJournal();lab::initializeEntityLedger();}
- current=&level;terrain::active=true;lab::automaticStructures=true;lab::smallFeaturesEnabled=true;
+ current=&level;terrain::active=true;lab::structureStageFailed=false;lab::automaticStructures=true;lab::smallFeaturesEnabled=true;
  terrain::generated=0;terrain::errors=0;terrain::mainThread=GetCurrentThreadId();
  sessionTicks=0;tickErrors=0;lab::stageCalls=0;lab::stageErrors=0;
  terrain::log().info("Karma client ready: seed={} kernel={} bounds={}",seed,NativeRuntime::KernelVersion,terrain::unboundedWorld?"infinite":"saved world bounds");
@@ -174,7 +183,9 @@ public:
  }
  bool enable(){
   creation::enable();
+  terrain::calibrateStreamingPriority();
   WorldOpen::hook();WorldClose::hook();terrain::Generate::hook();
+  terrain::ObserveLoad::hook();terrain::StreamPriority::hook();
   lab::SurfaceMapProbe::hook();lab::VillageHeightProbe::hook();lab::ModernGround::hook();
   lab::VillageBuilderDepth::hook();lab::VillageBuilderBudget::hook();
   lab::ShipGround::hook();lab::ShipGroundLegacy::hook();lab::PortalGround::hook();lab::RuinGround::hook();
@@ -188,6 +199,7 @@ public:
    ++sessionTicks;
    try{
     lab::tickIglooEntities(e.level());lab::tickStructureEntities(e.level());
+    terrain::updatePlayerStreaming(e.level());terrain::pollLoads(e.level());
     terrain::glacierWeatherTick(e.level());
    }catch(std::exception const&ex){if(++tickErrors==1||tickErrors%200==0)terrain::log().error("Karma client tick ({} errors): {}",tickErrors,ex.what());}
    if(sessionTicks%100==0)writeStatus(e.level());
@@ -199,6 +211,7 @@ public:
   creation::disable();
   ll::event::EventBus::getInstance().removeListener(listener);
   WorldOpen::unhook();WorldClose::unhook();terrain::Generate::unhook();
+  terrain::ObserveLoad::unhook();terrain::StreamPriority::unhook();
   lab::Mod::getInstance().disable();return true;
  }
  bool unload(){return !current;}

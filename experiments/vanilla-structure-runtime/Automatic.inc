@@ -1,6 +1,16 @@
-// Research adapter: native chunk decoration phase, before the chunk becomes Loaded.
-// Do not access GridArea fields: the distributed SDK layout differs from this BDS.
-std::mutex stageMutex;
+// Native chunk decoration, before a chunk can become Loaded.
+worldgen_rules::StructureStageMutex stageMutex;
+std::atomic_bool structureStageFailed=false;
+void reportStructureFailure(std::string_view phase, std::exception const& error) {
+
+ if(structureStageFailed.exchange(true))return;
+ auto message=std::string(phase)+": "+error.what();
+ ll::mod::NativeMod::current()->getLogger().error(
+  "Structure generation paused; unfinished chunks will not be accepted: {}",message);
+ std::ofstream out(folder/"structure-failure.txt");
+ out<<message<<"\nRestart after correcting the cause; do not remove the mod from this world.\n";
+ out.flush();
+}
 extern J entityLedger;
 std::atomic_bool entityLedgerReady=false;
 bool villageActorChunk(StructureStart*,BoundingBox const&);
@@ -94,13 +104,14 @@ TerrainScatteredFeature& registeredFeature(Dimension& dim){
  auto f=std::make_unique<TerrainScatteredFeature>(structureSeed(dim));auto* p=f.get();ownedNativeFeatures.insert(p);scatteredFeatureRecord=p;registry->mStructureFeatures->push_back(std::move(f));return *p;
 }
 std::optional<ChunkPos> stageCenter(ChunkViewSource& view){
- // BDS 1.26.20.5: actual GridArea has an 8-byte prefix absent from SDK.
- // Only copy its bounds; validate dimensions, coordinate range and native center.
- // Never dereference SDK vector fields (the earlier observer exposed the mismatch).
- auto& area=view.getArea();std::array<int,6> bounds{};
- std::memcpy(bounds.data(),reinterpret_cast<char const*>(&area)+0xc8,24);
- if(bounds[3]-bounds[0]!=2||bounds[5]-bounds[2]!=2||bounds[1]!=0||bounds[4]!=0||std::abs(bounds[0])>1000000||std::abs(bounds[2])>1000000)throw std::runtime_error("Native neighborhood ABI mismatch");
- ChunkPos cp{bounds[0]+1,bounds[2]+1};if(!view.$getExistingChunk(cp))throw std::runtime_error("Native center is absent");return cp;
+ Random probeRandom(0u,true);
+ auto probe=view.$getRandomChunk(probeRandom);
+ if(!probe)throw std::runtime_error("Native decoration view is empty");
+ auto p=probe->getPosition();
+ auto [x,z]=worldgen_rules::decorationCenter(p.x,p.z,[&](int x,int z){
+  return bool(view.$getExistingChunk({x,z}));
+ });
+ return ChunkPos{x,z};
 }
 AutoBlueprint& autoBlueprint(Dimension& dim,ChunkPos candidate,uint seed){
  auto key=std::pair{candidate.x,candidate.z};if(auto it=automaticBlueprints.find(key);it!=automaticBlueprints.end())return it->second;
@@ -173,8 +184,10 @@ unsigned reserveTrees(BlockSource& blocks,ChunkPos cp,AutoBlueprint const& plan,
 #include "FrozenFossils.inc"
 #include "VillageDecor.inc"
 LL_TYPE_INSTANCE_HOOK(AutoStage,ll::memory::HookPriority::Normal,FlatWorldGenerator,&FlatWorldGenerator::$decorationPostProcessChunk,bool,ChunkViewSource& view){
+ if(!automaticStructures||mLevel->getLevelData().getLevelName()!=activeWorld)return origin(view);
+ if(structureStageFailed)return false;
  auto ok=origin(view);
- if(!automaticStructures||mLevel->getLevelData().getLevelName()!=activeWorld)return ok;
+ if(!ok)return false;
  ++stageCalls;
  StageTimer timer;
  try{
@@ -193,6 +206,7 @@ LL_TYPE_INSTANCE_HOOK(AutoStage,ll::memory::HookPriority::Normal,FlatWorldGenera
   if(!stored){dbKey.back()=char(LevelChunkTag::LegacyVersion);stored=db.hasKey(dbKey,DBHelpers::Category::Chunk);}
   if(stored){++savedStructureSkips;if(fossilPotential(*cp,seed))++fossilSavedSkips;}
   std::lock_guard guard(stageMutex);
+  if(structureStageFailed)return false;
   bool alreadyFiltered=prefilteredChunks.erase({cp->x,cp->z})>0;
   // Bound startup diagnostics; do not open a log file for every ordinary chunk.
   if(storageLogRows++<128)std::ofstream(folder/"automatic-storage-checks.jsonl",std::ios::app)<<J{{"chunk",{cp->x,cp->z}},{"stored",stored},{"world",mLevel->getLevelData().getLevelName()}}.dump()<<'\n';
@@ -232,7 +246,7 @@ LL_TYPE_INSTANCE_HOOK(AutoStage,ll::memory::HookPriority::Normal,FlatWorldGenera
    for(auto const&key:nearby){auto it=automaticBlueprints.find(key);if(it!=automaticBlueprints.end()&&it->second.start)occupied.push_back(*it->second.start->boundingBox);}
    auto tokens=view.enableBlockEntityAccess();BlockSource blocks(view,false,true);placeFrozenFossils(center->getDimension(),blocks,*cp,seed,occupied);if(smallPotential(*cp,seed))placeSmallFeatures(center->getDimension(),blocks,*cp,seed,occupied);
   }
- }catch(std::exception const&e){automaticStructures=false;++stageErrors;std::lock_guard guard(stageMutex);std::ofstream(folder/"automatic-errors.log",std::ios::app)<<e.what()<<'\n';return ok;}
+ }catch(std::exception const&e){++stageErrors;reportStructureFailure("decoration",e);return false;}
  return ok;
 }
 LL_TYPE_INSTANCE_HOOK(NativeLocate,ll::memory::HookPriority::Normal,FlatWorldGenerator,&FlatWorldGenerator::$findNearestStructureFeature,bool,HashedString type,BlockPos const& from,BlockPos& result,bool fresh,std::optional<HashedString> tag){

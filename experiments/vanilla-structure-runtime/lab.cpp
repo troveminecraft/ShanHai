@@ -25,6 +25,7 @@
 #include "rules/FrozenCapture.h"
 #include "rules/FrozenGround.h"
 #include "rules/StructureLifecycle.h"
+#include "rules/StructureStage.h"
 #include "rules/SmallFeaturePlan.h"
 #include "EntityLedgerStore.h"
 #include "ll/api/mod/NativeMod.h"
@@ -357,10 +358,10 @@ public:
   ll::mod::NativeMod::current()->getLogger().info("Structures follow terrain world={} seed={}; automatic={} (legacy config worldName is ignored)",activeWorld,activation.at("worldSeed").get<std::string>(),automaticStructures.load());
 #endif
   {std::lock_guard guard(stageMutex);initializeSmallHistory();initializeFossilJournal();initializeEntityLedger();}
-  SurfaceMapProbe::hook();VillageHeightProbe::hook();ModernGround::hook();VillageBuilderDepth::hook();VillageBuilderBudget::hook();ShipGround::hook();ShipGroundLegacy::hook();PortalGround::hook();RuinGround::hook();MineSupport::hook();MineWeb::hook();SeededStructureRead::hook();SeededStructureLayer::hook();SeededStructureSolid::hook();FragmentChunkWrite::hook();FragmentChunkFastWrite::hook();StructurePrefill::hook();AutoStage::hook();NativeLocate::hook();
+  structureStageFailed=false;SurfaceMapProbe::hook();VillageHeightProbe::hook();ModernGround::hook();VillageBuilderDepth::hook();VillageBuilderBudget::hook();ShipGround::hook();ShipGroundLegacy::hook();PortalGround::hook();RuinGround::hook();MineSupport::hook();MineWeb::hook();SeededStructureRead::hook();SeededStructureLayer::hook();SeededStructureSolid::hook();FragmentChunkWrite::hook();FragmentChunkFastWrite::hook();StructurePrefill::hook();AutoStage::hook();NativeLocate::hook();
   smallFeaturesEnabled=marker.value("smallFeatures",false);SmallWrite::hook();SmallWriteSimple::hook();SmallWriteFast::hook();FossilHeightXZ::hook();FossilHeightPos::hook();FossilCorners::hook();
   if(auto level=ll::service::getLevel()){warmMansionTemplates(*level);warmVillageTemplates(*level);warmFossilTemplates(*level);}entityTickListener=ll::event::EventBus::getInstance().emplaceListener<ll::event::ServerLevelTickEvent>([](auto&e){try{warmMansionTemplates(e.level());warmVillageTemplates(e.level());warmFossilTemplates(e.level());tickIglooEntities(e.level());tickStructureEntities(e.level());tickInteractionAudit(e.level());tickAtlasCatalog(e.level());
-}catch(std::exception const&ex){automaticStructures=false;++stageErrors;std::ofstream(folder/"automatic-errors.log",std::ios::app)<<ex.what()<<'\n';}});
+ }catch(std::exception const&ex){++stageErrors;reportStructureFailure("structure tick",ex);}});
 #ifndef KARMA_CLIENT
   registerStructureTest(marker);
 #endif
