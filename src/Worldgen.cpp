@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include "NativeRuntime.h"
+#include "HookTransaction.h"
 #include "WorldBounds.h"
 #include "WorldGenerationMode.h"
 #include "TerrainCacheIdentity.h"
@@ -454,9 +455,31 @@ void tick(Level& level){
  log().info("[按需探测完成] chunk=({},{}) 原来未保存={} 检查方块={} 错误={}；terrain release 释放测试加载范围",probeX,probeZ,missingSavedChunks,checked,errors.load());
 }
 // Apply to the plugin logger before initialization, covering console and file sinks.
-bool Mod::load(){log().setLevel(ll::io::LogLevel::Warn);try{readData();mainThread=GetCurrentThreadId();active=true;Generate::hook();ObserveLoad::hook();return true;}catch(std::exception const& e){calculatorFailure(e);}}
+bool Mod::load() {
+    log().setLevel(ll::io::LogLevel::Warn);
+    try {
+        readData();
+        mainThread = GetCurrentThreadId();
+        terrain_runtime::HookTransaction hooks;
+        hooks.add<Generate>("terrain::Generate");
+        hooks.add<ObserveLoad>("terrain::ObserveLoad");
+        active = true;
+        hooks.commit();
+        return true;
+    } catch (std::exception const& e) {
+        calculatorFailure(e);
+    }
+}
 bool Mod::enable(){
- calibrateStreamingPriority();StreamPriority::hook();registerTestAssist();
+ try {
+     calibrateStreamingPriority();
+     terrain_runtime::HookTransaction hooks;
+     hooks.add<StreamPriority>("terrain::StreamPriority");
+     hooks.commit();
+ } catch (std::exception const& e) {
+     calculatorFailure(e);
+ }
+ registerTestAssist();
  auto& cmd=ll::command::CommandRegistrar::getServerInstance().getOrCreateCommand("terrain","Fixed runtime terrain",CommandPermissionLevel::Owner);
  cmd.runtimeOverload().text("status").execute([](CommandOrigin const&,CommandOutput& out,ll::command::RuntimeCommand const&){writeReport();out.success("world={} mode=on-demand active={} seed={} 生成调用={} 自动全图预生成=false 加载请求={} 就绪={} 等待={} errors={}",worldName,active.load(),metadata.at("terrainSeed").get<std::string>(),generated.load(),loadRequests,loadReady,pendingLoads.size(),errors.load());});
  cmd.runtimeOverload().text("checkblocks").execute([](CommandOrigin const& origin,CommandOutput& out,ll::command::RuntimeCommand const&){

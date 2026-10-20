@@ -7,7 +7,7 @@ add_includedirs("../src")
 add_defines("NOMINMAX", "UNICODE")
 add_undefines("NDEBUG")
 add_cxflags("/EHsc", "/utf-8")
-for _, name in ipairs({"structure_stage", "shared_structure_lifecycle",
+for _, name in ipairs({"structure_stage", "structure_plan_store", "structure_prefill_workers", "hook_transaction", "shared_structure_lifecycle",
                       "view_gap_recovery", "bds_structure_binding",
                       "world_scoped_cache"}) do
     target(name)

@@ -15,12 +15,12 @@ namespace worldgen_rules {
 // A decoration view owns a complete 3x3 neighbourhood. Query the native view,
 // rather than reading an undocumented GridArea layout. The probe can be any
 // member of that neighbourhood; missing/extra members fail before placement.
-template<class Exists>
-std::pair<int, int> decorationCenter(int probeX, int probeZ, Exists exists) {
+template <class Exists> std::pair<int, int> decorationCenter(int probeX, int probeZ, Exists exists) {
     int loX = probeX, hiX = probeX, loZ = probeZ, hiZ = probeZ, count = 0;
     for (int z = probeZ - 2; z <= probeZ + 2; ++z) {
         for (int x = probeX - 2; x <= probeX + 2; ++x) {
-            if (!exists(x, z)) continue;
+            if (!exists(x, z))
+                continue;
             ++count;
             loX = std::min(loX, x);
             hiX = std::max(hiX, x);
@@ -35,28 +35,37 @@ std::pair<int, int> decorationCenter(int probeX, int probeZ, Exists exists) {
 
 // An absent hint only causes recomputation, never skipped terrain/structures.
 // std::set alone leaked hints for generated chunks that never reached decoration.
-template<class Key, size_t Capacity>
-class BoundedHints {
+template <class Key, size_t Capacity> class BoundedHints {
     static_assert(Capacity > 0);
     std::set<Key> keys;
     std::deque<Key> order;
-public:
+
+  public:
     void insert(Key key) {
-        if (!keys.insert(key).second) return;
+        if (!keys.insert(key).second)
+            return;
         order.push_back(std::move(key));
         while (order.size() > Capacity) {
             keys.erase(order.front());
             order.pop_front();
         }
     }
-    size_t erase(Key const& key) {
+    size_t erase(Key const &key) {
         auto removed = keys.erase(key);
-        if (removed) std::erase(order, key);
+        if (removed)
+            std::erase(order, key);
         return removed;
     }
-    bool contains(Key const& key) const { return keys.contains(key); }
-    size_t size() const { return keys.size(); }
-    void clear() { keys.clear(); order.clear(); }
+    bool contains(Key const &key) const {
+        return keys.contains(key);
+    }
+    size_t size() const {
+        return keys.size();
+    }
+    void clear() {
+        keys.clear();
+        order.clear();
+    }
 };
 
 // Native structure caches are mutable. Keep their lock explicit, and measure
@@ -65,7 +74,8 @@ class StructureStageMutex {
     using Clock = std::chrono::steady_clock;
     std::mutex mutex;
     Clock::time_point acquired;
-public:
+
+  public:
     std::atomic_uint64_t acquisitions{0}, waitNanos{0}, holdNanos{0};
     void lock() {
         auto began = Clock::now();
@@ -75,7 +85,8 @@ public:
         ++acquisitions;
     }
     bool try_lock() {
-        if (!mutex.try_lock()) return false;
+        if (!mutex.try_lock())
+            return false;
         acquired = Clock::now();
         ++acquisitions;
         return true;
@@ -85,4 +96,4 @@ public:
         mutex.unlock();
     }
 };
-}
+} // namespace worldgen_rules

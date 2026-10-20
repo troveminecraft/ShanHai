@@ -314,12 +314,14 @@ void enable(){
  if(!supportedFacetLayout()||!supportedSeedParser()){
   enabled=false;
   terrain::log().error("Karma new-world creation disabled: unsupported CreateNewWorldFacet ABI");
-  std::ofstream(modFolder/"creation-abi-error.txt")<<"Unsupported create-world ABI; existing Karma worlds remain available.";
-  return;
+  std::ofstream(modFolder/"creation-abi-error.txt")<<"Unsupported create-world ABI; module enable aborted.";
+  throw std::runtime_error("Unsupported create-world interface; module enable aborted");
  }
  std::error_code ignored;std::filesystem::remove(modFolder/"creation-abi-error.txt",ignored);
  std::ofstream(modFolder/"creation-abi.json")<<Json{{"supported",true},{"providerOffset",0x1f8},{"statusOffset",0x29}}.dump(2);
- CreateStage::hook();CreateFiles::hook();CreateFacetClose::hook();hooksInstalled=true;
+ terrain_runtime::HookTransaction hooks;
+ hooks.add<CreateStage>("CreateStage");hooks.add<CreateFiles>("CreateFiles");hooks.add<CreateFacetClose>("CreateFacetClose");
+ hooks.commit();hooksInstalled=true;
  terrain::log().info("Karma create-world ABI verified: provider=0x1f8, status=0x29");
 }
 void disable(){
