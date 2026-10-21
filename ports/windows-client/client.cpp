@@ -323,6 +323,7 @@ class Mod {
         hooks.add<lab::FragmentChunkWrite>("lab::FragmentChunkWrite");
         hooks.add<lab::FragmentChunkFastWrite>("lab::FragmentChunkFastWrite");
         hooks.add<lab::StructurePrefill>("lab::StructurePrefill");
+        hooks.add<lab::DecorationTask>("lab::DecorationTask");
         hooks.add<lab::AutoStage>("lab::AutoStage");
         hooks.add<lab::NativeLocate>("lab::NativeLocate");
         hooks.add<lab::SmallWrite>("lab::SmallWrite");

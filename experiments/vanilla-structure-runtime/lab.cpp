@@ -667,6 +667,7 @@ class Mod {
         hooks.add<FragmentChunkWrite>("FragmentChunkWrite");
         hooks.add<FragmentChunkFastWrite>("FragmentChunkFastWrite");
         hooks.add<StructurePrefill>("StructurePrefill");
+        hooks.add<DecorationTask>("DecorationTask");
         hooks.add<AutoStage>("AutoStage");
         hooks.add<NativeLocate>("NativeLocate");
         smallFeaturesEnabled = marker.value("smallFeatures", false);
@@ -1767,6 +1768,7 @@ class Mod {
         automaticStructures = false;
         NativeLocate::unhook();
         AutoStage::unhook();
+        DecorationTask::unhook();
         StructurePrefill::unhook();
         SurfaceMapProbe::unhook();
         VillageHeightProbe::unhook();

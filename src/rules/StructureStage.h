@@ -12,6 +12,27 @@
 #include <utility>
 
 namespace worldgen_rules {
+// Native decoration already supplies its owner. Keep it scoped to the exact
+// synchronous task/view; random chunk selection is not an ownership API.
+template <class View, class Chunk> class DecorationTaskScope {
+    inline static thread_local DecorationTaskScope const *current = nullptr;
+    DecorationTaskScope const *previous;
+    View const *view;
+    Chunk *owner;
+
+  public:
+    DecorationTaskScope(View const &view, Chunk &owner)
+        : previous(current), view(&view), owner(&owner) { current = this; }
+    DecorationTaskScope(DecorationTaskScope const &) = delete;
+    DecorationTaskScope &operator=(DecorationTaskScope const &) = delete;
+    ~DecorationTaskScope() { current = previous; }
+    static Chunk &ownerFor(View const &view) {
+        if (!current || current->view != &view)
+            throw std::runtime_error("Native decoration task context missing or view mismatched");
+        return *current->owner;
+    }
+};
+
 // A decoration view owns a complete 3x3 neighbourhood. Query the native view,
 // rather than reading an undocumented GridArea layout. The probe can be any
 // member of that neighbourhood; missing/extra members fail before placement.
@@ -31,6 +52,17 @@ template <class Exists> std::pair<int, int> decorationCenter(int probeX, int pro
     if (count != 9 || hiX - loX != 2 || hiZ - loZ != 2)
         throw std::runtime_error("Incomplete or unexpected native decoration neighbourhood");
     return {loX + 1, loZ + 1};
+}
+
+template <class View, class Chunk, class Position, class Lookup>
+Chunk &decorationTaskOwner(View const &view, Position position, Lookup lookup) {
+    auto &owner = DecorationTaskScope<View, Chunk>::ownerFor(view);
+    auto p = position(owner);
+    auto center = decorationCenter(p.first, p.second,
+                                   [&](int x, int z) { return lookup(x, z) != nullptr; });
+    if (center != p || lookup(p.first, p.second) != &owner)
+        throw std::runtime_error("Native decoration task owner disagrees with its neighbourhood");
+    return owner;
 }
 
 // An absent hint only causes recomputation, never skipped terrain/structures.

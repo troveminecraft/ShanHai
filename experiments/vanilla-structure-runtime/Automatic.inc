@@ -292,15 +292,13 @@ TerrainScatteredFeature &registeredFeature(Dimension &dim) {
     registry->mStructureFeatures->push_back(std::move(f));
     return *p;
 }
+using DecorationTaskContext = worldgen_rules::DecorationTaskScope<ChunkViewSource, LevelChunk>;
 std::optional<ChunkPos> stageCenter(ChunkViewSource &view) {
-    Random probeRandom(0u, true);
-    auto probe = view.$getRandomChunk(probeRandom);
-    if (!probe)
-        throw std::runtime_error("Native decoration view is empty");
-    auto p = probe->getPosition();
-    auto [x, z] = worldgen_rules::decorationCenter(
-        p.x, p.z, [&](int x, int z) { return bool(view.$getExistingChunk({x, z})); });
-    return ChunkPos{x, z};
+    auto &owner = worldgen_rules::decorationTaskOwner<ChunkViewSource,LevelChunk>(
+        view, [](LevelChunk &chunk) { auto p=chunk.getPosition(); return std::pair{p.x,p.z}; },
+        [&](int x,int z) { return view.$getExistingChunk({x,z}).get(); });
+    auto p = owner.getPosition();
+    return p;
 }
 AutoBlueprint &autoBlueprint(Dimension &dim, ChunkPos candidate, uint seed) {
     auto key = std::pair{candidate.x, candidate.z};
@@ -527,6 +525,12 @@ unsigned reserveTrees(BlockSource &blocks, ChunkPos cp, AutoBlueprint const &pla
 #include "SmallFeatures.inc"
 #include "FrozenFossils.inc"
 #include "VillageDecor.inc"
+LL_TYPE_INSTANCE_HOOK(DecorationTask, ll::memory::HookPriority::Normal, ChunkSource,
+                      &ChunkSource::_decorationPostProcessingTask, void,
+                      LevelChunk &owner, ChunkViewSource &view) {
+    DecorationTaskContext context(view, owner);
+    origin(owner, view);
+}
 LL_TYPE_INSTANCE_HOOK(AutoStage, ll::memory::HookPriority::Normal, FlatWorldGenerator,
                       &FlatWorldGenerator::$decorationPostProcessChunk, bool, ChunkViewSource &view) {
     if (!automaticStructures || mLevel->getLevelData().getLevelName() != activeWorld)
@@ -540,6 +544,8 @@ LL_TYPE_INSTANCE_HOOK(AutoStage, ll::memory::HookPriority::Normal, FlatWorldGene
     StageTimer timer;
     std::optional<std::array<int,2>> failureChunk;
     try {
+        auto position = DecorationTaskContext::ownerFor(view).getPosition();
+        failureChunk=std::array<int,2>{position.x,position.z};
         auto cp = stageCenter(view);
         if (!cp)
             throw std::runtime_error("No native center");

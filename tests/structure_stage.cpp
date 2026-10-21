@@ -2,6 +2,21 @@
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <map>
+
+struct Chunk { int x, z; };
+struct View {
+    std::map<std::pair<int,int>,Chunk> chunks;
+    // A random availability query need not expose a processing chunk.
+    Chunk *randomAvailableChunk() const { return nullptr; }
+    Chunk *lookup(int x,int z) { auto it=chunks.find({x,z}); return it==chunks.end()?nullptr:&it->second; }
+};
+using Task = worldgen_rules::DecorationTaskScope<View,Chunk>;
+Chunk &ownerFor(View &view) {
+    return worldgen_rules::decorationTaskOwner<View,Chunk>(view,
+        [](Chunk const &c) { return std::pair{c.x,c.z}; },
+        [&](int x,int z) { return view.lookup(x,z); });
+}
 
 void check(bool ok, char const *reason) {
     if (!ok)
@@ -9,6 +24,30 @@ void check(bool ok, char const *reason) {
 }
 int main() {
     try {
+        auto rejected=[](auto action) { try {action();} catch(std::runtime_error const&) {return true;} return false; };
+        View view;
+        for(int z=-5;z<=-3;++z)for(int x=-7;x<=-5;++x)view.chunks.emplace(std::pair{x,z},Chunk{x,z});
+        auto &owner=*view.lookup(-6,-4);
+        check(view.randomAvailableChunk()==nullptr,"fixture must reproduce unavailable random probe");
+        check(rejected([&]{ownerFor(view);}),"missing task accepted");
+        {
+            Task scope(view,owner);
+            check(&ownerFor(view)==&owner,"explicit processing owner lost when random probe is empty");
+            View other;
+            check(rejected([&]{ownerFor(other);}),"wrong view accepted task context");
+            auto nested=[&]{Task inner(other,owner);throw std::runtime_error("unwind");};
+            check(rejected(nested),"nested exception missing");
+            check(&ownerFor(view)==&owner,"nested exception did not restore task");
+            bool isolated=false;
+            std::thread worker([&]{isolated=rejected([&]{Task::ownerFor(view);});});worker.join();
+            check(isolated,"task context leaked across workers");
+            auto saved=view.chunks.extract({-7,-5});
+            check(rejected([&]{ownerFor(view);}),"incomplete neighbourhood accepted");
+            view.chunks.insert(std::move(saved));
+            Chunk impostor{-6,-4};
+            {Task wrong(view,impostor);check(rejected([&]{ownerFor(view);}),"wrong owner identity accepted");}
+        }
+        check(rejected([&]{ownerFor(view);}),"completed task context leaked");
         // Every possible native probe, including negative chunk coordinates.
         for (auto [cx, cz] : {std::pair{0, 0}, {-300, 70}, {1000000, -1000000}}) {
             for (int z = cz - 1; z <= cz + 1; ++z)

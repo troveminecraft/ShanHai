@@ -17,7 +17,7 @@ python -m pip install numpy
 - `client/windows/x64/release/karma-worldgen-client.dll`：客户端模组。
 - `kernel/windows/x64/release/native-worldgen-check.exe`：种子生成所需的计算程序。
 - `runtime/`：打包后的种子生成依赖。
-- `ShanHai-Windows-0.1.2.zip`：完整安装包。
+- `ShanHai-Windows-0.1.3.zip`：完整安装包。
 
 安装时使用 ZIP，单独的 DLL 缺少运行依赖。主线推送会运行 GitHub Actions，也可手动运行 **Windows LL** 构建工作流；
 构建产物不会自动发布到 Releases。
