@@ -16,13 +16,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - uses: xmake-io/github-action-setup-xmake@3a1a5dddfc7fa625d9a698738334bf55655a861a # v1
+        with:
+          xmake-version: '3.1.1'
       - name: Install build tools
         shell: pwsh
         run: |
-          choco install xmake llvm -y --no-progress
+          choco install llvm -y --no-progress
           if ($LASTEXITCODE) { throw 'Build tool installation failed' }
-          'C:\Program Files\xmake' | Out-File -FilePath $env:GITHUB_PATH -Append
           'C:\Program Files\LLVM\bin' | Out-File -FilePath $env:GITHUB_PATH -Append
+          xmake --version
           python -m pip install numpy
           if ($LASTEXITCODE) { throw 'NumPy installation failed' }
       - name: Runtime regression checks
@@ -36,3 +39,10 @@ jobs:
           name: ShanHai-Windows-0.1.2
           path: ${{ runner.temp }}/shan-hai-build/ShanHai-Windows-0.1.2.zip
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: validation-logs
+          path: |
+            ${{ runner.temp }}/shan-hai-test-results/host-tests.json
+            ~/AppData/Local/.xmake/cache/packages/**/logs/*.txt
