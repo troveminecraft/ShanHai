@@ -17,9 +17,9 @@ python -m pip install numpy
 - `client/windows/x64/release/karma-worldgen-client.dll`：客户端模组。
 - `kernel/windows/x64/release/native-worldgen-check.exe`：种子生成所需的计算程序。
 - `runtime/`：打包后的种子生成依赖。
-- `ShanHai-Windows-0.1.1.zip`：完整安装包。
+- `ShanHai-Windows-0.1.2.zip`：完整安装包。
 
-安装时使用 ZIP，单独的 DLL 缺少运行依赖。GitHub Actions 中也可手动运行 **Windows LL** 构建工作流；
+安装时使用 ZIP，单独的 DLL 缺少运行依赖。主线推送会运行 GitHub Actions，也可手动运行 **Windows LL** 构建工作流；
 构建产物不会自动发布到 Releases。
 
 ## 源码布局
@@ -43,11 +43,12 @@ python -m pip install numpy
 结构生命周期、布局检查点、钩子回滚与缓存检查：
 
 ```powershell
-./tests/run.ps1 -BuildDirectory O:\build\shan-hai-tests -OutputDirectory O:\build\shan-hai-results
+./tests/run.ps1 -BuildDirectory ../shan-hai-tests -OutputDirectory ../shan-hai-results
 ```
 
-两个植被计算器的并发一致性检查需要一份完整的 `native-input.json`，用测试输出中的
-`structure_prefill_workers.exe <native-input.json>` 运行。它只读输入，不进入游戏或修改存档。
+默认入口用仓内模板与 Node.js 重建三个输入（5、-1、有符号 64 位最大种子），运行列边界、调色板、错误上下文、创建进度、植被预留和既有生命周期测试，再比较两个独立计算器以相反顺序生成的区块及缓存重访结果。另运行 8 项 Python 进程与超时测试。
+
+测试输入是离线内核配方，使用种子默认地标，不能代替实际出生点选择或游戏内结构验收。`host-tests.json` 记录完成的用例；测试中的失败注入只是报错路径验证，不代表自然生成失败率。
 
 世界封装检查不需要启动游戏：
 

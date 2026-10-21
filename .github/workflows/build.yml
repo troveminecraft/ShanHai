@@ -1,6 +1,8 @@
 name: Windows LL
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 permissions:
   contents: read
 jobs:
@@ -31,6 +33,6 @@ jobs:
         run: ./build.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'shan-hai-build')
       - uses: actions/upload-artifact@v4
         with:
-          name: ShanHai-Windows-0.1.1
-          path: ${{ runner.temp }}/shan-hai-build/ShanHai-Windows-0.1.1.zip
+          name: ShanHai-Windows-0.1.2
+          path: ${{ runner.temp }}/shan-hai-build/ShanHai-Windows-0.1.2.zip
           if-no-files-found: error

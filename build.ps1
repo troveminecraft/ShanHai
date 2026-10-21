@@ -5,6 +5,10 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
+& $Python -c "import sys; assert sys.version_info[:2] == (3, 13), 'Python 3.13 required'"
+if ($LASTEXITCODE) { throw 'Python 3.13 required' }
+& $Python -B -X utf8 (Join-Path $root 'tools/check_palette_contract.py')
+if ($LASTEXITCODE) { throw 'Palette contract check failed' }
 $output = [IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $output) { throw 'Use a new, empty output directory.' }
 New-Item -ItemType Directory -Path $output | Out-Null
