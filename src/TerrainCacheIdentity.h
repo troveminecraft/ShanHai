@@ -8,6 +8,9 @@ inline nlohmann::json identity(nlohmann::json profile){
 }
 inline std::string identityText(nlohmann::json const&metadata){
  auto key=identity(metadata);
+ // Older saved profiles retain their original DLL hash. Invalidate derived
+ // chunks after the column-boundary fix without rewriting world identity.
+ key["nativeSafetyRevision"]=1;
  key["nativeInput"]=metadata.at("runtimeFiles").at("native/native-input.json");
  key["nativeBinary"]=metadata.at("pluginSha256");
  return key.dump();

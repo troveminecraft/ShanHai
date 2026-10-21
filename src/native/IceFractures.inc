@@ -45,19 +45,22 @@ KARMA_NOINLINE std::array<IceRiftColumn,256> glacierBody(int x0,int z0,std::vect
   // lowest ice floor stays above original ground and cannot open old caves.
   auto snowRift=snowRifts?riftSample(X,Z,snowSites):SnowRiftSample{};
   int top=s.height+int(std::floor(fade*(snowRifts?snowBodyLift(n,m,snowRift):std::max(3.,lift-(refinedGlaciers?12+4*m:24+5*m)*split))));
+  if(s.height < -64 || s.height > 319)throw std::out_of_range("Glacier surface outside world height");
+  top=std::min(top,319);
   auto col=raw.data()+i*Height;
-  if(closedIceRifts)planClosedRift(i,int(X),int(Z),top,s,snowRift,n,m);
   if(thinSnowRifts&&top<s.height){
    // Downcut into solid ground, keeping three blocks above any pre-existing
    // cave, aquifer, lava or bedrock. This is a short bounded column scan.
    top=std::max(-48,top);
-   for(int y=s.height;y>=top-3;--y){int b=col[y+64];if(b==0||b==1||b==8||b==43||b==126||b==145){top=std::max(top,y+3);break;}}
+   for(int y=s.height;y>=top-3;--y){int b=col[y+64];if(b==0||b==1||b==8||b==43||b==126||b==145){top=std::min(319,std::max(top,y+3));break;}}
    for(int y=s.height;y>top;--y)col[y+64]=0;
    for(int y=top-2;y<=top;++y)col[y+64]=uint16_t(y==top?9:144);
   }
   for(int y=s.height+1;y<=top;++y){int band=(y+int(6*n)+384)%18;
    col[y+64]=uint16_t(refinedGlaciers ? (y>=top-1?9:band<3?144:143) : y==top&&edge>8&&s.iceSnow?7:band<3?144:143);
   }
+  // Geometry and subsequent carving must use the final bounded body height.
+  if(closedIceRifts)planClosedRift(i,int(X),int(Z),top,s,snowRift,n,m);
   out[i]={top,edge,fade*split,n};
  }
  return out;

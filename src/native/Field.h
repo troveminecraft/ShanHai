@@ -257,6 +257,7 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
  Surface surface(int x,int z,bool slope=true){if(evaluatingSmallPool){auto s=computeSurface(x,z,false);if(slope)surfaceRock(s,x,z);return s;}auto s=skinCache.get(key2(x,z),[&]{return computeSurface(x,z,false);});if(slope)surfaceRock(s,x,z);return s;}
  std::vector<std::array<int,3>> caveFalls(int cx,int cz){return cavernGroups.waterfallCandidates(cx,cz,[&](int X,int Z){return cavernHeight(X,Z);});}
  void materialColumn(Surface const&s,int x,int z,int top,uint16_t*col){
+ if(top < -64 || top > 319 || s.height < -64 || s.height > 319)throw std::out_of_range("Material column outside world height");
   int next=-60;
   if(groupedCaverns&&boundedAquifers&&waterEnabled&&s.volcanic<=0){
    // Deep uncut rock is uniform before the geology pass. Fill it once, then

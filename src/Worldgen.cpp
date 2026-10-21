@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include "NativeRuntime.h"
+#include "PaletteContract.h"
 #include "HookTransaction.h"
 #include "WorldBounds.h"
 #include "WorldGenerationMode.h"
@@ -205,7 +206,7 @@ std::string sha256(std::vector<uint8_t> const& data){
 }
 #include "NativeCache.inc"
 void readData(){
- metadata=jsonFile(Base/"terrain.json");activation=jsonFile(Base/"active-world.json");worldName=activation.at("worldName").get<std::string>();
+ metadata=jsonFile(Base/"terrain.json");terrain_runtime::validatePaletteContract(metadata);activation=jsonFile(Base/"active-world.json");worldName=activation.at("worldName").get<std::string>();
  std::ifstream profileFile(Base/"profile.json",std::ios::binary);std::vector<uint8_t> profile((std::istreambuf_iterator<char>(profileFile)),{});
  auto expectedProfile=metadata;expectedProfile.erase("sha256");
  if(sha256(profile)!=metadata.at("sha256").get<std::string>()||Json::parse(profile)!=expectedProfile)throw std::runtime_error("Runtime metadata checksum mismatch");
@@ -329,7 +330,7 @@ void fill(LevelChunk& lc,Chunk const& c){
  BlockVolume volume({blocks.data(),blocks.data()+blocks.size()},16,Height,16,*palette[0],-64);
  auto stride=volume.indexNoBoundsCheck(BlockPos{0,1,0})-volume.indexNoBoundsCheck(BlockPos{0,0,0});
  for(int z=0;z<16;z++)for(int x=0;x<16;x++){
-  column(c,z*16+x,[&](int y,int len,int b){auto first=volume.indexNoBoundsCheck(BlockPos{x,y,z});if(first+(len-1)*stride>=blocks.size())throw std::runtime_error("Block volume index out of bounds");if(stride==1)std::fill_n(blocks.begin()+first,len,palette[b]);else for(int j=0;j<len;j++)blocks[first+j*stride]=palette[b];});
+  column(c,z*16+x,[&](int y,int len,int b){if(y < -64 || y > 319 || len <= 0 || len > 320-y || b < 0 || size_t(b) >= palette.size())throw std::runtime_error("Invalid decoded block column");auto first=volume.indexNoBoundsCheck(BlockPos{x,y,z});if(first+(len-1)*stride>=blocks.size())throw std::runtime_error("Block volume index out of bounds");if(stride==1)std::fill_n(blocks.begin()+first,len,palette[b]);else for(int j=0;j<len;j++)blocks[first+j*stride]=palette[b];});
  }
  // A void chunk reconstructed by DBChunkStorage can have an empty/moved biome
  // vector while retaining a nonzero stack size. _setBiome(fillY=true) assumes

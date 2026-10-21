@@ -50,8 +50,8 @@ KARMA_NOINLINE void landscapePass(int x0,int z0,std::vector<uint16_t>&raw,std::a
    for(auto const&a:sites)if(a.type==3){double dx=X-a.x,dz=Z-a.z,u=dx*std::cos(a.angle)+dz*std::sin(a.angle),v=-dx*std::sin(a.angle)+dz*std::cos(a.angle)-1.2*std::sin(u/7.);
     if(u<0||u>24||std::abs(v)>2.8)continue;
     int span=int(std::floor(2.8*std::sqrt(std::max(0.,1-v*v/7.84))));
-    for(int y=a.y+int(u*.9)-span;y<=a.y+int(u*.9)+span;++y)if(detailIce(col[y+64])||undergroundRock(col[y+64])||(col[y+64]>=146&&col[y+64]<=148))col[y+64]=0;
-    for(int y:{a.y+int(u*.9)-span-1,a.y+int(u*.9)+span+1})if(undergroundRock(col[y+64]))col[y+64]=143;
+    for(int y=std::max(-64,a.y+int(u*.9)-span);y<=std::min(319,a.y+int(u*.9)+span);++y)if(detailIce(col[y+64])||undergroundRock(col[y+64])||(col[y+64]>=146&&col[y+64]<=148))col[y+64]=0;
+    for(int y:{a.y+int(u*.9)-span-1,a.y+int(u*.9)+span+1})if(y>=-64&&y<=319&&undergroundRock(col[y+64]))col[y+64]=143;
    }
    // Layer colour on existing walls; never fill crevasses or replace fluids.
    if(s.superGlacier>.5&&rift.valid){
@@ -78,7 +78,8 @@ KARMA_NOINLINE void landscapePass(int x0,int z0,std::vector<uint16_t>&raw,std::a
     col[top+64]=0;--top;col[top+64]=9;
    }
    if(s.superGlacier<.3&&wind<-.80&&broad>.05){
-    int rise=1+int(wind<-.97&&fine>.05);
+    // Reserve the snow cap inside this column; never spill into the next column.
+    int rise=std::min(1+int(wind<-.97&&fine>.05),318-top);
     if(col[top+65]>=146&&col[top+65]<=148)col[top+65]=0;
     for(int y=1;y<=rise;++y)col[top+y+64]=143;
     col[top+rise+65]=146;
@@ -89,7 +90,7 @@ KARMA_NOINLINE void landscapePass(int x0,int z0,std::vector<uint16_t>&raw,std::a
     double dx=X-a.x,dz=Z-a.z,q=std::hypot(dx,dz)/(a.radius*(1+.12*fine));
     if(q>=.88||std::abs(top-a.y)>6)continue;
     bool sealed=true;for(int y=a.y-3;y<=top;++y)sealed&=detailIce(col[y+64]);if(!sealed)continue;
-    for(int y=a.y+1;y<=top+2;++y)if(detailIce(col[y+64])||(col[y+64]>=146&&col[y+64]<=148))col[y+64]=0;
+    for(int y=a.y+1;y<=std::min(319,top+2);++y)if(detailIce(col[y+64])||(col[y+64]>=146&&col[y+64]<=148))col[y+64]=0;
     col[a.y+64]=9;col[a.y+63]=q<.6?8:143;col[a.y+62]=143;
    }
   }else if(s.volcanic>.2&&s.height<280){

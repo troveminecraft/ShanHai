@@ -1,3 +1,4 @@
+set_targetdir(path.absolute(path.join(get_config("builddir") or "build", "$(plat)/$(arch)/$(mode)"), os.projectdir()))
 add_rules("mode.debug", "mode.release")
 set_languages("c++20")
 set_toolchains("clang-cl")
@@ -7,7 +8,7 @@ add_includedirs("../src")
 add_defines("NOMINMAX", "UNICODE")
 add_undefines("NDEBUG")
 add_cxflags("/EHsc", "/utf-8")
-for _, name in ipairs({"structure_stage", "structure_plan_store", "structure_prefill_workers", "hook_transaction", "shared_structure_lifecycle",
+for _, name in ipairs({"kernel_bounds", "palette_contract", "structure_stage", "structure_plan_store", "structure_prefill_workers", "hook_transaction", "shared_structure_lifecycle",
                       "view_gap_recovery", "bds_structure_binding",
                       "world_scoped_cache"}) do
     target(name)

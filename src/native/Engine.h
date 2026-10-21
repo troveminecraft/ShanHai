@@ -16,6 +16,7 @@ struct Giant {
 struct Structure {int x=0,z=0,type=-1;double e=0;};
 struct SmallTree {int x,z,h,type;double radius,ground;};
 class Engine {
+ friend struct EngineBoundaryTest; // Offline regression exercises the production passes.
  std::vector<std::array<int,4>> nativeReservations;
  bool forestDesign=false,sealedFluidsEnabled=false,gradualIceEcotone=false;
  double iceVegetation(Surface const&s)const{return gradualIceEcotone?1-smooth(.06,.60,s.iceHabitat):1.;}
