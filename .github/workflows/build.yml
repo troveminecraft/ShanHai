@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: windows-2025-vs2026
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,12 +19,17 @@ jobs:
       - uses: xmake-io/github-action-setup-xmake@3a1a5dddfc7fa625d9a698738334bf55655a861a # v1
         with:
           xmake-version: '3.1.1'
+          package-cache: true
+          project-path: ports/windows-client
       - name: Install build tools
         shell: pwsh
         run: |
-          choco install llvm -y --no-progress
-          if ($LASTEXITCODE) { throw 'Build tool installation failed' }
-          'C:\Program Files\LLVM\bin' | Out-File -FilePath $env:GITHUB_PATH -Append
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $vs = & $vswhere -latest -products '*' -version '[18.0,19.0)' -property installationPath
+          $llvm = Join-Path $vs 'VC/Tools/Llvm/x64/bin'
+          if (!(Test-Path (Join-Path $llvm 'clang-cl.exe'))) { throw 'Visual Studio 2026 LLVM is required' }
+          $llvm | Out-File -FilePath $env:GITHUB_PATH -Append
+          & (Join-Path $llvm 'clang-cl.exe') --version
           xmake --version
           python -m pip install numpy
           if ($LASTEXITCODE) { throw 'NumPy installation failed' }
@@ -39,10 +44,21 @@ jobs:
           name: ShanHai-Windows-0.1.2
           path: ${{ runner.temp }}/shan-hai-build/ShanHai-Windows-0.1.2.zip
           if-no-files-found: error
+      - name: Collect validation diagnostics
+        if: always()
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'validation-logs'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          $receipt = Join-Path $env:RUNNER_TEMP 'shan-hai-test-results/host-tests.json'
+          if (Test-Path $receipt) { Copy-Item -LiteralPath $receipt -Destination $out }
+          $i = 0
+          Get-ChildItem -LiteralPath (Join-Path $env:LOCALAPPDATA '.xmake/cache/packages') -Recurse -File -Filter install.txt -ErrorAction SilentlyContinue | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $out ("install-" + $i + ".txt"))
+            $i++
+          }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: validation-logs
-          path: |
-            ${{ runner.temp }}/shan-hai-test-results/host-tests.json
-            ~/AppData/Local/.xmake/cache/packages/**/logs/*.txt
+          path: ${{ runner.temp }}/validation-logs
