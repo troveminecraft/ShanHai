@@ -5,6 +5,14 @@ int main() {
     using namespace terrain_runtime;
     try {
         validatePaletteContract(paletteContract());
+        validateColumnRun(0,384,167,168);
+        validateColumnRun(383,1,0,168);
+        validateColumnRun(319,65,1,168);
+        for(auto run: {std::array{-1,1,0},std::array{384,1,0},std::array{383,2,0},std::array{0,384,168}}){
+            bool rejected=false;
+            try{validateColumnRun(run[0],run[1],run[2],168);}catch(std::exception const&){rejected=true;}
+            if(!rejected)throw std::runtime_error("Invalid fill run accepted");
+        }
         auto reject=[](auto data) {
             try {validatePaletteContract(data);}
             catch(std::exception const&) {return;}

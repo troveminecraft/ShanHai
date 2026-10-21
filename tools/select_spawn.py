@@ -3,31 +3,58 @@ from pathlib import Path
 import json,subprocess,struct,hashlib,tempfile
 P=Path(__file__).resolve().parents[1]
 
+from process_guard import launch_options, stop_tree, tail, run_checked
+import queue, threading, time
+
 class NativeQuery:
- def __init__(self,exe,source):
-  self.errors=tempfile.TemporaryFile(mode='w+t',encoding='utf-8')
-  self.process=subprocess.Popen([str(exe),str(source)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,
-   stderr=self.errors,text=True,encoding='utf-8',bufsize=1)
+ def __init__(self,exe,source,timeout=120,total_timeout=900):
+  self.timeout=timeout;self.deadline=time.monotonic()+total_timeout
+  self.errors=tempfile.TemporaryFile()
+  try:
+   self.process=subprocess.Popen([str(exe),str(source)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,
+    stderr=self.errors,text=True,encoding='utf-8',bufsize=1,**launch_options())
+  except OSError:
+   self.errors.close();raise
+  self.requests=queue.Queue();self.answers=queue.Queue()
+  self.thread=threading.Thread(target=self._exchange,daemon=True);self.thread.start()
+ def _exchange(self):
+  try:
+   while True:
+    request=self.requests.get()
+    if request is None:break
+    self.process.stdin.write(json.dumps(request)+'\n');self.process.stdin.flush()
+    line=self.process.stdout.readline()
+    if not line:raise BrokenPipeError('Terrain worker ended before answering')
+    self.answers.put((True,json.loads(line)))
+  except Exception as error:self.answers.put((False,error))
+  finally:
+   try:self.process.stdin.close()
+   except OSError:pass
  def __enter__(self):return self
  def __call__(self,requests):
   result=[]
   for request in requests:
-   try:
-    self.process.stdin.write(json.dumps(request)+'\n');self.process.stdin.flush()
-    line=self.process.stdout.readline()
-    if not line:raise BrokenPipeError('Terrain worker ended before answering')
-    result.append(json.loads(line))
-   except (BrokenPipeError,OSError):
-    self.errors.seek(0);raise RuntimeError('Terrain worker failed: '+self.errors.read())
+   self.requests.put(request)
+   try:ok,answer=self.answers.get(timeout=max(0,min(self.timeout,self.deadline-time.monotonic())))
+   except queue.Empty:
+    stop_tree(self.process)
+    raise RuntimeError(f'Spawn sampling timed out; helper stopped; request={request}. '+tail(self.errors))
+   if not ok:
+    stop_tree(self.process)
+    raise RuntimeError(f'Terrain worker failed; request={request}: {answer}. '+tail(self.errors))
+   result.append(answer)
   return result
  def __exit__(self,*args):
+  self.requests.put(None)
   try:
-   self.process.stdin.close()
    try:self.process.wait(timeout=2)
-   except subprocess.TimeoutExpired:self.process.kill();self.process.wait()
-  finally:self.process.stdout.close();self.errors.close()
+   except subprocess.TimeoutExpired:stop_tree(self.process)
+  finally:
+   self.thread.join(timeout=2)
+   self.process.stdout.close();self.errors.close()
 def query(exe,source,requests):
- r=subprocess.run([str(exe),str(source)],input=''.join(json.dumps(q)+'\n' for q in requests),text=True,capture_output=True,check=True)
+ r=run_checked([str(exe),str(source)],input=''.join(json.dumps(q)+'\n' for q in requests),
+               capture_output=True,timeout=300,stage='native terrain query')
  return [json.loads(line) for line in r.stdout.splitlines()]
 def columns(path):
  b=path.read_bytes();assert b[:4]==b'KW2\0';pos=260;out=[]

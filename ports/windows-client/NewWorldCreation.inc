@@ -8,6 +8,7 @@
 #include "mc/client/gui/screens/interfaces/ISceneStack.h"
 #include "mc/client/gui/screens/models/IContentManager.h"
 #include "NewWorldFiles.h"
+#include "NewWorldStatus.h"
 
 namespace client::creation {
 using Facet=OreUI::CreateNewWorldFacet_DEPRECATED;
@@ -85,18 +86,28 @@ struct Job {
   MoveFileExW(tmp.c_str(),(path/"status.json").c_str(),MOVEFILE_REPLACE_EXISTING);
   trace("cancelled");
  }
+ void fail(std::string message){
+  failed=true;phase=std::move(message);
+  cancel(); // This job owns only preparation helpers, never the game process.
+  try {terrain::log().error("Create world seed={}: {}",seed,phase);} catch(...) {}
+  try { std::ofstream(path/"failure.json")<<Json{{"stage","world-preparation"},{"seed",seed},
+   {"version",terrain::jsonFile(modFolder/"manifest.json").value("version",std::string{})},
+   {"reason",phase},{"worldCreated",false},{"action","Retry preparation after correcting the cause"}}.dump(2); } catch(std::exception const&) {}
+  try {trace("failed");} catch(...) {}
+ }
  void poll(){
   auto now=std::chrono::steady_clock::now();
   if(ready||failed||cancelled||now-lastPoll<std::chrono::milliseconds(200))return;
   lastPoll=now;
+  if(now-started>std::chrono::minutes(30)){fail("世界准备超过 30 分钟，已停止准备进程。请检查日志后重试");return;}
   try{auto s=terrain::jsonFile(path/"status.json");phase=s.value("phase",phase);
    progress=std::max(progress,std::clamp(s.value("progress",0.f),0.f,.995f));
-   if(s.value("state","")=="error")failed=true;
-  }catch(std::exception const&){} // File may not exist until worker initializes.
+   if(auto message=creation_status::failure(s)){fail(*message);return;}
+  }catch(std::exception const&){} // Worker may not have published status yet.
   DWORD code=STILL_ACTIVE;
-  if(!GetExitCodeProcess(process,&code)){failed=true;phase="无法读取准备进程状态";return;}
+  if(!GetExitCodeProcess(process,&code)){fail("无法读取准备进程状态，Windows 错误 "+std::to_string(GetLastError()));return;}
   if(code==STILL_ACTIVE)return;
-  if(code!=0){failed=true;phase="世界准备失败，请返回重试";return;}
+  if(code!=0){fail("世界准备进程退出，代码 "+std::to_string(code)+"；详情见创建任务的 worker.log");return;}
   try{
    result=terrain::jsonFile(path/"status.json");
    if(result.at("state")!="ready"||result.at("seed")!=seed)
@@ -105,7 +116,7 @@ struct Job {
    if(marker.at("terrainSeed")!=seed||marker.at("kernel")!=NativeRuntime::KernelVersion)
     throw std::runtime_error("Prepared package identity mismatch");
    ready=true;progress=1.f;
-  }catch(std::exception const&e){failed=true;phase="世界数据校验失败，请返回重试";terrain::log().error("Create world: {}",e.what());}
+  }catch(std::exception const&e){fail(std::string("世界数据校验失败：")+e.what());}
  }
  void start(){
   static std::atomic_uint serial=0;

@@ -1,6 +1,8 @@
 #include <Windows.h>
 #include "NativeRuntime.h"
 #include "PaletteContract.h"
+#include "FailureRecord.h"
+#include "ReleaseVersions.h"
 #include "HookTransaction.h"
 #include "WorldBounds.h"
 #include "WorldGenerationMode.h"
@@ -255,11 +257,21 @@ std::shared_ptr<Chunk const> getChunk(int x,int z){
  calculationMs+=std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now()-began).count();
  cacheWriter.submit(file,std::move(bytes));return value;
 }
-[[noreturn]] void calculatorFailure(std::exception const& e){
+[[noreturn]] void calculatorFailure(std::exception const& e,std::string_view phase="initialization",std::optional<std::array<int,2>> chunk={}){
  ++errors;log().fatal("地形计算失败，立即停止以防保存虚空区块：{}",e.what());
  // Never return successful empty terrain or throw through an unknown BDS task
  // boundary. A failed generator must not advance to Generated and be saved.
+ try {
+#ifdef KARMA_CLIENT
+ constexpr auto version=shanhai_release::Windows;
+#else
+ constexpr auto version=shanhai_release::Terrain;
+#endif
+ terrain_runtime::writeFailure(Base/"fatal-runtime.json",terrain_runtime::failureRecord(
+   "terrain",version,phase,metadata.value("terrainSeed",Json(nullptr)),worldName,chunk,e.what(),
+   "Process stopped to prevent incomplete chunk saves. Back up the world and retain diagnostics before retrying."));
  std::ofstream out(Base/"fatal-runtime.txt");out<<e.what()<<'\n';out.flush();
+ } catch(...) {} // Reporting failure must not bypass the stop-before-save protection.
  TerminateProcess(GetCurrentProcess(),70);std::terminate();
 }
 void resolveRegistry(Dimension& dim){
@@ -330,7 +342,7 @@ void fill(LevelChunk& lc,Chunk const& c){
  BlockVolume volume({blocks.data(),blocks.data()+blocks.size()},16,Height,16,*palette[0],-64);
  auto stride=volume.indexNoBoundsCheck(BlockPos{0,1,0})-volume.indexNoBoundsCheck(BlockPos{0,0,0});
  for(int z=0;z<16;z++)for(int x=0;x<16;x++){
-  column(c,z*16+x,[&](int y,int len,int b){if(y < -64 || y > 319 || len <= 0 || len > 320-y || b < 0 || size_t(b) >= palette.size())throw std::runtime_error("Invalid decoded block column");auto first=volume.indexNoBoundsCheck(BlockPos{x,y,z});if(first+(len-1)*stride>=blocks.size())throw std::runtime_error("Block volume index out of bounds");if(stride==1)std::fill_n(blocks.begin()+first,len,palette[b]);else for(int j=0;j<len;j++)blocks[first+j*stride]=palette[b];});
+  column(c,z*16+x,[&](int y,int len,int b){terrain_runtime::validateColumnRun(y,len,b,palette.size());auto first=volume.indexNoBoundsCheck(BlockPos{x,y,z});if(stride<=0||first>=blocks.size()||size_t(len-1)>(blocks.size()-1-first)/stride)throw std::runtime_error("Block volume index out of bounds");if(stride==1)std::fill_n(blocks.begin()+first,len,palette[b]);else for(int j=0;j<len;j++)blocks[first+j*stride]=palette[b];});
  }
  // A void chunk reconstructed by DBChunkStorage can have an empty/moved biome
  // vector while retaining a nonzero stack size. _setBiome(fillY=true) assumes
@@ -360,12 +372,13 @@ void fill(LevelChunk& lc,Chunk const& c){
 }
 LL_TYPE_INSTANCE_HOOK(Generate,ll::memory::HookPriority::Normal,FlatWorldGenerator,&FlatWorldGenerator::$loadChunk,void,LevelChunk& lc,bool force){
  if(!active||static_cast<int>(lc.getDimension().getDimensionId())!=0||mLevel->getLevelData().getLevelName()!=worldName||index(lc.getPosition())<0){origin(lc,force);return;}
+ auto p=lc.getPosition();std::string_view phase="validate-generator";
  try{
   if(!mIsVoidWorld)throw std::runtime_error("Target is not a void flat world");
-  auto p=lc.getPosition();auto const& c=getChunk(p.x,p.z);
+  phase="calculate-or-decode";auto const& c=getChunk(p.x,p.z);
   if(generated.load()<3)log().info("[生成线程] thread={} 主线程={} chunk=({},{})",GetCurrentThreadId(),GetCurrentThreadId()==mainThread,p.x,p.z);
-  origin(lc,force);fill(lc,*c);
- }catch(std::exception const& e){calculatorFailure(e);}
+  phase="initialize-chunk";origin(lc,force);phase="fill-and-prefilter";fill(lc,*c);
+ }catch(std::exception const& e){calculatorFailure(e,phase,std::array<int,2>{p.x,p.z});}
 }
 #include "GlacierWeather.inc"
 Json latencyJson(terrain_runtime::Latency& latency){auto s=latency.snapshot();Json q={{"count",s.count},{"windowCount",s.windowCount},{"windowLimit",2048},{"totalMs",s.totalUs/1000.},{"maxMs",s.maxUs/1000.}};if(s.windowCount){q["p50Ms"]=s.p50/1000.;q["p95Ms"]=s.p95/1000.;q["p99Ms"]=s.p99/1000.;}else{q["p50Ms"]=nullptr;q["p95Ms"]=nullptr;q["p99Ms"]=nullptr;}return q;}

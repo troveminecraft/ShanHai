@@ -184,7 +184,7 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
         }
     } catch (std::exception const &e) {
         ++stageErrors;
-        reportStructureFailure("prefill", e);
+        reportStructureFailure("prefill", e, std::array<int,2>{getPosition().x,getPosition().z});
         // Generate's failure handler stops the process instead of saving an
         // unfiltered terrain buffer as successful, permanently losing structures.
         throw;

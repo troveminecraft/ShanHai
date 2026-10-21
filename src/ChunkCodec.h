@@ -3,6 +3,11 @@
 #include <array>
 #include <memory>
 namespace terrain_runtime {
+// Decoded runs use column-relative Y (0..383), not world Y (-64..319).
+inline void validateColumnRun(int y,int len,int block,size_t paletteSize){
+ if(y<0||y>=384||len<=0||len>384-y||block<0||size_t(block)>=paletteSize)
+  throw std::runtime_error("Invalid decoded block column");
+}
 struct Chunk {std::array<uint8_t,256> biomes;std::array<uint32_t,256> columns;std::vector<uint8_t> runs;};
 inline Chunk decodeChunk(std::vector<uint8_t>const&bytes,size_t paletteSize,size_t biomeSize){
  Chunk c{};if(paletteSize>65536)throw std::runtime_error("Palette exceeds uint16");if(bytes.size()<260||bytes[0]!=75||bytes[1]!=87||bytes[2]!=50||bytes[3]!=0)throw std::runtime_error("Unsupported chunk codec");if(bytes.size()<260)throw std::runtime_error("Missing biome data");

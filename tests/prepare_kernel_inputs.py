@@ -1,0 +1,21 @@
+"""Reproducible offline recipes; does not create or enter any game world."""
+import argparse,json,sys
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/'tools'))
+from process_guard import run_checked
+from build_streaming_seed import finish_recipe
+
+def prepare(output):
+ output.mkdir(parents=True,exist_ok=True)
+ for name,seed in [('positive','5'),('negative','-1'),('wide','9223372036854775807')]:
+  path=output/(name+'.json')
+  run_checked(['node',str(ROOT/'tools/seed/build.mjs'),seed,str(ROOT/'data/seed-template.json'),str(path)],
+              timeout=120,stage='offline fixture')
+  data=json.loads(path.read_bytes());data['seedManifest'].pop('giantCandidates')
+  # Use seeded landmark defaults: this fixture tests the actual kernel, not spawn selection.
+  finish_recipe(data)
+  path.write_text(json.dumps(data,separators=(',',':')),'utf-8')
+if __name__=='__main__':
+ parser=argparse.ArgumentParser();parser.add_argument('--output',required=True,type=Path)
+ prepare(parser.parse_args().output)

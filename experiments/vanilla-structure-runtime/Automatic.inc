@@ -2,13 +2,23 @@
 worldgen_rules::StructureStageMutex stageMutex;
 #include "StructureCheckpoints.inc"
 std::atomic_bool structureStageFailed = false;
-void reportStructureFailure(std::string_view phase, std::exception const &error) {
+void reportStructureFailure(std::string_view phase, std::exception const &error, std::optional<std::array<int,2>> chunk = {}) {
 
     if (structureStageFailed.exchange(true))
         return;
     auto message = std::string(phase) + ": " + error.what();
     ll::mod::NativeMod::current()->getLogger().error(
         "Structure generation paused; unfinished chunks will not be accepted: {}", message);
+    try {
+#ifdef KARMA_CLIENT
+    constexpr auto version=shanhai_release::Windows;
+#else
+    constexpr auto version=shanhai_release::Structures;
+#endif
+    terrain_runtime::writeFailure(folder/"structure-failure.json",terrain_runtime::failureRecord(
+        "structures",version,phase,input.value("seedManifest",J::object()).value("terrainSeed",J(nullptr)),
+        activeWorld,chunk,error.what(),"Structure stage paused. Preserve the world and diagnostics; correct the cause before restarting."));
+    } catch(...) {}
     std::ofstream out(folder / "structure-failure.txt");
     out << message << "\nRestart after correcting the cause; do not remove the mod from this world.\n";
     out.flush();
@@ -528,10 +538,12 @@ LL_TYPE_INSTANCE_HOOK(AutoStage, ll::memory::HookPriority::Normal, FlatWorldGene
         return false;
     ++stageCalls;
     StageTimer timer;
+    std::optional<std::array<int,2>> failureChunk;
     try {
         auto cp = stageCenter(view);
         if (!cp)
             throw std::runtime_error("No native center");
+        failureChunk=std::array<int,2>{cp->x,cp->z};
         auto center = view.$getExistingChunk(*cp);
         if (!center || center->getState().load() != ChunkState::DecorationPostProcessing)
             throw std::runtime_error("Unexpected center phase");
@@ -731,7 +743,7 @@ LL_TYPE_INSTANCE_HOOK(AutoStage, ll::memory::HookPriority::Normal, FlatWorldGene
         }
     } catch (std::exception const &e) {
         ++stageErrors;
-        reportStructureFailure("decoration", e);
+        reportStructureFailure("decoration", e, failureChunk);
         return false;
     }
     return ok;

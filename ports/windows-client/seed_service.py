@@ -7,6 +7,7 @@ import argparse, hashlib, json, os, subprocess, sys, time
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from prepare_world import prepare, sha, P
+from process_guard import run_checked
 
 def atomic_json(path, value):
     temporary = path.with_suffix('.tmp')
@@ -43,9 +44,9 @@ def run(request_path):
     if not usable:
         atomic_json(status, dict(state='running', phase='正在准备新种子的地形数据',progress=0.,progressMode='stage-weighted'))
         output = job/'native-input.json'
-        subprocess.run([sys.executable, '-X', 'utf8', str(P/'tools/build_streaming_seed.py'),
+        run_checked([sys.executable, '-X', 'utf8', str(P/'tools/build_streaming_seed.py'),
                         '--seed', seed, '--output', str(output),
-                        '--status', str(status)], cwd=P, env=env, check=True)
+                        '--status', str(status)], cwd=P, env=env, timeout=600, stage="world recipe preparation")
         # Publication is last; a cancelled worker never leaves a trusted partial cache.
         os.replace(output, source)
         atomic_json(receipt, dict(identity=bundle['identity'], sha256=sha(source),generationMode='regional-on-demand'))
@@ -69,5 +70,8 @@ if __name__ == '__main__':
     try:
         run(a.request)
     except Exception as e:
-        atomic_json(a.request.parent/'status.json', dict(state='error', phase='准备失败，请返回重试', detail=str(e)))
+        try: seed=json.loads(a.request.read_bytes()).get('seed')
+        except Exception: seed=None
+        atomic_json(a.request.parent/'status.json', dict(state='error', phase='准备失败，请返回重试', detail=str(e), stage='world-preparation', request=str(a.request),
+                    seed=seed))
         raise

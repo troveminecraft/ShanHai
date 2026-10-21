@@ -27,6 +27,8 @@
 #include "rules/StructureLifecycle.h"
 #include "rules/StructureStage.h"
 #include "HookTransaction.h"
+#include "FailureRecord.h"
+#include "ReleaseVersions.h"
 #include "rules/StructurePlanStore.h"
 #include "rules/SmallFeaturePlan.h"
 #include "EntityLedgerStore.h"
