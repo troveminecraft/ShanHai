@@ -9,7 +9,7 @@
 #include "RegionalPlans.h"
 namespace nativegen {
 inline double num(J const&j,char const*k){return j.at(k).get<double>();}
-struct Surface {int seaLevel=31;bool mushroom=false,mushroomZone=false;int badlands=0;int16_t seaCutLow=-32768,seaCutHigh=-32768;float seaBank=0,volcanicDeposit=1;double glacier=0,superGlacier=0,iceHabitat=0;int iceGround=-1;int iceThickness=0;bool iceSnow=false;int cavePoolBed=320,caveSealFloor=320;int aridType=0,aridTop=-1;double sandCover=1,desert=0,desertSand=0,desertCrest=0,desertPatch=0,oasis=0;int fluvialType=0,fluvialTop=-1;double riverShore=0,riverSlope=0,riverSection=0;int riverBedMaterial=-1;int riverBankWater=-32768;double riverBankEdge=INFINITY;bool riverDeposit=false,scarpWarped=false;int scarpCaveCeiling=319;int riverCutLow=-32768,riverCutHigh=-32768,riverCutWater=-32768;double riverOuter=0,scarp=0;int preRiverHeight=0,height=0,water=-32768,cliffLow=-32768,cliffHigh=-32768,drip=0,biome=0,kind=0,surf=0,treeK=1,rock=0,lake=0,aquifer=-1,lava=-32768;bool vent=false,lakeFrozen=false,volcanicMountainRock=false;double wetland=0,wetlandMoisture=0;int wetlandLevel=-32768;double mainRiver=0,riverBar=0,riverJunction=0,riverBankCut=0,river=0,soilSand=0,volcanicHot=0,estuary=0,volcanic=0,barren=0,ocean=0,coast=0,raw=0,T=0,H=0,ridge=0,e=0,continuous=0,mount=0,plateau=0,basin=0,stone=0,pillar=0,giant=0,treeD=0,rockCap=0;};
+struct Surface {int seaLevel=31;bool mushroom=false,mushroomZone=false;int badlands=0;bool badlandsDesert=false,redSandCoast=false;int16_t seaCutLow=-32768,seaCutHigh=-32768;float seaBank=0,volcanicDeposit=1;double glacier=0,superGlacier=0,iceHabitat=0;int iceGround=-1;int iceThickness=0;bool iceSnow=false;int cavePoolBed=320,caveSealFloor=320;int aridType=0,aridTop=-1;double sandCover=1,desert=0,desertSand=0,desertCrest=0,desertPatch=0,oasis=0;int fluvialType=0,fluvialTop=-1;double riverShore=0,riverSlope=0,riverSection=0;int riverBedMaterial=-1;int riverBankWater=-32768;double riverBankEdge=INFINITY;bool riverDeposit=false,scarpWarped=false;int scarpCaveCeiling=319;int riverCutLow=-32768,riverCutHigh=-32768,riverCutWater=-32768;double riverOuter=0,scarp=0;int preRiverHeight=0,height=0,water=-32768,cliffLow=-32768,cliffHigh=-32768,drip=0,biome=0,kind=0,surf=0,treeK=1,rock=0,lake=0,aquifer=-1,lava=-32768;bool vent=false,lakeFrozen=false,volcanicMountainRock=false;double wetland=0,wetlandMoisture=0;int wetlandLevel=-32768;double mainRiver=0,riverBar=0,riverJunction=0,riverBankCut=0,river=0,soilSand=0,volcanicHot=0,estuary=0,volcanic=0,barren=0,ocean=0,coast=0,raw=0,T=0,H=0,ridge=0,e=0,continuous=0,mount=0,plateau=0,basin=0,stone=0,pillar=0,giant=0,treeD=0,rockCap=0;};
 struct ReliefNode{double v,relief,pos,corr;};
 struct Cliff{bool valid=false;double x=0,z=0,h=0,slope=0,nx=0,nz=0,crest=0;};
 class Field {
@@ -45,6 +45,7 @@ class Field {
  #include "IceClimate.inc"
  #include "StreamingRegions.inc"
  #include "CompletedBiomes.inc"
+ #include "BadlandsRegions.inc"
  double v0(int level,int x,int z){auto const&q=C.at("relief").at("levels")[level];return rawNodes[level].get(key2(x,z),[&]{return vcont(x*num(q,"pitch"),z*num(q,"pitch"));});}
  ReliefNode node(int level,int x,int z){return nodes[level].get(key2(x,z),[&]{auto const&q=C.at("relief").at("levels")[level];double v=v0(level,x,z),lo=v,hi=v,sum=0;for(int dz=-1;dz<=1;dz++)for(int dx=-1;dx<=1;dx++){if(!dx&&!dz)continue;double a=v0(level,x+dx,z+dz);lo=std::min(lo,a);hi=std::max(hi,a);sum+=a;}double r=hi-lo,p=r>1e-6?(v-lo)/r:.5,w=smooth(0,num(q,"edgeBand"),p)*smooth(0,num(q,"edgeBand"),1-p),cap=std::min(num(q,"cap"),num(q,"reliefCap")*r);return ReliefNode{v,r,p,clamp(-num(q,"gain")*(v-sum/8)*w*smooth(num(q,"reliefLo"),num(q,"reliefHi"),r),-cap,cap)};});}
  double shaped(double x,double z,double v,bool applyRegional=true){auto const&q=C.at("relief");double corr=0,rel=0,pos=.5,regional=v;for(int i=0;i<2;i++){double R=num(q.at("levels")[i],"pitch"),gx=x/R,gz=z/R;int ix=int(std::floor(gx)),iz=int(std::floor(gz));auto a=node(i,ix,iz),b=node(i,ix+1,iz),c=node(i,ix,iz+1),d=node(i,ix+1,iz+1);double u=smooth(0,1,gx-ix),w=smooth(0,1,gz-iz);auto bl=[&](double A,double B,double D,double E){return A*(1-u)*(1-w)+B*u*(1-w)+D*(1-u)*w+E*u*w;};corr+=bl(a.corr,b.corr,c.corr,d.corr);regional=bl(a.v,b.v,c.v,d.v);if(!i){rel=bl(a.relief,b.relief,c.relief,d.relief);pos=bl(a.pos,b.pos,c.pos,d.pos);}}
@@ -114,6 +115,7 @@ class Field {
 public:
  int seaLevel()const{return seaLevelValue;}
  int generationHeight()const{return generatedMaxYExclusive+64;}
+ J inspectBadlandsRegion(int gx,int gz){auto a=badlandsRegion(gx,gz);return J{{"valid",a.valid},{"x",a.x-32768},{"z",a.z-32768},{"radiusX",a.rx},{"radiusZ",a.rz}};}
  J inspectMushroomIsland(int gx,int gz){auto a=mushroomIsland(gx,gz);return J{{"valid",a.valid},{"x",a.x-32768},{"z",a.z-32768},{"radius",a.r}};}
  J inspectRegionalDrainage(int gx,int gz){
   if(!streamingRegions)throw std::runtime_error("Regional recipe required");
@@ -195,7 +197,7 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
  // Only qualified large regions may be deserts; warm dry microclimates
  // elsewhere remain savanna, while beaches and river/lake sand retain their roles.
  if(largeDesertOnly){W[12]+=W[11];W[11]=0;}
- for(int b:{8,9,6,7}){double mv=W[b]*s.mount;W[b]-=mv;W[14]+=mv;}for(int b:{8,7,12}){double mv=W[b]*s.plateau*(completedBiomes?above(T,.48,bw)*below(H,.58,bw):1.);W[b]-=mv;W[15]+=mv;}double take=s.basin*below(H,.32,bw);for(int b=5;b<16;b++){double mv=W[b]*take;W[b]-=mv;W[16]+=mv;}double sum=0;for(double w:W)sum+=w;if(sum>0)for(auto&w:W)w/=sum;
+ for(int b:{8,9,6,7}){double mv=W[b]*s.mount;W[b]-=mv;W[14]+=mv;}for(int b:{8,7,12}){double mv=W[b]*s.plateau*(completedBiomes?above(T,.48,bw)*below(H,.58,bw):1.);W[b]-=mv;W[15]+=mv;}double take=s.basin*below(H,.32,bw);for(int b=5;b<16;b++){double mv=W[b]*take;W[b]-=mv;W[16]+=mv;}if(regionalBadlands){W[12]+=W[15];W[15]=0;}double sum=0;for(double w:W)sum+=w;if(sum>0)for(auto&w:W)w/=sum;
  constexpr int species[17]={1,1,1,1,1,0,0,1,1,1,4,5,3,2,1,1,1};std::array<double,6>sw{};int best=0;double sand=0,snow=0,excluded=0;for(int b=0;b<17;b++){double v=W[b];if(v<=0)continue;if(v>W[best])best=b;s.treeD+=v*C.at("treeDensityByBiome")[b].get<double>();if(b==3||b==4||b==11)sand+=v;if(b==5)snow+=v;if(b==3||b==4||b==5)excluded+=v;sw[species[b]]+=v;}
  // A biome describes a region, not a 20-block lottery. Density still uses all
  // climate weights; the dominant region determines compatible tree species.
@@ -260,7 +262,7 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
  }
  #include "SmallPools.inc"
  void surfaceRock(Surface&s,int x,int z){
-  if(s.mushroomZone||s.badlands){s.rock=0;return;}
+  if(s.mushroomZone||s.badlands||s.badlandsDesert||s.redSandCoast){s.rock=0;return;}
   auto const&q=C.at("transition");
   auto at=[&](int X,int Z){return (s.wetland>0||s.scarpWarped)?surface(X,Z,false):base(X,Z);};
   auto east=at(x+1,z),west=at(x-1,z),south=at(x,z+1),north=at(x,z-1);
@@ -279,7 +281,7 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
   s.rock=s.scarp>.05||s.coast>.45||s.stone>=.5||s.cliffLow>-32768||p>=1
       ||(p>0&&clamp(.5+.95*rockNoise.at(x/num(q,"ditherWavelength"),z/num(q,"ditherWavelength")),0,.999999)<p);
  }
- Surface surface(int x,int z,bool slope=true){if(evaluatingSmallPool){auto s=computeSurface(x,z,false);if(slope)surfaceRock(s,x,z);return s;}auto s=skinCache.get(key2(x,z),[&]{return computeSurface(x,z,false);});if(slope)surfaceRock(s,x,z);return s;}
+ Surface surface(int x,int z,bool slope=true){if(evaluatingSmallPool){auto s=computeSurface(x,z,false);if(slope)surfaceRock(s,x,z);return s;}auto s=skinCache.get(key2(x,z),[&]{if(!regionalBadlands)return computeSurface(x,z,false);auto result=beforeBadlands(x,z);regionalBadlandsSurface(result,x,z);return result;});if(slope)surfaceRock(s,x,z);return s;}
  std::vector<std::array<int,3>> caveFalls(int cx,int cz){return cavernGroups.waterfallCandidates(cx,cz,[&](int X,int Z){return cavernHeight(X,Z);});}
  void materialColumn(Surface const&s,int x,int z,int top,uint16_t*col){
  if(top < -64 || top >= generatedMaxYExclusive || s.height < -64 || s.height >= generatedMaxYExclusive)throw std::out_of_range("Material column outside world height");

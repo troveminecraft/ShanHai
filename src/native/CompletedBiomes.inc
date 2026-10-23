@@ -54,7 +54,7 @@ void prepareMesaBands(){
  for(int y=next(12);y<192;y+=6+next(16)){mesaBands[y]=175;if(y>0&&next(2))mesaBands[y-1]=176;if(y<191&&next(2))mesaBands[y+1]=176;}
 }
 void badlandsSurface(Surface&s,int x,int z){
- if(!completedBiomes||s.height<40||s.water>=s.height||s.lake||s.river||s.stone>0||s.volcanic>0||s.iceHabitat>0||s.scarp>0||s.aridType)return;
+ if(regionalBadlands||!completedBiomes||s.height<40||s.water>=s.height||s.lake||s.river||s.stone>0||s.volcanic>0||s.iceHabitat>0||s.scarp>0||s.aridType)return;
  double province=mesaNoise.at(x/1150.+31,z/1150.-17);
  if(s.biome!=15){
   // Regional relief no longer guarantees a dominant plateau weight. Select
@@ -64,20 +64,25 @@ void badlandsSurface(Surface&s,int x,int z){
   auto climate=regionalClimate(x,z);
   if(climate[0]<.48||climate[1]>.66||province<=.12)return;
  }
+ applyBadlands(s,x,z,province,true);
+}
+void applyBadlands(Surface&s,int x,int z,double province,bool reshape){
  s.badlands=1;s.biome=15;s.T=.95;s.H=.05;s.treeD=0;s.giant=0;s.rockCap=0;s.rock=0;s.soilSand=0;s.surf=10;
  double variant=mesaNoise.at(x/850.,z/850.);
- if(variant>.12){
+ if(reshape&&variant>.12){
   s.badlands=2;s.biome=26;
   double pillar=smooth(.12,.3,variant)*smooth(.05,.40,mesaNoise.at(x/45.+19,z/45.-7))*smooth(.12,.24,province);
   double roof=18+18*clamp(.5+mesaNoise.at(x/120.-31,z/120.+23),0,1);
-  s.height=std::min(240,s.height+int(std::floor(roof*pillar)));
- }else if(s.height>=76){
+  s.height=std::min(regionalBadlands?generatedMaxYExclusive-16:240,s.height+int(std::floor(roof*pillar)));
+ }else if(reshape&&s.height>=76){
   s.badlands=3;s.biome=27;
   if(variant<-.12){s.badlands=4;s.biome=28;s.treeK=1;s.treeD=.0014;}
  }
  s.continuous=s.e=(s.height-seaLevelValue)/123.;
 }
 int badlandsMaterial(Surface const&s,int x,int y,int z){
+ if(s.redSandCoast&&y>=s.height-2)return y==s.height?169:177;
+ if(s.badlandsDesert&&y>=s.height-3)return y>=s.height-1?5:6;
  if(!s.badlands||y<25)return -1;
  if(s.badlands==4&&y>=s.height-3){
   if(y<s.height)return 3;

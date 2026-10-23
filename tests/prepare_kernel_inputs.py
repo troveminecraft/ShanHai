@@ -19,6 +19,7 @@ def prepare(output):
   data['config'].update(seaLevel=31,maxY=319)
   data['config'].pop('generatedMaxYExclusive',None)
   data['config'].pop('mountainPeakY',None)
+  data['config'].pop('badlandsRegions',None)
   path.write_text(json.dumps(data,separators=(',',':')),'utf-8')
 if __name__=='__main__':
  parser=argparse.ArgumentParser();parser.add_argument('--output',required=True,type=Path)

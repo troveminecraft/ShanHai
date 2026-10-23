@@ -1,7 +1,7 @@
 {
   "format": 2,
   "mode": "on-demand",
-  "version": "karma-terrain-2.197.0-native-agent-a",
+  "version": "karma-terrain-2.198.0-native-agent-a",
   "terrainSeed": "288493980",
   "worldSeed": "7536824328494917634",
   "worldSeedIndependent": true,
