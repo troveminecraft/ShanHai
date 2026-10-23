@@ -5,6 +5,13 @@ int main() {
     using namespace terrain_runtime;
     try {
         validatePaletteContract(paletteContract());
+        auto legacy=paletteContract();legacy["version"]="karma-terrain-2.195.0-native-agent-a";
+        legacy["palette"].erase(legacy["palette"].begin()+168,legacy["palette"].end());
+        legacy["biomeNames"].erase(legacy["biomeNames"].begin()+25,legacy["biomeNames"].end());
+        validatePaletteContract(legacy);
+        legacy["version"]="karma-terrain-2.196.0-native-agent-a";
+        bool truncated=false;try{validatePaletteContract(legacy);}catch(...){truncated=true;}
+        if(!truncated)throw std::runtime_error("New world accepted legacy truncated palette");
         validateColumnRun(0,384,167,168);
         validateColumnRun(383,1,0,168);
         validateColumnRun(319,65,1,168);

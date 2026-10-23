@@ -1,7 +1,7 @@
 {
   "format": 2,
   "mode": "on-demand",
-  "version": "karma-terrain-2.193.0-native-agent-a",
+  "version": "karma-terrain-2.196.0-native-agent-a",
   "terrainSeed": "288493980",
   "worldSeed": "7536824328494917634",
   "worldSeedIndependent": true,
@@ -506,7 +506,17 @@
       "states": {
         "huge_mushroom_bits": 10
       }
-    }
+    },
+    "mycelium",
+    "red_sand",
+    "hardened_clay",
+    "orange_terracotta",
+    "yellow_terracotta",
+    "brown_terracotta",
+    "red_terracotta",
+    "white_terracotta",
+    "light_gray_terracotta",
+    "red_sandstone"
   ],
   "biomeNames": [
     "deep_ocean",
@@ -533,7 +543,11 @@
     "warm_ocean",
     "cold_ocean",
     "birch_forest",
-    "ice_plains_spikes"
+    "ice_plains_spikes",
+    "mushroom_island",
+    "mesa_bryce",
+    "mesa_plateau",
+    "mesa_plateau_stone"
   ],
   "regionBlocks": 16,
   "maxCachedRegions": 0,

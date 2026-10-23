@@ -484,7 +484,17 @@
       "states": {
         "huge_mushroom_bits": 10
       }
-    }
+    },
+    "mycelium",
+    "red_sand",
+    "hardened_clay",
+    "orange_terracotta",
+    "yellow_terracotta",
+    "brown_terracotta",
+    "red_terracotta",
+    "white_terracotta",
+    "light_gray_terracotta",
+    "red_sandstone"
   ],
   "biomeNames": [
     "deep_ocean",
@@ -511,6 +521,10 @@
     "warm_ocean",
     "cold_ocean",
     "birch_forest",
-    "ice_plains_spikes"
+    "ice_plains_spikes",
+    "mushroom_island",
+    "mesa_bryce",
+    "mesa_plateau",
+    "mesa_plateau_stone"
   ]
 }
