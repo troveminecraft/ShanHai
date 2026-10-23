@@ -28,7 +28,7 @@ void smallStoneRelief(Surface&s,double&height,int wx,int wz){
   if(std::abs(x)>outer+12||std::abs(z)>outer+12)continue;
   double distance=std::hypot(x,z)+num(q,"smallRegionEdgeWarp")*stoneNoise.at(x/90.,z/90.);
   double weight=1-smooth(inner,outer,distance);if(weight<=0)continue;
-  constexpr double pitch=56.;int px=int(std::floor(x/pitch)),pz=int(std::floor(z/pitch));double best=-INFINITY,ph=0;
+  double pitch=q.value("smallPillarPitch",56.);int px=int(std::floor(x/pitch)),pz=int(std::floor(z/pitch));double best=-INFINITY,ph=0;
   for(int iz=pz-1;iz<=pz+1;++iz)for(int ix=px-1;ix<=px+1;++ix){
    uint32_t seed=terrainSeed^seedHash(uint32_t(region.gx),uint32_t(region.gz));
    double cx=(ix+.28+.44*hash01(ix,iz,seed^83111))*pitch,cz=(iz+.28+.44*hash01(ix,iz,seed^83113))*pitch;

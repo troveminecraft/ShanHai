@@ -36,6 +36,12 @@ double streamingDesertWeight(double wx,double wz){
  for(auto const&r:regionalProtected)if(r.radius>=0)weight*=smooth(r.radius+100,r.radius+480,std::hypot(X-r.x,Z-r.z));
  return weight;
 }
+std::shared_ptr<J const> regionalWaterPlan(int a,int b){
+ bool curved=data.at("regionalGeneration").value("algorithm",std::string{})=="regional-drainage-v2";
+ return regional::get(streamingIdentity,"water",a,b,[&]{return regional::drainage(a,b,terrainSeed,[&](int x,int z){
+  auto s=regionalClimateSample(x+32768,z+32768);return regional::Ground{s.height,s.H,s.T,s.stone,s.volcanic};
+ },curved);});
+}
 void ensureStreamingRegions(int wx,int wz){
  if(!streamingRegions)return;
  int gx=int(std::floor((wx-32768)/double(regional::Core))),gz=int(std::floor((wz-32768)/double(regional::Core)));bool changed=false;
@@ -52,7 +58,7 @@ void ensureStreamingRegions(int wx,int wz){
    if(x<int64_t(a)*regional::Core-reach||x>int64_t(a+1)*regional::Core+reach||
       z<int64_t(b)*regional::Core-reach||z>int64_t(b+1)*regional::Core+reach)continue;
   }
-  auto plan=regional::get(streamingIdentity,"water",a,b,[&]{return regional::drainage(a,b,terrainSeed,[&](int x,int z){auto s=regionalClimateSample(x+32768,z+32768);return regional::Ground{s.height,s.H,s.T,s.stone,s.volcanic};});});
+  auto plan=regionalWaterPlan(a,b);
   for(auto const&lake:plan->at("lakes"))for(auto const&r:lake.at("rows")){
    int z=r.at(0),x0=r.at(1),x1=r.at(2);
    if(!unboundedRegions){if(z<terrain_bounds::MinBlock||z>terrain_bounds::MaxBlock)continue;x0=std::max(x0,terrain_bounds::MinBlock);x1=std::min(x1,terrain_bounds::MaxBlock);}

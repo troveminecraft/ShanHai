@@ -16,7 +16,8 @@ struct WorldGenerationMode {
   result.regional=data.contains("regionalGeneration");
   if(result.regional){
    auto const&recipe=data.at("regionalGeneration");
-   if(recipe.value("algorithm",std::string{})!="regional-drainage-v1"||data.at("seedManifest").value("generationMode",std::string{})!="regional-on-demand")
+   auto algorithm=recipe.value("algorithm",std::string{});
+   if((algorithm!="regional-drainage-v1"&&algorithm!="regional-drainage-v2")||data.at("seedManifest").value("generationMode",std::string{})!="regional-on-demand")
     throw std::runtime_error("Unsupported regional generation recipe");
    result.unbounded=recipe.value("boundsMode",std::string{})=="infinite";
   }

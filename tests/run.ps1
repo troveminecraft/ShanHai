@@ -40,6 +40,7 @@ $cases = @(
 )
 foreach ($seed in @('positive','negative','wide')) {
     $cases += @{Name='kernel_determinism'; Args=@((Join-Path $output "inputs/$seed.json"))}
+    $cases += @{Name='regional_waterways'; Args=@((Join-Path $output "inputs/$seed.json"),(Join-Path $output "waterways-$seed.json"))}
 }
 foreach ($case in $cases) {
     $arguments = $case.Args

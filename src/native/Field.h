@@ -99,6 +99,10 @@ class Field {
  double temperatureNoise=temp(x,0,z);s.T=(1-s.stone)*clamp(.62+temperatureNoise*.45-std::max(0.,s.raw-85)*.003,0,1)+s.stone*.67;s.H=(1-s.stone)*clamp(.52+humidity(x,0,z)*.45,.05,.95)+s.stone*.72;s.water=s.height<31?31:-32768;s.kind=s.height<31?(s.ridge<.1?1:3):0;waterSurface(s,wx,wz);s.preRiverHeight=s.height;if(drainage){riverRelief(s,wx,wz);junctionBed(s,wx,wz);}finalTerrainClimate(s,temperatureNoise,er);desertClimate(s,wx,wz);return s;
  }
 public:
+ J inspectRegionalDrainage(int gx,int gz){
+  if(!streamingRegions)throw std::runtime_error("Regional recipe required");
+  return *regionalWaterPlan(gx,gz);
+ }
  J inspectSmallStoneForests(int lo,int hi){
   J rows=J::array();if(!rareStoneForests)return rows;auto const&q=C.at("stoneForest");double grid=num(q,"smallRegionGrid");
   if(hi<lo||int64_t(hi)-lo>100000)throw std::runtime_error("Stone-forest inventory range too wide");
@@ -146,7 +150,7 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
  localPlanningCulling=cullLocalPlans;
  if(!d.contains("seedManifest")||d.at("seedManifest").at("runtimeSeed")!=terrainSeed)
   throw std::runtime_error("Seed package mismatch; rebuild with tools/build_seed.py");
- if(streamingRegions){if(d.at("regionalGeneration").at("algorithm")!=regional::Algorithm)throw std::runtime_error("Unsupported regional terrain recipe");streamingIdentity=regional::identity(d);}
+ if(streamingRegions){if(!regional::supportedAlgorithm(d.at("regionalGeneration").at("algorithm")))throw std::runtime_error("Unsupported regional terrain recipe");streamingIdentity=regional::identity(d);}
  loadCaves();
  offset=graph.ref("etn:overworld/continents/c2");erosion=graph.ref("etn:overworld/erosion/e");ridge=graph.ref("etn:overworld/ridge/1");temp=graph.ref("minecraft:overworld/temperature");humidity=graph.ref("minecraft:overworld/vegetation");
  loadRegionalTerrain();loadDeserts();loadLakes();loadVolcano();loadOcean();loadRivers();

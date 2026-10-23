@@ -7,9 +7,9 @@ from process_guard import run_checked
 P=Path(__file__).resolve().parents[1]
 
 def finish_recipe(data):
-    data['regionalGeneration']=dict(algorithm='regional-drainage-v1',coreBlocks=2048,haloBlocks=512,
+    data['regionalGeneration']=dict(algorithm='regional-drainage-v2',coreBlocks=2048,haloBlocks=512,
                                     samplePitch=64,worldBounds=None,boundsMode='infinite',persistentPlans=True)
-    data['rivers']=dict(algorithm='regional-drainage-v1',cutBanks=10,naturalBankSlope=1,sectionProfiles=1,
+    data['rivers']=dict(algorithm='regional-drainage-v2',cutBanks=10,naturalBankSlope=1,sectionProfiles=1,
                         treeSubstrates=True,mainstems=[],segments=[],routes=[])
     data['seedManifest'].update(ready=True,riversReady=True,generationMode='regional-on-demand',
                                 completeSeedBake=False)
