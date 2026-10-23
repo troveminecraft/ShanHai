@@ -1,0 +1,11 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "ShanHai height feasibility 512",
+    "description": "Isolated 26.20 feasibility experiment; not a production world pack",
+    "uuid": "9aff7f98-1b72-4578-98f4-1668aabbcb74",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 26, 20]
+  },
+  "modules": [{"type":"data","uuid":"46841794-d933-4ff1-b960-7ce661b0dd60","version":[1,0,0]}]
+}

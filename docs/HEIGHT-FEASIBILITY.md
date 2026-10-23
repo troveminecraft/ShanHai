@@ -1,18 +1,42 @@
-# 建造高度扩展可行性（0.1.5 调查）
+# 建造高度扩展可行性（2026-10-23 实机引擎检查）
 
-目标是突破 Y=319 上方的建造限制。当前结论：有进一步验证的引擎入口，但本版没有启用扩高；不能通过仅修改配置或一个高度常量完成。
+**存在适用于当前 BDS 1.26.20 的可行入口：行为包的主世界 `minecraft:dimension_bounds`。** 隔离运行同一份服务器程序，设置 `min=-64, max=512` 后，实际范围变为 Y=-64..511，并在正常保存重启后保持。尚未接入山&海生成器，未验收玩家放置、客户端显示和方块保存。
 
-## 已确认
+## 当前版本的实际结果
 
-- 当前共享生成器固定采用 -64..319，共 384 格。`Field::materialColumn` 会拒绝高度 320；`tests/completed_biomes.cpp` 实际调用生产路径并验证拒绝。区块编码、材质缓存、洞穴位图、装饰和两端填充循环也依赖这个范围。直接放宽一个检查会使其余路径不一致。
-- 当前使用的 LeviLamina 26.20.7 SDK 中，`DimensionHeightRange` 上下界为 `short`，维度定义 `Bounds` 为两个 `int`，`LevelChunk` 暴露动态高度范围和子区块范围查询。数字类型本身足以表达 512，但这不是游戏允许放置、正确保存或正确显示的证明。
-- 同一 SDK 存在 `CustomDimension`、`DimensionDataPacket`，以及 `DimensionDefinition::Components` 中的 bounds/generation 字段。可以继续调查自定义维度注册、尺寸同步路径。
-- Microsoft 当前文档 [minecraft:bounds](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/dimensionreference/examples/dimensioncomponents/bounds?view=minecraft-bedrock-stable) 描述自定义维度的上下界参数 -512..512；[minecraft:dimensionheight](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/dimensionreference/examples/dimensioncomponents/dimensionheight?view=minecraft-bedrock-stable) 描述总高度 16..1024。两页更新于 2026-10-15。当前 26.20.7 的上述 Components 只看到了 bounds/generation，不能把较新文档视为该版本已经支持新组件的证据，也不能把自定义维度支持推论为主世界支持。
+使用与运行中 BDS SHA-256 相同的程序、LeviLamina 26.20.7、新建隔离世界。只加载范围诊断插件，未加载山&海、未连接玩家、未执行游戏命令或放置方块。插件在服务器更新线程中实例化主世界维度并读取原生范围，不修改维度字段，不请求区块生成。每次都正常 `stop` 保存退出。
 
-## 可行路线与下一项实验
+| 项目 | 无高度包 | 加载高度包 | 加载后正常重启 |
+| --- | --- | --- | --- |
+| 游戏构建 | 1.26.20+1f6d1b1 | 同左 | 同左 |
+| 最低 Y | -64 | -64 | -64 |
+| 排他上界 | 320 | 512 | 512 |
+| 子区块数量 | 24 | 36 | 36 |
+| Y=319 在范围内 | 是 | 是 | 是 |
+| Y=320、383、511 在范围内 | 否 | 是 | 是 |
+| Y=-65、512 在范围内 | 否 | 否 | 否 |
 
-优先在独立测试维度尝试 `min=-64, max=512` 的范围（max 是否为排他上界需要实测），先只验证 Y=319、320、383、511、512 的边界，再讨论更高范围。需验证：定义能否加载；服务端与客户端收到相同高度；玩家手工放置、破坏、碰撞；跨子区块与区块边界；重登、正常保存重启后的方块保留；光照、流体和视距行为。BDS 连接客户端与 Windows LL 本地世界分别验证。
+这是当前引擎已接受扩高的证据，**不是放置方块后重启仍保留的证据**，实验没有方块写入。
 
-若自定义维度路径可用，下一步才将共享生成器的高度布局封装为不可变 `minY/height/maxExclusive`，区分新格式与旧存档解码，并逐项移除 384/319 的硬编码。仅把主世界的维度字段改大，无法证明固定主世界规则、数据包、客户端、存档和原生结构全都支持扩高。
+## 建议实施：先扩建造空间，再考虑高山生成
 
-本轮没有注入主世界高度、修改历史存档或启动实验世界，没有执行游戏命令、自动放置方块。已完成的是源码/SDK 可行性调查及当前边界的可执行验证；实际突破高度仍未验证，不能作为已完成功能交付。
+1. 新测试世界使用 `experiments/height-range-probe/behavior-pack/dimensions/overworld.json`：`minecraft:overworld`、`minecraft:dimension_bounds` 的 -64/512、`minecraft:generation` 的 `void`。原生新区域会变为虚空；山&海本来使用自己的生成器，这与接入方向相符，但尚未做组合运行验证。
+2. 两端共用的 `src/Worldgen.cpp::fill` 当前明确拒绝非 -64/320 维度，并按固定 384 高度创建 BlockVolume 和群系子区块。因此不能直接把此行为包装进正在使用的山&海世界。
+3. 最小改造是区分“生成高度 384”和“可建造高度 576”：保留 -64..319 生成配方、洞穴位图及旧缓存编码；原生区块填充采用实际维度高度，将 Y=320..511 补为空气，群系体积扩至 36 个子区块，再重算高度图。先提供额外 192 格建造空间，不必同时重做全部高山、洞穴和结构生成。
+4. 高度应作为新世界持久配置，并通过行为包/维度信息正确同步给客户端。Windows 新世界准备流程也需安装该包并保存世界包引用；只改 BDS 字段不够。旧世界继续采用 384 格高度与旧配方，避免隐式迁移。
+5. 若后续要求山峰也生成到 Y=320 以上，再独立扩展共享内核、材质列、洞穴位图、缓存格式与结构边界。这与“允许玩家在上方建造”是不同阶段。
+
+## 仍需验证
+
+- Windows 1.26.20.04 连接 BDS 后看到相同范围，Y=320、383、511 可放置/破坏，Y=512 正确拒绝。
+- 方块碰撞、光照、流体，以及跨子区块、跨区块的建筑。
+- 实际放置方块在重登和正常保存重启后保留。
+- BDS 山&海填充适配与 Windows LL 本地世界分别验证。本次未启动 Windows 游戏或安装客户端包。
+
+## 来源与版本边界
+
+[Microsoft：Data Driven Overworld Height and Void Generation](https://learn.microsoft.com/en-us/minecraft/creator/documents/datadrivenoverworldheight?view=minecraft-bedrock-stable) 给出主世界维度行为包格式、16 格倍数和 -512..512 参数范围。本次验证该旧版主世界入口，未把新文档的 `minecraft:dimension_height` 当成当前构建的功能。
+
+[Microsoft：自定义维度组件](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/dimensionreference/examples/dimensioncomponents/components?view=minecraft-bedrock-stable) 属于另一组随版本演进的接口；[MoreDimensions 更新记录](https://github.com/LiteLDev/MoreDimensions/blob/develop/CHANGELOG.md) 的新版适配目标也不同。自定义维度可以作为备选，但当前主世界目标无需先引入它或升级 SDK。
+
+实验源码和最小行为包保留在 `experiments/height-range-probe`，不包含在模组运行包中。当前 BDS Seed8 与 Windows 发布包均未启用扩高。
