@@ -16,6 +16,16 @@ struct BuildHeight {
  int generatedHeight() const {return generatedMaxYExclusive-MinY;}
  int subchunks() const {return height()/16;}
  size_t blocks() const {return size_t(height())*256;}
+ // Dimension::getHeight() is the exclusive upper coordinate, not a length.
+ // Structure capture buffers include the negative-Y part of the dimension.
+ static int nativeVolumeHeight(int minY,int maxYExclusive,int generatedHeight){
+  if(minY!=MinY||(maxYExclusive!=LegacyMaxYExclusive&&maxYExclusive!=ExpandedMaxYExclusive)||
+     (generatedHeight!=LegacyMaxYExclusive-MinY&&generatedHeight!=ExpandedMaxYExclusive-MinY)||
+     generatedHeight>maxYExclusive-minY)
+   throw std::runtime_error("Structure dimension/generated height mismatch: minY="+std::to_string(minY)+
+     " maxYExclusive="+std::to_string(maxYExclusive)+" generatedHeight="+std::to_string(generatedHeight));
+  return maxYExclusive-minY;
+ }
  bool contains(int y) const {return y>=MinY&&y<maxYExclusive;}
  static BuildHeight read(nlohmann::json const& profile){
   auto readMax=[&](char const* field){

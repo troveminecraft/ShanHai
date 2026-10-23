@@ -6,6 +6,7 @@
 // Native structure adapter, bound to the terrain runtime's active world.
 #include "native/Engine.h"
 #include "BdsStructureBinding.h"
+#include "BuildHeight.h"
 #include "rules/StructureRules.h"
 #include "rules/StructureWater.h"
 #include "rules/VillageGrowth.h"
@@ -44,6 +45,7 @@
 #include "mc/world/level/Level.h"
 #include "mc/world/level/storage/LevelData.h"
 #include "mc/world/level/dimension/Dimension.h"
+#include "mc/world/level/dimension/DimensionHeightRange.h"
 #include "mc/world/level/chunk/LevelChunk.h"
 #include "mc/world/level/chunk/ChunkSource.h"
 #include "mc/world/level/BlockSource.h"

@@ -266,6 +266,9 @@ std::shared_ptr<Chunk const> getChunk(int x,int z){
  cacheWriter.submit(file,std::move(bytes));return value;
 }
 [[noreturn]] void calculatorFailure(std::exception const& e,std::string_view phase="initialization",std::optional<std::array<int,2>> chunk={}){
+ // Only the first failing worker may write and stop. A second worker must
+ // not truncate the JSON while the first is about to terminate the process.
+ static std::mutex failureStopMutex;std::lock_guard failureStopLock(failureStopMutex);
  ++errors;log().fatal("地形计算失败，立即停止以防保存虚空区块：{}",e.what());
  // Never return successful empty terrain or throw through an unknown BDS task
  // boundary. A failed generator must not advance to Generated and be saved.

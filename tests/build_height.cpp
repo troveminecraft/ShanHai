@@ -70,6 +70,13 @@ int main(int argc,char**argv){
   assert(legacy.height()==384&&legacy.generatedHeight()==384&&legacy.subchunks()==24);
   assert(buildOnly.height()==576&&buildOnly.generatedHeight()==384&&buildOnly.subchunks()==36);
   assert(expanded.height()==576&&expanded.generatedHeight()==576&&expanded.subchunks()==36);
+  assert(BuildHeight::nativeVolumeHeight(-64,320,384)==384);
+  assert(BuildHeight::nativeVolumeHeight(-64,512,576)==576);
+  assert(BuildHeight::nativeVolumeHeight(-64,512,384)==576);
+  // The native upper coordinate (320/512) must never become a buffer stride.
+  for(auto args:std::array<std::array<int,3>,7>{{{0,512,576},{-64,576,576},{-64,384,384},
+      {-64,320,576},{-64,512,512},{-64,320,320},{-64,512,0}}})
+   rejects([&]{BuildHeight::nativeVolumeHeight(args[0],args[1],args[2]);});
   for(auto const& bounds:{legacy,buildOnly,expanded}){
    assert(bounds.contains(-64)&&bounds.contains(319)&&!bounds.contains(-65));
    assert(bounds.contains(bounds.maxYExclusive-1)&&!bounds.contains(bounds.maxYExclusive));

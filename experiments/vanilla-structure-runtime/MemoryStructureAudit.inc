@@ -74,9 +74,8 @@ std::vector<Block const*> auditPalette(){
  }return result;
 }
 int auditVolumeHeight(Dimension&dimension){
- int height=dimension.getHeight();
- if(dimension.getMinHeight()!=-64||(height!=384&&height!=576)||height<field->generationHeight())throw std::runtime_error("Audit dimension/generated height mismatch");
- return height;
+ auto const&range=dimension.getHeightRange();
+ return terrain_runtime::BuildHeight::nativeVolumeHeight(range.mMin,range.mMax,field->generationHeight());
 }
 void auditFillChunk(LevelChunk&c,std::vector<uint8_t>const&bytes,std::vector<Block const*>const&palette,VegetationPair*vegetation){
  if(bytes.size()<260||bytes[0]!=75||bytes[1]!=87||bytes[2]!=50)throw std::runtime_error("Audit terrain encoding mismatch");
