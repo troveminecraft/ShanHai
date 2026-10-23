@@ -42,8 +42,19 @@ int main(int argc,char**argv){try{
  }assert(land>1000&&wet>1000&&edges>100);
  Engine engine(data);int cx=int(std::floor(X/16.)),cz=int(std::floor(Z/16.));
  auto before=engine.chunk(cx,cz);engine.chunk(cx+1,cz);assert(engine.chunk(cx,cz)==before);
+ size_t mushroomBlocks=0;
+ for(int dz=-2;dz<=2;++dz)for(int dx=-2;dx<=2;++dx){auto vegetation=engine.vegetationChunk(cx+dx,cz+dz);for(auto b:vegetation)mushroomBlocks+=b>=149&&b<=167;}
+ assert(mushroomBlocks>30);
  bool rejected=false;std::array<uint16_t,384> column{};Surface high;high.height=320;
  try{f.materialColumn(high,0,0,320,column.data());}catch(std::out_of_range const&){rejected=true;}assert(rejected);
- J report{{"seed",data.at("seedManifest").at("terrainSeed")},{"island",site},{"landColumns",land},{"boundaryEdgesChecked",edges},{"oceanColumns",wet},{"columnMaterialParity",true},{"height320Rejected",true},{"gameplayTested",false}};
+ J mesa;
+ for(int radius=0;radius<=32&&mesa.is_null();++radius)for(int dz=-radius;dz<=radius&&mesa.is_null();++dz)for(int dx=-radius;dx<=radius;++dx){
+  if(std::max(std::abs(dx),std::abs(dz))!=radius)continue;int x=32768+dx*512,z=32768+dz*512;
+  auto candidate=f.bootstrapSurface(x,z);if(!candidate.badlands)continue;
+  auto s=f.surface(x,z);if(!s.badlands)continue;
+  assert(s.biome==15||(s.biome>=26&&s.biome<=28));
+  mesa={{"x",x-32768},{"z",z-32768},{"biome",s.biome},{"height",s.height},{"material",f.material(s,x,s.height,z)}};break;
+ }assert(!mesa.is_null());
+ J report{{"seed",data.at("seedManifest").at("terrainSeed")},{"island",site},{"badlands",mesa},{"giantMushroomBlocks",mushroomBlocks},{"landColumns",land},{"boundaryEdgesChecked",edges},{"oceanColumns",wet},{"columnMaterialParity",true},{"height320Rejected",true},{"gameplayTested",false}};
  std::ofstream(argv[2])<<report.dump(2);std::cout<<report.dump()<<'\n';
 }catch(std::exception const&e){std::cerr<<e.what()<<'\n';return 1;}}

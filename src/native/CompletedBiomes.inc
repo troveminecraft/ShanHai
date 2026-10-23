@@ -54,12 +54,21 @@ void prepareMesaBands(){
  for(int y=next(12);y<192;y+=6+next(16)){mesaBands[y]=175;if(y>0&&next(2))mesaBands[y-1]=176;if(y<191&&next(2))mesaBands[y+1]=176;}
 }
 void badlandsSurface(Surface&s,int x,int z){
- if(!completedBiomes||s.biome!=15||s.water>=s.height||s.lake||s.river||s.stone>0||s.volcanic>0||s.iceHabitat>0||s.scarp>0||s.aridType)return;
- s.badlands=1;s.T=.95;s.H=.05;s.treeD=0;s.giant=0;s.rockCap=0;s.rock=0;s.soilSand=0;s.surf=10;
+ if(!completedBiomes||s.height<40||s.water>=s.height||s.lake||s.river||s.stone>0||s.volcanic>0||s.iceHabitat>0||s.scarp>0||s.aridType)return;
+ double province=mesaNoise.at(x/1150.+31,z/1150.-17);
+ if(s.biome!=15){
+  // Regional relief no longer guarantees a dominant plateau weight. Select
+  // an independent warm/dry province as vanilla's warm climate branch does,
+  // instead of leaving a fully implemented surface unreachable in practice.
+  if(s.biome!=7&&s.biome!=8&&s.biome!=11&&s.biome!=12&&s.biome!=16)return;
+  auto climate=regionalClimate(x,z);
+  if(climate[0]<.48||climate[1]>.66||province<=.12)return;
+ }
+ s.badlands=1;s.biome=15;s.T=.95;s.H=.05;s.treeD=0;s.giant=0;s.rockCap=0;s.rock=0;s.soilSand=0;s.surf=10;
  double variant=mesaNoise.at(x/850.,z/850.);
  if(variant>.12){
   s.badlands=2;s.biome=26;
-  double pillar=smooth(.12,.3,variant)*smooth(.05,.40,mesaNoise.at(x/45.+19,z/45.-7));
+  double pillar=smooth(.12,.3,variant)*smooth(.05,.40,mesaNoise.at(x/45.+19,z/45.-7))*smooth(.12,.24,province);
   double roof=18+18*clamp(.5+mesaNoise.at(x/120.-31,z/120.+23),0,1);
   s.height=std::min(240,s.height+int(std::floor(roof*pillar)));
  }else if(s.height>=76){
