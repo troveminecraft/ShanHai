@@ -25,6 +25,7 @@ try {
 } finally { Pop-Location }
 $bin = Join-Path $build 'windows/x64/release'
 $cases = @(
+    @{Name='test_teleport_policy'; Args=@()},
     @{Name='palette_contract'; Args=@()},
     @{Name='creation_status'; Args=@()},
     @{Name='failure_record'; Args=@($output)},

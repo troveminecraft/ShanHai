@@ -143,6 +143,8 @@
 #include "mc/world/level/block/WallBlock.h"
 #ifndef KARMA_CLIENT
 #include "StructureTestCatalog.h"
+#include "TestTeleportPolicy.h"
+#include "ll/api/event/player/PlayerJoinEvent.h"
 #include "mc/world/level/GameType.h"
 #include "ll/api/event/player/PlayerDisconnectEvent.h"
 #include "mc/server/ServerInstance.h"

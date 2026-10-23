@@ -1,0 +1,12 @@
+{
+  "name": "vanilla-structure-lab",
+  "entry": "vanilla-structure-lab.dll",
+  "version": "1.0.48",
+  "type": "native",
+  "platform": "server",
+  "dependencies": [
+    {
+      "name": "karma-worldgen"
+    }
+  ]
+}

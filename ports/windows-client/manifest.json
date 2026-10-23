@@ -1,7 +1,7 @@
 {
   "name": "karma-worldgen-client",
   "entry": "karma-worldgen-client.dll",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "native",
   "platform": "client",
   "description": "K-worldgen\uff1aWindows LL \u4e3b\u4e16\u754c\u5730\u5f62\u4e0e\u7ed3\u6784\u751f\u6210"
