@@ -13,7 +13,7 @@ void forestMushrooms(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,
  if(!forestDesign)return;
  // Small mushrooms use the same island soil and reservations as the caps.
  for(int z=0;z<16;++z)for(int x=0;x<16;++x){auto const&s=surfaces[z*16+x];if(!s.mushroom||nativeReserved(x0+x,z0+z))continue;
-  int y=s.height+1;if(y>319)continue;double q=hash01(x0+x,z0+z,terrainSeed^72311);
+  int y=s.height+1;if(y>Height-65)continue;double q=hash01(x0+x,z0+z,terrainSeed^72311);
   auto&b=raw[(z*16+x)*Height+y+64];if(b==0&&q<.025)b=q<.0125?67:68;
  }
  for(int gz=int(std::floor((z0-5)/24.));gz<=int(std::floor((z0+20)/24.));++gz)for(int gx=int(std::floor((x0-5)/24.));gx<=int(std::floor((x0+20)/24.));++gx){auto a=mushroomSite(gx,gz);if(!a.h||nativeReserved(a.x,a.z))continue;
@@ -56,7 +56,7 @@ void forestMushrooms(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,
   if(habitat.biome==13)for(auto const&t:jungles(a.x,a.z,0))if(forestTreeKept(t->site.x,t->site.z)&&std::hypot(t->site.x-a.x,t->site.z-a.z)<a.r+t->site.width+2)collision=true;
   if(habitat.giant>.1)for(auto const&t:giants(a.x,a.z,1))if(forestTreeKept(t->x,t->z)&&std::hypot(t->x-a.x,t->z-a.z)<a.r+t->radius+2)collision=true;
   if(collision)continue;
-  auto put=[&](int X,int y,int Z,int id){int x=X-x0,z=Z-z0;if(x<0||x>=16||z<0||z>=16||y>319)return;auto&s=surfaces[z*16+x];if(y<=std::max({s.height,s.water,s.lava}))return;auto&b=raw[(z*16+x)*Height+y+64];if(b==0||(b>=36&&b<=41)||(b>=62&&b<=64)||b==67||b==68||(b>=71&&b<=74))b=id;};
+  auto put=[&](int X,int y,int Z,int id){int x=X-x0,z=Z-z0;if(x<0||x>=16||z<0||z>=16||y>Height-65)return;auto&s=surfaces[z*16+x];if(y<=std::max({s.height,s.water,s.lava}))return;auto&b=raw[(z*16+x)*Height+y+64];if(b==0||(b>=36&&b<=41)||(b>=62&&b<=64)||b==67||b==68||(b>=71&&b<=74))b=id;};
   for(int y=1;y<a.h;++y)put(a.x,a.g+y,a.z,167);
   int low=a.red?a.h-3:a.h;
   for(int y=low;y<=a.h;++y){int radius=a.red?(y==a.h?1:2):3;

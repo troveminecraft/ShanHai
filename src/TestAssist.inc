@@ -67,7 +67,7 @@ void registerTestAssist(){
    TestSpot s{a.at("name"),a.at("x"),a.at("y"),a.at("z"),a.value("spectator",false)};
    auto kind=a.value("kind",std::string{});
    bool caveSpot=(a.value("verifiedAir",false)&&(kind=="pool"||kind=="dry"))||(s.spectator&&a.value("verifiedSealedFluid",false));
-   if(s.x<-Half*16+144||s.x>Half*16-145||s.z<-Half*16+144||s.z>Half*16-145||s.y<(caveSpot?-59:-48)||s.y>319||(s.y<32&&!caveSpot&&!a.value("verifiedWater",false)))throw std::runtime_error("Unsafe test destination");
+   if(s.x<-Half*16+144||s.x>Half*16-145||s.z<-Half*16+144||s.z>Half*16-145||s.y<(caveSpot?-59:-48)||!buildHeight.contains(s.y)||(s.y<32&&!caveSpot&&!a.value("verifiedWater",false)))throw std::runtime_error("Unsafe test destination");
    testSpots.push_back(s);
   }
   if(testSpots.empty()||testSpots.size()>64)throw std::runtime_error("Expected 1..64 test destinations");

@@ -216,7 +216,7 @@ std::vector<std::shared_ptr<JungleTree>> jungles(int x0,int z0,int size){
 }
 void jungleEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>const&surfaces){
  auto trees=jungles(x0,z0,16);
- auto put=[&](int x,int y,int z,uint16_t id,bool wood=false){int X=x-x0,Z=z-z0;if(X<0||X>=16||Z<0||Z>=16||y<-60||y>319)return;auto const&s=surfaces[Z*16+X];if(y<=s.height||y<=s.water||y<=s.lava)return;auto offset=(Z*16+X)*Height+y+64;auto&b=raw[offset];
+ auto put=[&](int x,int y,int z,uint16_t id,bool wood=false){int X=x-x0,Z=z-z0;if(X<0||X>=16||Z<0||Z>=16||y<-60||y>Height-65)return;auto const&s=surfaces[Z*16+X];if(y<=s.height||y<=s.water||y<=s.lava)return;auto offset=(Z*16+X)*Height+y+64;auto&b=raw[offset];
   if(id==JungleMoss||id==37){auto below=raw[offset-1];if(id==37?below!=JungleMoss:(below!=14&&below!=JungleWood))return;if(b==0||b==15)b=id;return;}
   if(b==0||(wood&&(b==11||b==13||b==15||b==17||b==66)))b=id;};
  // All woody skeletons precede foliage across the entire overlapping stand.
@@ -282,7 +282,7 @@ void jungleEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,25
  for(int z=0;z<16;z++)for(int x=0;x<16;x++){
   auto const&s=surfaces[z*16+x];if(!jungleHabitat(s)||s.rock||blocked(x0+x,z0+z))continue;int h=s.height,X=x0+x,Z=z0+z;auto col=raw.data()+(z*16+x)*Height;
   if(!soil(col[h+64])||col[h+65])continue;bool shade=false;
-  for(int y=h+4;y<=std::min(319,h+60);y++)if(col[y+64]==15){shade=true;break;}
+  for(int y=h+4;y<=std::min(Height-65,h+60);y++)if(col[y+64]==15){shade=true;break;}
   double patch=clamp(.5+.8*understoryNoise.at(X/19.,Z/19.),0.,1.);
   if(shade&&patch>.58)col[h+64]=patch>.73?JungleMoss:33;
   if(nearStem(X,Z))continue;
@@ -307,7 +307,7 @@ void jungleEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,25
    auto const&s=surfaces[z*16+x];int h=s.height;
    if(!jungleHabitat(s)||s.rock||s.water>=h||s.lava>=h||nearStem(X,Z)||blocked(X,Z))continue;
    auto col=raw.data()+(z*16+x)*Height;int n=bamboo?4+int(r(14712+i*3)*6):1;
-   if(h+n+1>319||!soil(col[h+64]))continue;
+   if(h+n+1>Height-65||!soil(col[h+64]))continue;
    bool free=true;for(int dy=1;dy<=std::max(2,n+1);dy++)if(!softPlant(col[h+64+dy])){free=false;break;}
    if(!free)continue;
    // Replacing a fern base must also remove its upper half.

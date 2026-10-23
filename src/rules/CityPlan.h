@@ -37,7 +37,8 @@ template<class Sample,class Material> std::vector<CityLink> cityConnections(Stru
  }
  return links;
 }
-struct CityColumn {int floor=320,ceiling=-64,requiredCeiling=-64;};
+// Empty columns must stay above either world range and leave arithmetic headroom.
+struct CityColumn {int floor=INT_MAX/2,ceiling=-64,requiredCeiling=-64;};
 struct CityShape {StructureBox box;double cx,cz,rx,rz;};
 inline std::vector<CityShape> cityShapes(std::span<StructureBlueprintPiece const>pieces,StructureBox const&clip){
  std::vector<CityShape> shapes;

@@ -9,7 +9,7 @@ bool vanillaOreCondition(int condition,Surface const&s,int i)const{
 }
 KARMA_NOINLINE void vanillaOreProfiles(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>const&surfaces){
  int gx0=(x0-32768)/16,gz0=(z0-32768)/16,top=-64;
- for(int i=0;i<256;++i){auto col=raw.data()+i*Height;for(int y=std::min(319,surfaces[i].height);y>top;--y)if(col[y+64]==2||col[y+64]==95){top=y;break;}}
+ for(int i=0;i<256;++i){auto col=raw.data()+i*Height;for(int y=std::min(Height-65,surfaces[i].height);y>top;--y)if(col[y+64]==2||col[y+64]==95){top=y;break;}}
  if(top<-60)return;
  std::array<uint8_t,256> eligibility{};uint8_t anyEligibility=0;
  for(int i=0;i<256;++i){auto const&s=surfaces[i];bool drip=vanillaOreCondition(2,s,i);
@@ -17,7 +17,7 @@ KARMA_NOINLINE void vanillaOreProfiles(int x0,int z0,std::vector<uint16_t>&raw,s
  }
  std::array<Surface,324> halo{};std::array<bool,324> known{};
  auto isAir=[&](int x,int y,int z){
-  if(y<-64||y>319)return false;
+  if(y<-64||y>Height-65)return false;
   if(x0+x-32768<terrain_bounds::MinBlock||x0+x-32768>terrain_bounds::MaxBlock||z0+z-32768<terrain_bounds::MinBlock||z0+z-32768>terrain_bounds::MaxBlock)return true;
   if(x>=0&&x<16&&z>=0&&z<16)return raw[(z*16+x)*Height+y+64]==0;
   int i=(z+1)*18+x+1;if(!known[i]){halo[i]=field.surface(x0+x,z0+z,false);known[i]=true;}

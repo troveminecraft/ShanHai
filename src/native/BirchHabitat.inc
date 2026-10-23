@@ -15,7 +15,7 @@ double birchHabitatNode(int gx,int gz){return birchHabitatNodes.get(key2(gx,gz),
  for(int dz=-3;dz<=3;dz++)for(int dx=-3;dx<=3;dx++){
   if(dx*dx+dz*dz>10)continue;
   int X=gx+dx,Z=gz+dz;
-  if(birchSeaNodes.get(key2(X,Z),[&]{auto s=base(X*32,Z*32);return s.water==31&&s.height<31&&!s.lake;}))return 0.;
+  if(birchSeaNodes.get(key2(X,Z),[&]{auto s=base(X*32,Z*32);return s.water==seaLevelValue&&s.height<seaLevelValue&&!s.lake;}))return 0.;
  }
  // Use the actual drainage graph, so even narrow channels between sea-grid
  // samples retain a bank buffer. Wider downstream rivers get a larger buffer.

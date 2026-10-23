@@ -56,20 +56,32 @@ def query(exe,source,requests):
  r=run_checked([str(exe),str(source)],input=''.join(json.dumps(q)+'\n' for q in requests),
                capture_output=True,timeout=300,stage='native terrain query')
  return [json.loads(line) for line in r.stdout.splitlines()]
-def columns(path):
- b=path.read_bytes();assert b[:4]==b'KW2\0';pos=260;out=[]
+def columns(path,height=384):
+ if type(height) is not int or height not in (384,576):raise ValueError('Unsupported spawn chunk height')
+ b=path.read_bytes()
+ if len(b)<260 or b[:4]!=b'KW2\0':raise ValueError('Invalid spawn chunk header')
+ pos=260;out=[]
  for _ in range(256):
+  if pos+2>len(b):raise ValueError('Truncated spawn chunk column')
   n=struct.unpack_from('<H',b,pos)[0];pos+=2;col=[]
   for _ in range(n):
-   length,block=struct.unpack_from('<HH',b,pos);pos+=4;col.extend([block]*length)
-  assert len(col)==384;out.append(col)
- assert pos==len(b);return out
+   if pos+4>len(b):raise ValueError('Truncated spawn chunk run')
+   length,block=struct.unpack_from('<HH',b,pos);pos+=4
+   if not 0<length<=height-len(col):raise ValueError('Spawn chunk run exceeds expected height')
+   col.extend([block]*length)
+  if len(col)!=height:raise ValueError('Spawn chunk height differs from native recipe')
+  out.append(col)
+ if pos!=len(b):raise ValueError('Trailing spawn chunk data')
+ return out
 def select(source,exe,output=None):
  # One engine keeps regional plans and generated spawn chunks warm across
  # candidate checks. Previously every query rebuilt a separate engine.
  with NativeQuery(exe,source) as worker:return _select(source,exe,worker,output)
 
 def _select(source,exe,worker,output=None):
+ generated_max=json.loads(source.read_bytes()).get('config',{}).get('generatedMaxYExclusive',320)
+ if type(generated_max) is not int or generated_max not in (320,512):raise ValueError('Unsupported spawn recipe height')
+ height=generated_max+64
  candidates=[]
  # Nearest usable mainland first, without a special-biome location tie.
  for radius,step in [(768,64),(3520,256)]:
@@ -88,7 +100,7 @@ def _select(source,exe,worker,output=None):
     chunks=sorted({(X//16,Z//16) for X,Z in points}-cache.keys())
     paths={(cx,cz):Path(temp)/f'{cx}-{cz}.bin' for cx,cz in chunks}
     worker([dict(cx=cx,cz=cz,output=str(f)) for (cx,cz),f in paths.items()])
-    for key,f in paths.items():cache[key]=columns(f)
+    for key,f in paths.items():cache[key]=columns(f,height)
     safe=True
     for (X,Z),a in zip(points,nearby):
      col=cache[X//16,Z//16][(Z%16)*16+X%16];g=a['height']

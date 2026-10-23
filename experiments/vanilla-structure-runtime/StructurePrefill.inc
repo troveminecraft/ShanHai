@@ -48,26 +48,25 @@ unsigned applyVegetationDifference(BlockVolume const &volume, std::vector<uint16
         throw std::runtime_error("Air block unavailable during structure prefill");
     unsigned count = 0;
     auto data = volume.mBlocks->mBegin;
-    for (int z = 0; z < 16; ++z)
-        for (int x = 0; x < 16; ++x)
-            for (int y = 4; y < 384; ++y) {
-                int i = (z * 16 + x) * 384 + y;
-                if (!worldgen_rules::structureReservationCandidate(before[i], after[i]))
-                    continue;
+    int height=worldgen_rules::vegetationColumnHeight(before,after);
+    if(volume.mWidth!=16||volume.mDepth!=16||volume.mHeight<height||
+       (volume.mHeight!=384&&volume.mHeight!=576)||volume.mDimensionBottom!=-64)
+        throw std::runtime_error("Structure prefill native volume height mismatch");
+    worldgen_rules::visitVegetationReservations(before,after,[&](int x,int y,int z,int previous,int reserved){
                 auto idx = volume.indexNoBoundsCheck(BlockPos{x, y, z});
-                if (!worldgen_rules::structureReservationRemoves(before[i], after[i],
+                if (!worldgen_rules::structureReservationRemoves(previous, reserved,
                                                                  data[idx]->getTypeName()))
-                    continue;
+                    return;
                 data[idx] = air;
                 ++count;
-                if (y < 383) {
+                if (y+1 < volume.mHeight) {
                     auto above = volume.indexNoBoundsCheck(BlockPos{x, y + 1, z});
                     if (data[above]->getTypeName() == "minecraft:snow_layer") {
                         data[above] = air;
                         ++count;
                     }
                 }
-            }
+    });
     return count;
 }
 // The explicit memory-audit command already owns the planning lock.
@@ -98,7 +97,8 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
                       &LevelChunk::setBlockVolume, void, BlockVolume const &volume, uint yOffset) {
     auto cp = getPosition();
     auto &dim = getDimension();
-    if (!automaticStructures || volume.mWidth != 16 || volume.mDepth != 16 || volume.mHeight != 384 ||
+    if (!automaticStructures || volume.mWidth != 16 || volume.mDepth != 16 ||
+        (volume.mHeight != 384 && volume.mHeight != 576) ||
         volume.mDimensionBottom != -64 || yOffset != 0 || getState().load() > ChunkState::Generated ||
         static_cast<int>(dim.getDimensionId()) != 0 ||
         dim.getLevel().getLevelData().getLevelName() != activeWorld || !structureChunkInside(cp.x, cp.z)) {

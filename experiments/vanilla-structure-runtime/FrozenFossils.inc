@@ -73,7 +73,7 @@ FrozenFossil* frozenFossil(Dimension&d,BlockSource&blocks,ChunkPos anchor,uint s
  Context storage{target,plan.origin,rng,params,std::move(proxy)};bool ok=smallDefinition(d.getLevel(),"minecraft:"+kind+"_feature").place(reinterpret_cast<IFeature::PlacementContext const&>(storage)).has_value();fossilCapture=nullptr;
  fossilPlanNanos+=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-t).count();
  if(!ok||capture.rejected||capture.writes.empty()){rejectFossil(key);return nullptr;}
- plan.bounds=nativeBox(worldgen_rules::fossilOutputBounds({anchor.x,anchor.z},capture.writes,[](auto p){return worldgen_rules::StructurePoint{p[0],p[1],p[2]};},[](auto b){return b->getTypeName();}));
+ plan.bounds=nativeBox(worldgen_rules::fossilOutputBounds({anchor.x,anchor.z},capture.writes,[](auto p){return worldgen_rules::StructurePoint{p[0],p[1],p[2]};},[](auto b){return b->getTypeName();},field->generationHeight()-65));
  if(!fitsSmall(plan.bounds,occupied)){rejectFossil(key);return nullptr;}
  for(int z=chunk(plan.bounds.min.z);z<=chunk(plan.bounds.max.z);++z)for(int x=chunk(plan.bounds.min.x);x<=chunk(plan.bounds.max.x);++x)if(storedChunk(d,{x,z})){rejectFossil(key);return nullptr;}
  plan.writes=std::move(capture.writes);J writes=J::array();for(auto const&[p,b]:plan.writes)writes.push_back({p[0],p[1],p[2],b->getTypeName(),b->getData(),uint64_t(b->mSerializationIdHash)});
@@ -102,7 +102,7 @@ void inspectFrozenFossil(Dimension&d,int x,int z,bool deep){
  for(auto const&w:r["blocks"]){BlockPos p{w[0].get<int>(),w[1].get<int>(),w[2].get<int>()};auto const&v=blocks.getBlock(p);counts[v.getTypeName()]=counts.value(v.getTypeName(),0)+1;if(uint64_t(v.mSerializationIdHash)!=w[5].get<uint64_t>())mismatches.push_back({{"pos",{p.x,p.y,p.z}},{"actual",v.getTypeName()},{"expected",w[3]}});}
  for(int zz=chunk(b.min.z);zz<=chunk(b.max.z);++zz)for(int xx=chunk(b.min.x);xx<=chunk(b.max.x);++xx)chunks.push_back({xx,zz});
  std::optional<BlockPos> safe;int64_t score=INT64_MAX;int cx=chunk(x)*16+8,cz=chunk(z)*16+8;
- for(int zz=cz-7;zz<=cz+7;++zz)for(int xx=cx-7;xx<=cx+7;++xx){int h=field->surface(xx+32768,zz+32768).height+1;for(int yy=std::max(-57,h-2);yy<=std::min(310,h+8);++yy){BlockPos p{xx,yy,zz};if(!blocks.isSolidBlockingBlock({xx,yy-1,zz})||blocks.getBlock(p).getTypeName()!="minecraft:air"||blocks.getBlock({xx,yy+1,zz}).getTypeName()!="minecraft:air")continue;int64_t dx=xx-cx,dz=zz-cz,dy=yy-h,value=dx*dx+dz*dz+dy*dy*16;if(value<score){score=value;safe=p;}}}
+ for(int zz=cz-7;zz<=cz+7;++zz)for(int xx=cx-7;xx<=cx+7;++xx){int h=field->surface(xx+32768,zz+32768).height+1;for(int yy=std::max(-57,h-2);yy<=std::min((field->generationHeight()-74),h+8);++yy){BlockPos p{xx,yy,zz};if(!blocks.isSolidBlockingBlock({xx,yy-1,zz})||blocks.getBlock(p).getTypeName()!="minecraft:air"||blocks.getBlock({xx,yy+1,zz}).getTypeName()!="minecraft:air")continue;int64_t dx=xx-cx,dz=zz-cz,dy=yy-h,value=dx*dx+dz*dz+dy*dy*16;if(value<score){score=value;safe=p;}}}
  J destination=J::object();if(safe)destination={{"x",safe->x},{"y",safe->y},{"z",safe->z},{"kind","surface"},{"verifiedAir",true}};
  std::ofstream(folder/"fossil-inspection.json")<<J{{"world",activeWorld},{"plan",r},{"counts",counts},{"chunks",chunks},{"mismatches",mismatches},{"complete",mismatches.empty()},{"destination",destination}}.dump(2);
 }

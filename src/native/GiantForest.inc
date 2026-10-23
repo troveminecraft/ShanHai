@@ -4,7 +4,7 @@ std::shared_ptr<Giant> giant(Site const& site) {
   auto const& q=C.at("giantForest");auto s=field.surface(site.x,site.z,false);
   auto r=[&](int k){return rand(site.id,k);};
   double weight=field.giantWeight(site.x,site.z,s);
-  int height=std::min(int(num(q,"minHeight"))+int(r(3)*(num(q,"maxHeight")-num(q,"minHeight")+1)),319-s.height-3);
+  int height=std::min(int(num(q,"minHeight"))+int(r(3)*(num(q,"maxHeight")-num(q,"minHeight")+1)),Height-68-s.height);
   if(r(4)>=num(q,"chance")*weight||s.cliffLow!=-32768||height<num(q,"minHeight")||s.height<=36||blocked(site.x,site.z))return nullptr;
   // Check the whole trunk footprint, not just nine points. Ground range may
   // be large on a hillside; the trunk is rooted separately in every column.
@@ -64,7 +64,7 @@ void model(Giant& a) {
  auto put=[&](double X,double Y,double Z,int color,bool root=false){
   int x=roundJS(X),y=roundJS(Y),z=roundJS(Z);
   if(std::abs(x)>=Halo||std::abs(z)>=Halo)throw std::runtime_error("Giant geometry exceeds query halo");
-  if(y<-60||y>319)return;int h=g(x,z);if(root?y<h-2:y<=h+(color==14?12:0))return;
+  if(y<-60||y>Height-65)return;int h=g(x,z);if(root?y<h-2:y<=h+(color==14?12:0))return;
   int col=(z+Halo)*Side+x+Halo;auto&v=scratch[col*Height+y+64];if(color==14&&v&&v!=14)return;
   v=uint8_t(color);bottom[col]=std::min(bottom[col],y+64);upper[col]=std::max(upper[col],y+64);
  };

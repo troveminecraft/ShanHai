@@ -43,6 +43,6 @@ void noiseScarpRelief(Surface&s,int wx,int wz){
   int original=s.height;s.height=v[0];s.cliffLow=v[1];s.cliffHigh=v[2];s.scarp=v[3];s.scarpWarped=true;
   int floor=v[1]>-32768?v[1]-1:s.height;
   s.scarpCaveCeiling=int(std::floor(std::min(original,floor)-caveRoof));
-  s.continuous=(s.height-31)/123.;s.e=s.continuous;
+  s.continuous=(s.height-seaLevelValue)/123.;s.e=s.continuous;
  }
 }

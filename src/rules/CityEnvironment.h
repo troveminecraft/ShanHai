@@ -50,7 +50,7 @@ unsigned carveCityEnvironment(std::span<StructureBlueprintPiece const>pieces,std
  for(auto const&l:allLinks)if(std::max(l.a.x,l.b.x)+4>=clip.min.x&&std::min(l.a.x,l.b.x)-4<=clip.max.x&&std::max(l.a.z,l.b.z)+4>=clip.min.z&&std::min(l.a.z,l.b.z)-4<=clip.max.z)links.push_back(l);
  if(shapes.empty()&&links.empty())return 0;unsigned carved=0;
  for(int z=clip.min.z;z<=clip.max.z;++z)for(int x=clip.min.x;x<=clip.max.x;++x){auto c=cityColumn(shapes,links,neighbours,x,z,seed);
-  for(int y=c.floor+1;y<=std::min(c.ceiling,310);++y){StructurePoint p{x,y,z};if(env.natural(env.get(p))){env.air(p);++carved;}}
+  for(int y=c.floor+1;y<=std::min(c.ceiling,clip.max.y-9);++y){StructurePoint p{x,y,z};if(env.natural(env.get(p))){env.air(p);++carved;}}
  }return carved;
 }
 template<class Sample,class Material,class Environment>

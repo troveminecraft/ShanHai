@@ -56,7 +56,7 @@ void snowCover(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>co
   if(closedIceRifts){auto const&p=closedRiftColumns[i];if(p.valid&&p.distance<=p.opening)continue;}
   else if(thinSnowRifts&&s.superGlacier>.02&&riftSample(X,Z,sites).cut>.35)continue;
   auto col=raw.data()+i*Height;
-  for(int y=318;y>=std::max(-56,s.height-2);--y)
+  for(int y=Height-66;y>=std::max(-56,s.height-2);--y)
    if((col[y+64]==9||col[y+64]==143||col[y+64]==144)&&col[y+65]==0){
     double chance=hash01(X,Z,terrainSeed^51831);
     col[y+65]=thinSnowRifts?uint16_t(chance<.90?146:chance<.98?147:148):23;

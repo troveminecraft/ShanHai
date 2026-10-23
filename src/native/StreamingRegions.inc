@@ -13,7 +13,7 @@ Field& naturalSamplingField(){
 }
 Surface regionalClimateSample(int x,int z){
  auto s=naturalSamplingField().base(x,z);s.height=int(std::floor(desertHeight(x,z,s.height)));
- s.water=s.height<31?31:-32768;desertClimate(s,x,z);return s;
+ s.water=s.height<seaLevelValue?seaLevelValue:-32768;desertClimate(s,x,z);return s;
 }
 double streamingDesertWeight(double wx,double wz){
  if(!streamingRegions||!C.contains("deserts")||!C.at("deserts").value("enabled",false))return 0;
@@ -40,7 +40,7 @@ std::shared_ptr<J const> regionalWaterPlan(int a,int b){
  bool curved=data.at("regionalGeneration").value("algorithm",std::string{})=="regional-drainage-v2";
  return regional::get(streamingIdentity,"water",a,b,[&]{return regional::drainage(a,b,terrainSeed,[&](int x,int z){
   auto s=regionalClimateSample(x+32768,z+32768);return regional::Ground{s.height,s.H,s.T,s.stone,s.volcanic};
- },curved);});
+ },curved,seaLevelValue,generatedMaxYExclusive-1);});
 }
 void ensureStreamingRegions(int wx,int wz){
  if(!streamingRegions)return;

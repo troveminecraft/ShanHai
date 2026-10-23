@@ -9,7 +9,7 @@ MushroomIsland mushroomIsland(int gx,int gz){return islandSites.get(key2(gx,gz),
  a.x=gx*1536+480+int(rnd(1)*576);a.z=gz*1536+480+int(rnd(2)*576);a.r=128+int(rnd(3)*49);
  // Evaluate the unmodified terrain, never surface(), to avoid recursive
  // island/shore searches. Reject frozen seas, lakes and special landforms.
- auto wet=[&](int x,int z){auto s=compute(x,z,false);return s.height<25&&s.water==31&&!s.lake&&s.T>.26&&s.stone==0&&s.volcanic==0;};
+ auto wet=[&](int x,int z){auto s=compute(x,z,false);return s.height<seaLevelValue-6&&s.water==seaLevelValue&&!s.lake&&s.T>.26&&s.stone==0&&s.volcanic==0;};
  if(!wet(a.x,a.z))return a;
  int reach=a.r+112;
  for(int z=-reach;z<=reach;z+=48)for(int x=-reach;x<=reach;x+=48)
@@ -29,19 +29,19 @@ bool mushroomSurface(Surface&s,int x,int z){
  // The outer 64+ blocks are ALWAYS sea. This explicit collar, applied last
  // to biome/height, proves no mushroom column can touch a non-ocean biome,
  // even if coarse candidate sampling missed a small natural outcrop.
- int bed=std::min(s.height,23);
- int h=int(std::floor(bed+(36+12*islandNoise.at(x/110.,z/110.)-bed)*inland));
- s=Surface{};s.height=h;s.preRiverHeight=h;s.T=.65;s.H=.9;s.rockCap=0;
- s.continuous=s.e=(h-31)/123.;s.mushroomZone=true;
- if(h>=31){s.biome=25;s.mushroom=true;s.surf=9;}
- else{s.water=31;s.kind=3;s.surf=6;s.ocean=1;s.biome=1;}
+ int bed=std::min(s.height,seaLevelValue-8);
+ int h=int(std::floor(bed+(seaLevelValue+5+12*islandNoise.at(x/110.,z/110.)-bed)*inland));
+ s=Surface{};s.seaLevel=seaLevelValue;s.height=h;s.preRiverHeight=h;s.T=.65;s.H=.9;s.rockCap=0;
+ s.continuous=s.e=(h-seaLevelValue)/123.;s.mushroomZone=true;
+ if(h>=seaLevelValue){s.biome=25;s.mushroom=true;s.surf=9;}
+ else{s.water=seaLevelValue;s.kind=3;s.surf=6;s.ocean=1;s.biome=1;}
  return true;
 }
 
 // Vanilla mesa semantics: a world-seeded repeating clay band sequence,
 // smoothly offset per column; red sand on low tops, bare terracotta cliffs,
 // wooded plateau caps, and a separate eroded (Bryce) pillar variant.
-// Height/noise are adapted to this generator's sea level 31. This does not
+// Height/noise are adapted to this generator's sea level. This does not
 // claim bit-identical Mojang Xoroshiro noise or vanilla biome placement.
 std::array<uint8_t,192> mesaBands{};
 bool mesaBandsReady=false;
@@ -75,7 +75,7 @@ void badlandsSurface(Surface&s,int x,int z){
   s.badlands=3;s.biome=27;
   if(variant<-.12){s.badlands=4;s.biome=28;s.treeK=1;s.treeD=.0014;}
  }
- s.continuous=s.e=(s.height-31)/123.;
+ s.continuous=s.e=(s.height-seaLevelValue)/123.;
 }
 int badlandsMaterial(Surface const&s,int x,int y,int z){
  if(!s.badlands||y<25)return -1;

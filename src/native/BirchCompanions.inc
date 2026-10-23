@@ -91,14 +91,14 @@ void birchCompanions(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,
  }
  for(bool wood:{true,false})for(auto const&t:oaks)for(auto const&p:t->cells){
   if(nativeReserved(t->site.x,t->site.z)||!forestTreeKept(t->site.x,t->site.z))continue;
-  if((p.block!=11)!=wood)continue;int x=p.x-x0,z=p.z-z0;if(x<0||x>=16||z<0||z>=16)continue;
+  if((p.block!=11)!=wood)continue;int x=p.x-x0,z=p.z-z0;if(x<0||x>=16||z<0||z>=16||p.y<-64||p.y>Height-65)continue;
   auto&v=raw[(z*16+x)*Height+p.y+64];
   bool leaves=v==11||v==66;
   if(v==0||(wood&&leaves))v=p.block;
  }
  if(forestDesign)for(auto const&t:oaks){auto const&a=t->site;if(!forestTreeKept(a.x,a.z)||nativeReserved(a.x,a.z)||hash01(a.x,a.z,terrainSeed^52607)>.06)continue;
   int side=int(hash01(a.x,a.z,terrainSeed^52608)*4);auto d=std::array<std::array<int,2>,4>{{{0,-1},{1,0},{0,1},{-1,0}}}[side];
-  for(auto p:t->cells)if(p.block==69&&p.y>a.ground+2&&p.y<a.ground+9){int X=p.x+d[0],Z=p.z+d[1];bool occupied=false;for(auto q:t->cells)if(q.x==X&&q.y==p.y&&q.z==Z){occupied=true;break;}if(occupied)continue;int x=X-x0,z=Z-z0;if(x>=0&&x<16&&z>=0&&z<16){auto&b=raw[(z*16+x)*Height+p.y+64];if(b==0)b=76+side;}}
+  for(auto p:t->cells)if(p.block==69&&p.y>a.ground+2&&p.y<a.ground+9&&p.y>=-64&&p.y<=Height-65){int X=p.x+d[0],Z=p.z+d[1];bool occupied=false;for(auto q:t->cells)if(q.x==X&&q.y==p.y&&q.z==Z){occupied=true;break;}if(occupied)continue;int x=X-x0,z=Z-z0;if(x>=0&&x<16&&z>=0&&z<16){auto&b=raw[(z*16+x)*Height+p.y+64];if(b==0)b=76+side;}}
  }
  auto soil=[](int b){return b==3||b==4||b==32||b==33;};
  // Patchy bushes leave open lanes. Every occupied shrub column touches its
@@ -119,7 +119,7 @@ void birchCompanions(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,
    double edge=radius*(1+.14*std::sin(3*std::atan2(double(dz),double(dx))+phase));
    double d=(dx*dx+dz*dz)/(edge*edge);if(d>1)continue;
    int X=x+dx-x0,Z=z+dz-z0;if(X<0||X>=16||Z<0||Z>=16)continue;
-   auto const&local=surfaces[Z*16+X];if(!birchHabitat(local)||local.height>315)continue;
+   auto const&local=surfaces[Z*16+X];if(!birchHabitat(local)||local.height>Height-69)continue;
    auto col=raw.data()+(Z*16+X)*Height;int h=local.height;
    if(!soil(col[h+64]))continue;int n=d>.57?1:d>.17?2:tall;bool free=true;
    for(int dy=1;dy<=n;dy++)free&=col[h+64+dy]==0;if(!free)continue;

@@ -2,8 +2,20 @@
 #include "StructureTestCatalog.h"
 #include <optional>
 #include <string>
+#include <algorithm>
+#include <cstdint>
 
 namespace test_teleport {
+inline bool validY(int y,int maxYExclusive){
+    return (maxYExclusive==320||maxYExclusive==512)&&y>=-58&&y<=maxYExclusive-2;
+}
+// Keep both player-height cells in range and strictly above terrain/structure.
+// A summit at the ceiling has no safe target: skip it instead of clamping into rock.
+inline std::optional<int> aboveSurface(int highest,int clearance,int maxYExclusive){
+    if((maxYExclusive!=320&&maxYExclusive!=512)||highest< -64||highest>=maxYExclusive-2||clearance<1)return {};
+    int64_t wanted=std::max<int64_t>(-58,int64_t(highest)+clearance);
+    return int(std::min<int64_t>(wanted,maxYExclusive-2));
+}
 enum class Mode { Observer, Creative };
 inline constexpr std::optional<Mode> mode(int value) {
     if (value == 0) return Mode::Observer;
@@ -24,14 +36,13 @@ inline std::optional<Destination> destination(int id, int biomeCount) {
 }
 struct Update { int id; char const* name; char const* content; };
 inline constexpr Update updates[]{
-    {128, "蘑菇岛", "补全菌丝地表与巨型蘑菇；海中生成，与陆地群系隔开"},
-    {115, "恶地", "补全红沙、陶瓦分层及恶地生态"},
-    {129, "侵蚀恶地", "补全侵蚀石柱地形"},
-    {130, "恶地高原", "补全高原台地与陶瓦层"},
-    {131, "繁茂恶地高原", "补全高原草土表层及稀疏植被"}
+    {114, "山地", "山峰顶峰抬升至约 Y=480，建造上限扩展至 Y=511"},
+    {116, "河流", "山间溪流、河谷与湖泊适配抬高后的山地和海面"},
+    {102, "海洋", "海平面提高至 Y=40，调整海岸与入海口衔接"},
+    {128, "蘑菇岛", "岛面与隔海边界适配 Y=40 海平面"}
 };
 inline std::string joinMessage() {
-    std::string result = "§9[山&海] 最近地形更新（0.1.5，待游戏内验收）";
+    std::string result = "§9[山&海] 最近地形更新（0.1.7，待游戏内验收）";
     for (auto const& u : updates)
         result += "\n§9[" + std::to_string(u.id) + "] " + u.name + "：" + u.content;
     return result + "\n§9/karma 查看全部群系/结构；/karma tp <序号> <模式>（1 创造 / 0 观察者）；/karma back 返回。§r";

@@ -53,8 +53,8 @@ template<class Random> StructurePoint fossilOrigin(ChunkPosition anchor,int heig
  int y=deep?-32+rng.nextInt(16):8+rng.nextInt(std::max(1,std::min(48,height-14)-7));return {anchor.x*16+8,y,anchor.z*16+8};
 }
 inline bool fossilBlockAllowed(std::string_view name){return name=="minecraft:bone_block"||name=="minecraft:coal_ore"||name=="minecraft:deepslate_diamond_ore";}
-inline bool fossilWriteInReach(ChunkPosition anchor,StructurePoint p){return p.y>=-58&&p.y<=319&&std::abs(spacingCell(p.x,16)-anchor.x)<=1&&std::abs(spacingCell(p.z,16)-anchor.z)<=1;}
-inline bool smallFeatureWriteOwned(ChunkPosition owner,StructurePoint p,bool bedrock){return !bedrock&&p.y>=-58&&p.y<=319&&spacingCell(p.x,16)==owner.x&&spacingCell(p.z,16)==owner.z;}
+inline bool fossilWriteInReach(ChunkPosition anchor,StructurePoint p,int maxY=319){return p.y>=-58&&p.y<=maxY&&std::abs(spacingCell(p.x,16)-anchor.x)<=1&&std::abs(spacingCell(p.z,16)-anchor.z)<=1;}
+inline bool smallFeatureWriteOwned(ChunkPosition owner,StructurePoint p,bool bedrock,int maxY=319){return !bedrock&&p.y>=-58&&p.y<=maxY&&spacingCell(p.x,16)==owner.x&&spacingCell(p.z,16)==owner.z;}
 // One execution order and one random stream for all platforms. Adapters only
 // provide terrain/blocks and invoke the original native feature implementation.
 template<class Random,class Sample,class Get,class Solid,class Boxes,class Place>

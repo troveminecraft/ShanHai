@@ -42,7 +42,7 @@ void coniferEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,2
  auto trees=conifers(x0,z0,16);if(!any&&trees.empty())return;
  auto soil=[](int id){return id==3||id==4||id==32||id==33;};
  auto put=[&](int x,int y,int z,int id,bool wood=false){
-  int X=x-x0,Z=z-z0;if(X<0||X>=16||Z<0||Z>=16||y<-60||y>319)return;
+  int X=x-x0,Z=z-z0;if(X<0||X>=16||Z<0||Z>=16||y<-60||y>Height-65)return;
   auto const&s=surfaces[Z*16+X];if(y<=s.height||s.water>=y||s.lava>=y)return;
   auto&b=raw[(Z*16+X)*Height+y+64];
   if(b==0||(wood&&b==13))b=uint8_t(id);

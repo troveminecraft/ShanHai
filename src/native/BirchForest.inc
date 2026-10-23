@@ -108,13 +108,13 @@ void birchForest(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>
   if(nativeReserved(t->x,t->z)||!forestTreeKept(t->x,t->z))continue;
   bool solid=p.block!=66;
   int priority=!solid?2:(p.x==t->x&&p.z==t->z?0:1);if(priority!=pass)continue;
-  int x=p.x-x0,z=p.z-z0;if(x<0||x>=16||z<0||z>=16||p.y>319)continue;
+  int x=p.x-x0,z=p.z-z0;if(x<0||x>=16||z<0||z>=16||p.y>Height-65)continue;
   auto&b=raw[(z*16+x)*Height+p.y+64];
   bool leaves=b==11||b==13||b==15||b==17||b==66;
   if(b==0||(solid&&leaves))b=p.block;
  }
  std::array<float,256> oakLitter{};birchCompanions(x0,z0,raw,surfaces,trees,oakLitter);
- for(int z=0;z<16;z++)for(int x=0;x<16;x++){auto const&s=surfaces[z*16+x];if(s.height>=319||s.water>=s.height||s.lava>=s.height)continue;auto col=raw.data()+(z*16+x)*Height;
+ for(int z=0;z<16;z++)for(int x=0;x<16;x++){auto const&s=surfaces[z*16+x];if(s.height>=Height-65||s.water>=s.height||s.lava>=s.height)continue;auto col=raw.data()+(z*16+x)*Height;
   if(col[s.height+65]||!birchLitterGround(col[s.height+64]))continue;
   double canopy=oakLitter[z*16+x];
   for(auto const&t:trees)if(forestTreeKept(t->x,t->z)){int dx=x0+x-t->x,dz=z0+z-t->z;if(std::abs(dx)<=8&&std::abs(dz)<=8)canopy+=t->litter[(dz+8)*17+dx+8];}

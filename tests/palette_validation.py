@@ -15,6 +15,6 @@ with tempfile.TemporaryDirectory(dir=args.output,prefix='palette-') as folder:
     f.write_bytes(chunk(167));assert (decode(f,palette,biomes)==167).all()
     f.write_bytes(chunk(palette))
     try: decode(f,palette,biomes)
-    except AssertionError: pass
+    except ValueError: pass
     else: raise AssertionError('Out-of-palette blocks must still be rejected')
 print(f'PASS: mushroom 167 accepted; invalid {palette} rejected; palette={palette}, biomes={biomes}')

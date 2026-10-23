@@ -15,6 +15,10 @@ def prepare(output):
   data=json.loads(path.read_bytes());data['seedManifest'].pop('giantCandidates')
   # Use seeded landmark defaults: this fixture tests the actual kernel, not spawn selection.
   finish_recipe(data)
+  # Preserve legacy fixtures; expanded recipes have separate height/water tests.
+  data['config'].update(seaLevel=31,maxY=319)
+  data['config'].pop('generatedMaxYExclusive',None)
+  data['config'].pop('mountainPeakY',None)
   path.write_text(json.dumps(data,separators=(',',':')),'utf-8')
 if __name__=='__main__':
  parser=argparse.ArgumentParser();parser.add_argument('--output',required=True,type=Path)

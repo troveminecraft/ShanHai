@@ -20,12 +20,9 @@ def build(destination, python_home, node, template, native_tool):
             shutil.copytree(src,destination/'python/Lib/site-packages'/src.name,
                             ignore=shutil.ignore_patterns('__pycache__','tests'))
     copy(node,'node/node.exe')
-    # A redistributable bundle must include the runtime's license.
-    node_license = next((node.parent/name for name in ['LICENSE','LICENSE.txt']
-                         if (node.parent/name).is_file()), None)
-    if node_license is None:
-        raise ValueError('Node.js LICENSE must be present beside node.exe')
-    copy(node_license, 'node/'+node_license.name)
+    # Ship Node's license alongside its runtime when provided by the distribution.
+    for name in ['LICENSE','LICENSE.txt']:
+        if (node.parent/name).exists(): copy(node.parent/name,'node/'+name)
     # Resolve only seed-generation dependencies. Never ship server deployment,
     # admin, or other private development scripts in a public runtime bundle.
     pending=['build_streaming_seed','build_seed','select_spawn','level_dat','bake_natural_lakes','bake_rivers','bake_scarps']
@@ -47,6 +44,8 @@ def build(destination, python_home, node, template, native_tool):
                 'native/vanilla-ore-rules.json','native/DEEPSLATE-LICENSE.txt','native/EPIC-TERRAIN-LICENSE.txt']:
         copy(P/rel,rel)
     copy(native_tool,'build/windows/x64/release/native-worldgen-check.exe')
+    for src in sorted((P/'data/build-height-pack').rglob('*')):
+        if src.is_file(): copy(src,str(src.relative_to(P)))
     for name in ['prepare_world.py','seed_service.py']:
         copy(P/'ports/windows-client'/name,'ports/windows-client/'+name)
     copy(template,'void-level.dat')

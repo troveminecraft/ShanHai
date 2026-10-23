@@ -15,7 +15,7 @@ public:
   modelName=ShipwreckPiece::STRUCTURE_SHIPWRECK_TYPES()[choice.variant];
   auto& model=d.getLevel().getStructureManager()->getOrCreateLegacy(modelName);
   auto rotation=Rotation(choice.rotation);mTemplate=&model;*mTemplatePosition=pos;
-  *mSettings=LegacyStructureSettings(Mirror::None,rotation,nullptr,{{terrain_bounds::MinBlock,-64,terrain_bounds::MinBlock},{terrain_bounds::MaxBlock,319,terrain_bounds::MaxBlock}});
+  *mSettings=LegacyStructureSettings(Mirror::None,rotation,nullptr,{{terrain_bounds::MinBlock,-64,terrain_bounds::MinBlock},{terrain_bounds::MaxBlock,(field->generationHeight()-65),terrain_bounds::MaxBlock}});
   mSettings->mIgnoreStructureBlocks=true;mPostProcessed=false;mOrientation=-1;*mBoundingBox=templateBounds(model,pos,rotation);
   if(geometry)sharedProgram=worldgen_rules::compileFrozenShip(*geometry,nativeLegacyDataMarkers(model));
  }

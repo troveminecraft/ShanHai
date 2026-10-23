@@ -94,9 +94,9 @@ template<class Random,class Size> FrozenShipPlan planFrozenShip(ChunkPosition cp
 }
 template<class Size> FrozenShipPlan planFrozenShip(ChunkPosition cp,uint32_t worldSeed,Size size){StructureRandom rng(placementSeed(cp.x,cp.z,165745298,worldSeed));return planFrozenShip(cp,worldSeed,rng,size);}
 inline void moveFrozenShip(FrozenShipPlan&plan,int dy){plan.origin.y+=dy;plan.bounds=plan.bounds.moved(dy);}
-template<class Sample> ExtraLayoutPlan fitFrozenShipFloor(FrozenShipPlan&plan,Sample sample){
+template<class Sample> ExtraLayoutPlan fitFrozenShipFloor(FrozenShipPlan&plan,Sample sample,int maxY=319){
  StructureBlueprintPiece piece;piece.box=plan.bounds;piece.origin=plan.origin;
- auto fit=planExtraLayout(ExtraBlueprint{2,plan.anchor,plan.bounds,{piece}},sample);if(fit.accepted)moveFrozenShip(plan,fit.verticalMoves.at(0));return fit;
+ auto fit=planExtraLayout(ExtraBlueprint{2,plan.anchor,plan.bounds,{piece}},sample,maxY);if(fit.accepted)moveFrozenShip(plan,fit.verticalMoves.at(0));return fit;
 }
 template<class Markers> FrozenShipProgram compileFrozenShip(FrozenShipPlan plan,Markers const&markers){
  FrozenShipProgram out{std::move(plan),{}};auto const&g=out.geometry;
@@ -125,11 +125,11 @@ struct FrozenIglooProgram {
  std::vector<StructurePoint> lootWitnesses;
 };
 inline void moveFrozenIgloo(FrozenIglooPlan&plan,int dy){plan.bounds=plan.bounds.moved(dy);for(auto&p:plan.parts){p.origin.y+=dy;p.bounds=p.bounds.moved(dy);}}
-template<class Sample> ScatteredLayoutPlan fitFrozenIglooFloor(FrozenIglooPlan&plan,int biome,Sample sample){
+template<class Sample> ScatteredLayoutPlan fitFrozenIglooFloor(FrozenIglooPlan&plan,int biome,Sample sample,int maxY=319){
  if(plan.parts.empty()||plan.bounds.min.y< -58)return {};
  auto fit=planScatteredLayout(plan.bounds,biome,sample);if(!fit.accepted)return fit;
  int dy=fit.floor-1-plan.parts.front().origin.y;
- if(plan.bounds.min.y+dy< -58||plan.bounds.max.y+dy>319){fit.accepted=false;return fit;}
+ if(plan.bounds.min.y+dy< -58||plan.bounds.max.y+dy>maxY){fit.accepted=false;return fit;}
  moveFrozenIgloo(plan,dy);return fit;
 }
 template<class Markers> FrozenIglooProgram compileFrozenIgloo(FrozenIglooPlan plan,Markers markers){

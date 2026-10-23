@@ -5,7 +5,7 @@ void oceanFeatures(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,25
  double kelpChance=num(C.at("ocean"),"kelpChance"),grassChance=num(C.at("ocean"),"grassChance");
  for(int z=0;z<16;z++)for(int x=0;x<16;x++){
   auto const&s=surfaces[z*16+x];if(s.river>0)continue;int depth=s.water-s.height;
-  if(s.ocean<=0||s.lake||s.barren>=1||s.water!=31||depth<3)continue;
+  if(s.ocean<=0||s.lake||s.barren>=1||s.water!=field.seaLevel()||depth<3)continue;
   auto col=raw.data()+(z*16+x)*Height;int ground=s.height+64;
   if(col[ground+1]!=8||col[ground+2]!=8)continue;
   int X=x0+x,Z=z0+z;double px=X-32768,pz=Z-32768;

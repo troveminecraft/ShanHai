@@ -10,7 +10,7 @@ void loadStoneGrotto(J const&data){
  if(p.at("seed")!=terrainSeed||p.at("algorithm")!="stone-forest-falls-v1")throw std::runtime_error("Stone grotto seed mismatch");
  auto load=[&](J const&features){for(auto const&f:features)for(auto const&r:f.at("runs")){
   int x=r[0],z=r[1],lo=r[2],hi=r[3],id=r[4];
-  if(x<terrain_bounds::MinBlock||x>terrain_bounds::MaxBlock||z<terrain_bounds::MinBlock||z>terrain_bounds::MaxBlock||lo<-55||hi>319||lo>hi||!(id==0||id==2||id==8||id==94||id==126||id==6||id==48||(id>=127&&id<=142)))throw std::runtime_error("Invalid grotto run");
+  if(x<terrain_bounds::MinBlock||x>terrain_bounds::MaxBlock||z<terrain_bounds::MinBlock||z>terrain_bounds::MaxBlock||lo<-55||hi>Height-65||lo>hi||!(id==0||id==2||id==8||id==94||id==126||id==6||id==48||(id>=127&&id<=142)))throw std::runtime_error("Invalid grotto run");
   int cx=int(std::floor(x/16.)),cz=int(std::floor(z/16.));
   grottoRuns[key2(cx,cz)].push_back({(z-cz*16)*16+x-cx*16,lo,hi,id});
  }};

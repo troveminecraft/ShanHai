@@ -38,10 +38,14 @@ inline bool extraSurface(int t){return t==0||t==1||t==7||t==10;}
 inline bool extraMarine(int t){return t==2||t==3||t==5;}
 inline bool extraUnderground(int t){return t==6||t==8||t==9||t==11;}
 inline ExtraSpec const* extraSpec(int type){for(auto const&s:ExtraSpecs)if(s.type==type)return &s;return nullptr;}
+// Capture/test surfaces predating the configurable sea retain their Y=31
+// datum; live surfaces carry the immutable recipe's actual water plane.
+template<class S> int surfaceSeaLevel(S const&s){if constexpr(requires{s.seaLevel;})return s.seaLevel;else return 31;}
 template<class S> bool extraAnchorAllowed(int type,S const&s,bool mansionHabitatAvailable){
+ int sea=surfaceSeaLevel(s);
  if(!extraSpec(type)||s.volcanic>.01||s.iceHabitat>.01)return false;
- if(extraMarine(type)){if(s.ocean<(type==5?.9:.7)||s.height>(type==5?4:24)||s.height< -40||s.lake||s.river)return false;}
- else if(type==4){if(s.height<25||s.height>42||s.lake||s.river||(s.biome!=3&&s.biome!=4&&s.biome!=20&&s.coast<.01))return false;}
+ if(extraMarine(type)){if(s.ocean<(type==5?.9:.7)||s.height>sea-(type==5?27:7)||s.height< -40||s.lake||s.river)return false;}
+ else if(type==4){if(s.height<sea-6||s.height>sea+11||s.lake||s.river||(s.biome!=3&&s.biome!=4&&s.biome!=20&&s.coast<.01))return false;}
  else if(s.ocean>.1||s.height<40)return false;
  if(type==7&&(!mansionHabitatAvailable||s.biome!=9))return false;
  if(type==10&&s.biome!=6&&s.biome!=9&&s.biome!=13)return false;

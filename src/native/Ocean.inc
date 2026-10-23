@@ -11,20 +11,20 @@ KARMA_NOINLINE double seaShoreNode(int gx,int gz){return seaShoreNodes.get(key2(
   int distanceSquared=dx*dx+dz*dz;if(distanceSquared>=nearestSquared)continue;
   int X=gx+dx,Z=gz+dz;
   double h=coastalHeights.get(key2(X,Z),[&]{return uncliff(X*16.,Z*16.);});
-  if(h>=31||h<15)continue;
+  if(h>=seaLevelValue||h<seaLevelValue-16)continue;
   auto a=base(X*16,Z*16);
-  if(a.water==31&&a.height<31&&a.height>=15&&!a.lake&&!a.river&&a.riverBankWater==-32768&&a.stone==0&&a.volcanic==0){nearestSquared=distanceSquared;if(!nearestSquared)return 1.;}
+  if(a.water==seaLevelValue&&a.height<seaLevelValue&&a.height>=seaLevelValue-16&&!a.lake&&!a.river&&a.riverBankWater==-32768&&a.stone==0&&a.volcanic==0){nearestSquared=distanceSquared;if(!nearestSquared)return 1.;}
  }
  return 1-smooth(8.,64.,16.*std::sqrt(double(nearestSquared)));
 });}
 
 KARMA_NOINLINE void shallowSeaShore(Surface&s,int x,int z){
- if(!erodedSeaShores||!oceanEnabled||s.height<32||s.height>96||s.water>=s.height
+ if(!erodedSeaShores||!oceanEnabled||s.height<seaLevelValue+1||s.height>96||s.water>=s.height
     ||s.lake||s.river||s.riverBankWater>-32768||s.riverDeposit||s.fluvialType
     ||s.stone>.01||s.volcanic>0||s.barren>0||s.glacier>0||s.superGlacier>0
     ||s.iceGround>=0||s.wetland>0||s.scarp>0||s.cliffLow>-32768||s.aridType)return;
  // High inland hills cannot become new coast merely from a height threshold.
- if(s.height>52&&s.coast<=0)return;
+ if(s.height>seaLevelValue+21&&s.coast<=0)return;
  int gx=int(std::floor(x/16.)),gz=int(std::floor(z/16.));
  double u=smooth(0,1,x/16.-gx),v=smooth(0,1,z/16.-gz);
  double a=seaShoreNode(gx,gz),b=u>0?seaShoreNode(gx+1,gz):a;
@@ -35,8 +35,8 @@ KARMA_NOINLINE void shallowSeaShore(Surface&s,int x,int z){
  int before=s.height;
  // Retreat the existing low bank, leaving its native sediment/soil. The
  // continuous fade inland and alongshore avoids a constant parallel ditch.
- int cut=int(std::floor(shore*(1.2+2.6*patch)*smooth(31.,33.,before)*(1-smooth(36.,52.,before))+.5));
- cut=std::min(cut,before-31);s.height-=cut;s.seaBank=shore;
+ int cut=int(std::floor(shore*(1.2+2.6*patch)*smooth(seaLevelValue,seaLevelValue+2,before)*(1-smooth(seaLevelValue+5,seaLevelValue+21,before))+.5));
+ cut=std::min(cut,before-seaLevelValue);s.height-=cut;s.seaBank=shore;
  if(cut){s.treeD=0;s.rockCap*=1-.85*shore;
   // Newly cut soil banks expose earth rather than carrying an intact turf.
   // Sand and explicit rocky coasts keep their own parent material.
@@ -44,13 +44,13 @@ KARMA_NOINLINE void shallowSeaShore(Surface&s,int x,int z){
  }
  // Only a stable, already steep bank directly beside open shallow seawater
  // may have a shallow recess. No sand/gravel roof or detached inland cavity.
- if(before<36||s.height<36||s.soilSand>.35||s.surf==1||s.surf==2||s.surf==6||s.T<.28||patch<.62)return;
+ if(before<seaLevelValue+5||s.height<seaLevelValue+5||s.soilSand>.35||s.surf==1||s.surf==2||s.surf==6||s.T<.28||patch<.62)return;
  bool open=false;
  for(auto [dx,dz]:{std::pair{-1,0},std::pair{1,0},std::pair{0,-1},std::pair{0,1}}){
   auto q=base(x+dx,z+dz);
-  if(q.water==31&&q.height<=30&&q.height>=15&&!q.lake&&!q.river&&q.stone==0&&q.volcanic==0){open=true;break;}
+  if(q.water==seaLevelValue&&q.height<seaLevelValue&&q.height>=seaLevelValue-16&&!q.lake&&!q.river&&q.stone==0&&q.volcanic==0){open=true;break;}
  }
- if(open){s.seaCutLow=30;s.seaCutHigh=32;s.treeD=0;}
+ if(open){s.seaCutLow=seaLevelValue-1;s.seaCutHigh=seaLevelValue+1;s.treeD=0;}
 }
 bool gradedSeaBeds=terrainRevision(data)>=180;
 struct SeaSediment {int material;};
@@ -83,10 +83,10 @@ KARMA_NOINLINE SeaSediment seaSediment(int x,int z){
 KARMA_NOINLINE void shallowSeaBed(Surface&s,int x,int z){
  // Apply after lake/river/ice classification. Never lower a dry shoreline,
  // frozen basin, river junction, rock forest or a volcanic/ice foundation.
- if(!gradedSeaBeds||!oceanEnabled||s.surf!=6||s.water!=31||s.height>=30||s.height<=15
+ if(!gradedSeaBeds||!oceanEnabled||s.surf!=6||s.water!=seaLevelValue||s.height>=seaLevelValue-1||s.height<=seaLevelValue-16
     ||s.lake||s.river>0||s.riverBankWater>-32768||s.fluvialType||s.stone>.01
     ||s.volcanic>0||s.barren>0||s.glacier>0||s.superGlacier>0||s.iceGround>=0)return;
- double depth=31-s.height;
+ double depth=seaLevelValue-s.height;
  double shelf=smooth(.5,3.,depth)*(1-smooth(9.,16.,depth));
  double exposure=.65+.35*smooth(0.,.3,s.ocean);
  // Static elongated scour hollows; a single 2D sample, no simulation.
@@ -110,7 +110,7 @@ void loadOcean(){
 OceanNode oceanNode(int gx,int gz){return oceanNodes.get(key2(gx,gz),[&]{
  std::array<double,8> wet{};int i=0;
  for(auto [dx,dz]:{std::pair{-1,0},std::pair{1,0},std::pair{0,-1},std::pair{0,1},std::pair{-1,-1},std::pair{1,-1},std::pair{-1,1},std::pair{1,1}}){
-  double offshore=1-smooth(25.,38.,vcont(gx*128.+dx*192,gz*128.+dz*192));
+  double offshore=1-smooth(seaLevelValue-6,seaLevelValue+7,vcont(gx*128.+dx*192,gz*128.+dz*192));
   wet[i++]=offshore;
  }
  double sum=0;for(double w:wet)sum+=w;
@@ -121,14 +121,14 @@ OceanNode oceanNode(int gx,int gz){return oceanNodes.get(key2(gx,gz),[&]{
  return OceanNode{broad,smooth(.32,.76,sum/8)*(1-.8*bank),fan*(1-smooth(.55,.85,sum/8))};
 });}
 void oceanRelief(Surface&s,double&h,int x,int z){
- if(!oceanEnabled||h>=31||s.stone>.01)return;
+ if(!oceanEnabled||h>=seaLevelValue||s.stone>.01)return;
  int gx=int(std::floor(x/128.)),gz=int(std::floor(z/128.));
  double u=smooth(0,1,x/128.-gx),v=smooth(0,1,z/128.-gz);
  auto A=oceanNode(gx,gz),B=oceanNode(gx+1,gz),D=oceanNode(gx,gz+1),E=oceanNode(gx+1,gz+1);
  auto blend=[&](double a,double b,double d,double e){return(1-u)*(1-v)*a+u*(1-v)*b+(1-u)*v*d+u*v*e;};
  double broad=blend(A.broad,B.broad,D.broad,E.broad),open=blend(A.open,B.open,D.open,E.open);
  s.estuary=blend(A.mouth,B.mouth,D.mouth,E.mouth);
- double depth=31-h,px=x-32768,pz=z-32768;
+ double depth=seaLevelValue-h,px=x-32768,pz=z-32768;
  s.ocean=broad*smooth(0.,6.,depth);
  double w=broad*open*smooth(3.,21.,depth)*(1-.65*s.estuary);
  // Submerged sediment fan gently rises inside the river mouth; shore and land stay fixed.
@@ -157,7 +157,7 @@ int oceanMaterial(Surface const&s,int x,int y,int z){
 }
 
 int oceanBiome(Surface const&s,int x,int z){
- double frozen=1-smooth(.18,.26,s.T),deep=smooth(32.,52.,31-s.height);
+ double frozen=1-smooth(.18,.26,s.T),deep=smooth(32.,52.,seaLevelValue-s.height);
  double warm=smooth(.58,.70,s.T),cold=1-smooth(.36,.48,s.T);
  double q=clamp(.5+.9*oceanNoise.at((x-32768)/48.+13,(z-32768)/48.-7),0,.999999);
  double a=frozen;if(q<a)return 2;

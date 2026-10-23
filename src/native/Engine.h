@@ -62,7 +62,8 @@ class Engine {
  }
  struct Site{int id,x,z;double radius;};std::unordered_map<uint64_t,std::vector<Site>> sites;
  Cache<int,std::shared_ptr<Giant>> giantCache{128};Cache<uint64_t,Structure> structureCache{512};
- static constexpr int Height=384,Halo=28,Side=2*Halo+1;
+ static constexpr int Halo=28,Side=2*Halo+1;
+ const int Height=field.generationHeight();
  std::vector<uint8_t> scratch=std::vector<uint8_t>(Side*Side*Height);
  std::array<int,Side*Side> ground{};
  double rand(int id,int k)const{return hash01(id,0,terrainSeed^(503+k));}
@@ -163,7 +164,7 @@ public:
  template<class Put,class Structures,class Trees> void naturalFeatures(int x0,int z0,Put&& put,Structures const& ss,Trees const& ts){
  // Natural small features use their own world anchors and bounded point count.
  int grid=int(num(C.at("natural"),"grid"));for(int gz=int(std::floor((z0-8)/double(grid)));gz<=int(std::floor((z0+24)/double(grid)));gz++)for(int gx=int(std::floor((x0-8)/double(grid)));gx<=int(std::floor((x0+24)/double(grid)));gx++){
- auto r=[&](int k){return hash01(gx,gz,terrainSeed^k);};int x=int(std::floor((gx+.2+r(502)*.6)*grid)),z=int(std::floor((gz+.2+r(503)*.6)*grid));if(C.at("stoneForest").value("largeEnabled",true)&&std::hypot(x-32768-num(C.at("stoneForest"),"centerX"),z-32768-num(C.at("stoneForest"),"centerZ"))<12)continue;auto s=field.surface(x,z,false);int h=s.height;if(s.mushroomZone||s.badlands||s.iceHabitat>=.10||s.desert>.15||coniferHabitat(s)||broadleafHabitat(s)||birchHabitat(s)||jungleHabitat(s)||wetDryHabitat(s)||r(501)>num(C.at("natural"),"chance")+s.giant*.25||s.stone>.5||s.kind||h<=33||h>312)continue;bool skip=false;for(auto const&a:giants(x,z,1))if(std::hypot(x-a->x,z-a->z)<a->radius+5){skip=true;break;}for(auto const&a:ss)if(std::abs(x-a.x)<48&&std::abs(z-a.z)<48)skip=true;for(auto const&t:ts)if(std::hypot(x-t.x,z-t.z)<7)skip=true;if(skip||nativeReserved(x,z))continue;int kind=r(504)<.4?0:r(504)<.75?1:2;if(kind&&r(1513)>std::pow(1-s.barren,3))continue;
+ auto r=[&](int k){return hash01(gx,gz,terrainSeed^k);};int x=int(std::floor((gx+.2+r(502)*.6)*grid)),z=int(std::floor((gz+.2+r(503)*.6)*grid));if(C.at("stoneForest").value("largeEnabled",true)&&std::hypot(x-32768-num(C.at("stoneForest"),"centerX"),z-32768-num(C.at("stoneForest"),"centerZ"))<12)continue;auto s=field.surface(x,z,false);int h=s.height;if(s.mushroomZone||s.badlands||s.iceHabitat>=.10||s.desert>.15||coniferHabitat(s)||broadleafHabitat(s)||birchHabitat(s)||jungleHabitat(s)||wetDryHabitat(s)||r(501)>num(C.at("natural"),"chance")+s.giant*.25||s.stone>.5||s.kind||h<=33||h>Height-72)continue;bool skip=false;for(auto const&a:giants(x,z,1))if(std::hypot(x-a->x,z-a->z)<a->radius+5){skip=true;break;}for(auto const&a:ss)if(std::abs(x-a.x)<48&&std::abs(z-a.z)<48)skip=true;for(auto const&t:ts)if(std::hypot(x-t.x,z-t.z)<7)skip=true;if(skip||nativeReserved(x,z))continue;int kind=r(504)<.4?0:r(504)<.75?1:2;if(kind&&r(1513)>std::pow(1-s.barren,3))continue;
  if(kind&&(s.biome==3||s.biome==4||s.biome==5||s.biome==11||s.biome==14||s.biome==15||s.biome==16))continue;
  if(!kind){double rx=1.3+r(505)*1.6,rz=1.1+r(506)*1.9,phase=r(509)*6.283185307;int lo=h,hi=h;
   for(int dz=-3;dz<=3;dz++)for(int dx=-3;dx<=3;dx++){if(dx*dx/(rx*rx)+dz*dz/(rz*rz)>1.4)continue;auto b=field.surface(x+dx,z+dz,false);if(b.water>b.height||b.lava>b.height){skip=true;break;}lo=std::min(lo,b.height);hi=std::max(hi,b.height);}
@@ -182,9 +183,9 @@ public:
   int x0=32768+cx*16,z0=32768+cz*16;std::array<Surface,256> surfaces;
   std::vector<uint16_t> raw(256*Height);
   for(int z=0;z<16;++z)for(int x=0;x<16;++x){auto s=field.surface(x0+x,z0+z);surfaces[z*16+x]=s;
-   if(s.height>=-64&&s.height<=319)raw[(z*16+x)*Height+s.height+64]=field.material(s,x0+x,s.height,z0+z);
+   if(s.height>=-64&&s.height<=Height-65)raw[(z*16+x)*Height+s.height+64]=field.material(s,x0+x,s.height,z0+z);
   }
- auto put=[&](double X,double Y,double Z,int id){int x=int(std::floor(X))-x0,y=int(std::floor(Y)),z=int(std::floor(Z))-z0;if(x>=0&&x<16&&z>=0&&z<16&&y>=-64&&y<=319){auto const&s=surfaces[z*16+x];if(y>s.height&&(y<=s.water||y<=s.lava))return;raw[(z*16+x)*Height+y+64]=uint8_t(id);}};
+ auto put=[&](double X,double Y,double Z,int id){int x=int(std::floor(X))-x0,y=int(std::floor(Y)),z=int(std::floor(Z))-z0;if(x>=0&&x<16&&z>=0&&z<16&&y>=-64&&y<=Height-65){auto const&s=surfaces[z*16+x];if(y>s.height&&(y<=s.water||y<=s.lava))return;raw[(z*16+x)*Height+y+64]=uint8_t(id);}};
  auto ss=structures(x0,z0,16);auto ts=smallTrees(x0,z0,16,ss);auto gs=giants(x0,z0,16);
  for(auto const&t:ts){if(t.type!=5&&!forestTreeKept(t.x,t.z))continue;int x=t.x,z=t.z,h=t.h,type=t.type;double g=t.ground,r=t.radius;if(type==5){for(int y=1;y<=h;y++)put(x,g+y,z,18);continue;}constexpr int logs[5]={12,10,14,16,10},leaves[5]={13,11,15,17,11};put(x,g,z,3);double ry=type==0?h*.65:type==3?1.2:r*.8,cy=g+h;for(int dz=-int(std::ceil(r));dz<=int(std::ceil(r));dz++)for(int dx=-int(std::ceil(r));dx<=int(std::ceil(r));dx++)for(int dy=-int(std::ceil(ry));dy<=int(std::ceil(ry));dy++){double cr=type==0?r*(1-(dy+ry)/(2*ry))+.3:r;if((dx*dx+dz*dz)/(cr*cr)+(type==0?0:dy*dy/(ry*ry))<=1)put(x+dx,cy+dy,z+dz,leaves[type]);}for(int y=1;y<=h;y++)put(x,g+y,z,logs[type]);}
 
@@ -220,7 +221,7 @@ public:
  // its old post-underground stage, so cave habitats keep their existing order.
  if(glacierEcologyEnabled){bool icy=false;for(auto const&s:surfaces)icy|=s.glacier>.18;
   if(icy){refinedIceSpires(x0,z0,raw,surfaces);smallIceSpikes(x0,z0,raw,surfaces);}}
- auto put=[&](double X,double Y,double Z,int id){int x=int(std::floor(X))-x0,y=int(std::floor(Y)),z=int(std::floor(Z))-z0;if(x>=0&&x<16&&z>=0&&z<16&&y>=-64&&y<=319){auto const&s=surfaces[z*16+x];if(y>s.height&&(y<=s.water||y<=s.lava))return;raw[(z*16+x)*Height+y+64]=uint8_t(id);}};
+ auto put=[&](double X,double Y,double Z,int id){int x=int(std::floor(X))-x0,y=int(std::floor(Y)),z=int(std::floor(Z))-z0;if(x>=0&&x<16&&z>=0&&z<16&&y>=-64&&y<=Height-65){auto const&s=surfaces[z*16+x];if(y>s.height&&(y<=s.water||y<=s.lava))return;raw[(z*16+x)*Height+y+64]=uint8_t(id);}};
  auto ss=structures(x0,z0,16);auto ts=smallTrees(x0,z0,16,ss);auto gs=giants(x0,z0,16);
  for(auto const&t:ts){if(t.type!=5&&!forestTreeKept(t.x,t.z))continue;int x=t.x,z=t.z,h=t.h,type=t.type;double g=t.ground,r=t.radius;if(type==5){for(int y=1;y<=h;y++)put(x,g+y,z,18);continue;}constexpr int logs[5]={12,10,14,16,10},leaves[5]={13,11,15,17,11};put(x,g,z,3);double ry=type==0?h*.65:type==3?1.2:r*.8,cy=g+h;for(int dz=-int(std::ceil(r));dz<=int(std::ceil(r));dz++)for(int dx=-int(std::ceil(r));dx<=int(std::ceil(r));dx++)for(int dy=-int(std::ceil(ry));dy<=int(std::ceil(ry));dy++){double cr=type==0?r*(1-(dy+ry)/(2*ry))+.3:r;if((dx*dx+dz*dz)/(cr*cr)+(type==0?0:dy*dy/(ry*ry))<=1)put(x+dx,cy+dy,z+dz,leaves[type]);}for(int y=1;y<=h;y++)put(x,g+y,z,logs[type]);}
  constexpr int boxIds[19]={19,20,6,21,22,20,7,24,19,2,11,25,26,10,13,34,35,12,61};

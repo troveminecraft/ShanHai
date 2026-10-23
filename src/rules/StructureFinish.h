@@ -8,9 +8,9 @@ inline std::optional<std::array<int,4>> structurePlantReservation(StructureBox c
 }
 // Preserve upstream X/Z/Y order: upper plants observe lower-block removals.
 template<class Name,class Survives,class Clear>
-unsigned clearUnsupportedStructurePlants(ChunkPosition cp,int lo,int hi,Name name,Survives survives,Clear clear){
+unsigned clearUnsupportedStructurePlants(ChunkPosition cp,int lo,int hi,Name name,Survives survives,Clear clear,int maxY=319){
  unsigned count=0;
- for(int z=cp.z*16;z<cp.z*16+16;++z)for(int x=cp.x*16;x<cp.x*16+16;++x)for(int y=std::max(-63,lo);y<=std::min(318,hi);++y){
+ for(int z=cp.z*16;z<cp.z*16+16;++z)for(int x=cp.x*16;x<cp.x*16+16;++x)for(int y=std::max(-63,lo);y<=std::min(maxY-1,hi);++y){
   StructurePoint p{x,y,z};if(!structureGroundPlant(name(p)))continue;
   if(name(StructurePoint{x,y-1,z})!="minecraft:grass_path"&&survives(p))continue;
   clear(p);++count;

@@ -49,18 +49,21 @@ struct StructureTestTeleport {
  std::vector<structure_test::Cell> biomeCells;
  bool biomesDone()const{return std::all_of(biomeSpots.begin(),biomeSpots.end(),[](auto const&j){return j.is_object();})||biomeCursor>=biomeCells.size();}
  int biomeCount()const{return int(std::count_if(biomeSpots.begin(),biomeSpots.end(),[](auto const&j){return j.is_object();}));}
+ int maxYExclusive()const{return field->generationHeight()-64;}
  void sampleBiomes(int x,int z){
   if(!biomeSpots[27].is_object()){
    auto island=field->inspectMushroomIsland(int(std::floor((x+32768)/1536.)),int(std::floor((z+32768)/1536.)));
    if(island.at("valid").get<bool>()){
     int ix=island.at("x"),iz=island.at("z");auto q=field->surface(ix+32768,iz+32768);
     if(q.mushroom&&ix>=-searchRadius&&ix<searchRadius&&iz>=-searchRadius&&iz<searchRadius)
-     biomeSpots[27]={{"x",ix},{"y",std::clamp(q.height+8,-58,310)},{"z",iz},{"family","mushroom_island"}};
+     if(auto y=test_teleport::aboveSurface(q.height,8,maxYExclusive()))
+      biomeSpots[27]={{"x",ix},{"y",*y},{"z",iz},{"family","mushroom_island"}};
    }
   }
   auto s=field->surface(x+32768,z+32768);
-  for(size_t i=0;i<biomeSpots.size();++i)if(!biomeSpots[i].is_object()&&testBiomeMatches(int(i),s))
-   biomeSpots[i]={{"x",x},{"y",std::clamp(std::max(s.height,s.water)+8,-58,310)},{"z",z},{"family",testBiomes[i].key}};
+  auto y=test_teleport::aboveSurface(std::max({s.height+s.drip,s.water,s.lava}),8,maxYExclusive());
+  if(y)for(size_t i=0;i<biomeSpots.size();++i)if(!biomeSpots[i].is_object()&&testBiomeMatches(int(i),s))
+   biomeSpots[i]={{"x",x},{"y",*y},{"z",z},{"family",testBiomes[i].key}};
  }
 
  std::unique_ptr<nativegen::Field> terrain;
@@ -101,7 +104,7 @@ struct StructureTestTeleport {
  void initialize(J const&config){
   enabled=config.value("testTeleport",false);if(!enabled)return;
   auto activation=entity_store::read(terrainFolder()/"active-world.json");
-  identity=activeWorld+":"+activation.at("worldSeed").get<std::string>()+":"+activation.at("sha256").get<std::string>()+":1.0.47";
+  identity=activeWorld+":"+activation.at("worldSeed").get<std::string>()+":"+activation.at("sha256").get<std::string>()+":height-v1";
   if(field->unbounded())searchRadius=std::clamp(config.value("testSearchRadius",20000)/20000,1,5)*20000;
   for(auto&s:spots)s=J::array();
   biomeCells=structure_test::expandingCells(16,searchRadius);
@@ -112,14 +115,14 @@ struct StructureTestTeleport {
    if(j.value("identity",std::string{})==identity){
     auto saved=j.at("spots").get<decltype(spots)>();auto next=j.at("cursor").get<decltype(cursor)>();
     for(size_t g=0;g<saved.size();++g){if(!saved[g].is_array()||saved[g].size()>size_t(structure_test::Groups[g].quota))throw std::runtime_error("Invalid test group");
-     for(auto const&s:saved[g]){int x=s.at("x"),y=s.at("y"),z=s.at("z");if(x< -searchRadius||x>=searchRadius||z< -searchRadius||z>=searchRadius||y< -58||y>310)throw std::runtime_error("Invalid test destination");}}
+     for(auto const&s:saved[g]){int x=s.at("x"),y=s.at("y"),z=s.at("z");if(x< -searchRadius||x>=searchRadius||z< -searchRadius||z>=searchRadius||!test_teleport::validY(y,maxYExclusive()))throw std::runtime_error("Invalid test destination");}}
     for(int t=0;t<14;++t)if(next[t]>cells[t].size())throw std::runtime_error("Invalid test cursor");
     if(j.contains("biomes")){
      auto savedBiomes=j.at("biomes").get<decltype(biomeSpots)>();auto nextBiome=j.at("biomeCursor").get<size_t>();
      if(nextBiome>biomeCells.size())throw std::runtime_error("Invalid biome cursor");
      for(size_t i=0;i<savedBiomes.size();++i)if(!savedBiomes[i].is_null()){
       auto const&b=savedBiomes[i];int x=b.at("x"),y=b.at("y"),z=b.at("z");
-      if(b.at("family")!=testBiomes[i].key||x< -searchRadius||x>=searchRadius||z< -searchRadius||z>=searchRadius||y< -58||y>310)throw std::runtime_error("Invalid biome destination");
+      if(b.at("family")!=testBiomes[i].key||x< -searchRadius||x>=searchRadius||z< -searchRadius||z>=searchRadius||!test_teleport::validY(y,maxYExclusive()))throw std::runtime_error("Invalid biome destination");
      }
      biomeSpots=std::move(savedBiomes);biomeCursor=nextBiome;
     }
@@ -198,8 +201,10 @@ void tickStructureTest(Level&level){
       for(int z=chunk(box.min.z);z<=chunk(box.max.z)&&!saved;++z)for(int x=chunk(box.min.x);x<=chunk(box.max.x)&&!saved;++x)saved=storedChunk(*dim,{x,z});
       if(!saved){
        auto const&g=structure_test::Groups[group];int x=(box.min.x+box.max.x)/2,z=(box.min.z+box.max.z)/2;
-       int y=worldgen_rules::extraUnderground(type)?std::clamp(box.min.y+4,-58,310):std::clamp(std::max(box.max.y,field->surface(x+32768,z+32768).height)+5,-58,310);
-       s.spots[group].push_back({{"x",x},{"y",y},{"z",z},{"anchor",{cp.x,cp.z}},{"box",boxJson(box)},{"family",g.key}});changed=true;
+       std::optional<int> y;
+       if(worldgen_rules::extraUnderground(type)){int inside=box.min.y+4;if(test_teleport::validY(inside,s.maxYExclusive()))y=inside;}
+       else y=test_teleport::aboveSurface(std::max(box.max.y,field->surface(x+32768,z+32768).height),5,s.maxYExclusive());
+       if(y){s.spots[group].push_back({{"x",x},{"y",*y},{"z",z},{"anchor",{cp.x,cp.z}},{"box",boxJson(box)},{"family",g.key}});changed=true;}
       }
      }
     }
@@ -244,6 +249,7 @@ void registerStructureTest(J const&config){
    name=fmt::format("{} {}",structure_test::Groups[d->group].name,d->point+1);
   }
   if(!spot||!spot->is_object()){fail("该编号的坐标尚未找到；输入 /karma 查看目录和搜索进度。");return;}
+  if(!test_teleport::validY(spot->at("y").get<int>(),structureTest.maxYExclusive())){fail("该传送点高度已失效，请等待坐标重新准备。");return;}
   // Resolve and read the entire target before changing return state or game mode.
   Vec3 target{float(spot->at("x").get<int>())+.5f,float(spot->at("y").get<int>()),float(spot->at("z").get<int>())+.5f};
   auto&p=static_cast<Player&>(*a);

@@ -85,7 +85,7 @@ void wetlandRelief(Surface&s,int x,int z){
  // Original ground must be above the water plane. The eligibility weight
  // tends to zero before lower terrain, keeping a dry retaining shore.
  s.wetland=weight;s.wetlandMoisture=1-island;s.wetlandLevel=a.level;
- s.height=std::max(h,a.level-3);s.continuous=(s.height-31)/123.;s.e=s.continuous;
+ s.height=std::max(h,a.level-3);s.continuous=(s.height-seaLevelValue)/123.;s.e=s.continuous;
  if(s.height<a.level){s.water=a.level;s.kind=2;}
 }
 J wetlandInventory(int minimum,int maximum){

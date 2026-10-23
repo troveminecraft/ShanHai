@@ -51,7 +51,7 @@ template<class F> std::shared_ptr<J const> get(std::string const&id,char const*k
  if(residentOrder.size()>384){plans.erase(residentOrder.front());residentOrder.pop_front();}return result;
 }
 struct Ground{int height;double humidity,temperature,stone,volcanic;};
-template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool curved=false){
+template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool curved=false,int seaLevel=31,int maxSurfaceY=319){
  constexpr int N=Count,Total=N*N;
  int originX=gx*Core-Halo,originZ=gz*Core-Halo;
  std::array<Ground,Total> ground;
@@ -60,17 +60,17 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
  for(int i=0;i<Total;++i){auto[x,z]=point(i);ground[i]=sample(x,z);}
  J lakes=J::array(),segments=J::array();
  std::array<double,Total> sink;sink.fill(-1);
- for(int i=0;i<Total;++i)if(ground[i].height<31&&eligible(ground[i]))sink[i]=31;
+ for(int i=0;i<Total;++i)if(ground[i].height<seaLevel&&eligible(ground[i]))sink[i]=seaLevel;
  // Closed basins are tested against their actual surrounding terrain. A lake
  // owns a small bounded footprint wholly inside its canonical region.
  size_t lakeLimit=curved?4:3;
  for(int z=10;z<N-10&&lakes.size()<lakeLimit;++z)for(int x=10;x<N-10&&lakes.size()<lakeLimit;++x){
   int i=z*N+x;auto const&s=ground[i];auto[X,Z]=point(i);
-  if(s.height<40||s.height>235||s.humidity<.40||!eligible(s)||hash01(X,Z,seed^63101)>.35)continue;
+  if(s.height<seaLevel+9||s.height>maxSurfaceY-84||s.humidity<.40||!eligible(s)||hash01(X,Z,seed^63101)>.35)continue;
   bool minimum=true;for(int dz=-1;dz<=1;++dz)for(int dx=-1;dx<=1;++dx)if(dx||dz)minimum&=s.height<ground[(z+dz)*N+x+dx].height;
   if(!minimum)continue;
   bool overlap=false;for(auto const&lake:lakes){double ax=lake.at("center").at(0),az=lake.at("center").at(1);overlap|=std::hypot(X-ax,Z-az)<192;}if(overlap)continue;
-  constexpr int Side=33,Step=4;std::array<Ground,Side*Side> fine;int rim=320;
+  constexpr int Side=33,Step=4;std::array<Ground,Side*Side> fine;int rim=maxSurfaceY+1;
   for(int zz=0;zz<Side;++zz)for(int xx=0;xx<Side;++xx){auto q=sample(X+(xx-16)*Step,Z+(zz-16)*Step);fine[zz*Side+xx]=q;if(xx==0||zz==0||xx==Side-1||zz==Side-1)rim=std::min(rim,q.height);}
   int level=std::min(s.height+4,rim-1);if(level<s.height+2)continue;
   std::array<bool,Side*Side> wet{};std::vector<int> queue{16*Side+16};wet[queue[0]]=true;bool open=false;
@@ -100,12 +100,12 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
  }
  std::array<int,Total> flow;flow.fill(1);for(auto i=order.rbegin();i!=order.rend();++i)if(parent[*i]>=0)flow[parent[*i]]+=flow[*i];
  if(curved){
-  auto result=curvedDrainage(gx,gz,seed,order,ground,parent,flow,distance,sink,point,sample);
+  auto result=curvedDrainage(gx,gz,seed,order,ground,parent,flow,distance,sink,point,sample,seaLevel,maxSurfaceY);
   result["region"]={gx,gz};result["lakes"]=lakes;result["samples"]=Total;return result;
  }
  std::vector<int> sources;
  for(int i:order){auto[x,z]=point(i);auto const&s=ground[i];
-  if(x<gx*Core+128||x>=(gx+1)*Core-128||z<gz*Core+128||z>=(gz+1)*Core-128||s.height<90||s.height>245||s.humidity<.45||flow[i]<6||distance[i]<400||parent[i]<0)continue;
+  if(x<gx*Core+128||x>=(gx+1)*Core-128||z<gz*Core+128||z>=(gz+1)*Core-128||s.height<90||s.height>maxSurfaceY-74||s.humidity<.45||flow[i]<6||distance[i]<400||parent[i]<0)continue;
   if(hash01(x,z,seed^63107)>.35)continue;sources.push_back(i);
  }
  std::sort(sources.begin(),sources.end(),[&](int a,int b){double A=ground[a].height*std::pow(flow[a],.18),B=ground[b].height*std::pow(flow[b],.18);return A==B?a<b:A>B;});
@@ -113,7 +113,7 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
  for(int source:sources){if(acceptedSources.size()>=5)break;auto[SX,SZ]=point(source);bool close=false;
   for(auto[x,z]:acceptedSources)close|=std::hypot(double(SX-x),double(SZ-z))<400;if(close)continue;
   std::vector<int> path;int end=source;while(parent[end]>=0&&path.size()<96&&!occupied.contains(end)){path.push_back(end);end=parent[end];}
-  if(path.size()<8||path.size()>=96||occupied.contains(end)||sink[end]<31)continue;
+  if(path.size()<8||path.size()>=96||occupied.contains(end)||sink[end]<seaLevel)continue;
   path.push_back(end);double receiver=sink[end],water=ground[source].height-1,age=0;J route=J::array();bool bad=false;
   bool main=distance[source]>1200&&flow[source]>=12;double width=main?8.:3.;
   std::array<double,5> previous{};bool first=true;

@@ -25,7 +25,7 @@ void memoryAuditProbe(Dimension&d){
  bool human=false;d.getLevel().forEachPlayer([&](Player&p){human|=!p.isSimulated();return true;});if(human||interactionAuditActive)throw std::runtime_error("Memory audit requires an empty test session");
  BlockPos p{8,80,8};auto original=&d.getBlockSourceFromMainChunkSource().getBlock(p);
  J result;{
-  AuditChunkSource source(d,{{0,-64,0},{15,319,15}});auto tokens=source.access();BlockSource blocks(source,false,true);
+  AuditChunkSource source(d,{{0,-64,0},{15,field->generationHeight()-65,15}});auto tokens=source.access();BlockSource blocks(source,false,true);
   auto stone=Block::tryGetFromRegistry("minecraft:stone"),chest=Block::tryGetFromRegistry("minecraft:chest");
   bool first=blocks.setBlockNoUpdate(p,*stone);bool second=blocks.setBlockNoUpdate(p,*chest);auto*actor=blocks.getBlockEntity(p);
   if(!first||!second||!actor||blocks.getBlock(p).getTypeName()!="minecraft:chest")throw std::runtime_error("Memory native block source did not retain blocks/actor");
@@ -73,15 +73,21 @@ std::vector<Block const*> auditPalette(){
   result.push_back(&*base);
  }return result;
 }
+int auditVolumeHeight(Dimension&dimension){
+ int height=dimension.getHeight();
+ if(dimension.getMinHeight()!=-64||(height!=384&&height!=576)||height<field->generationHeight())throw std::runtime_error("Audit dimension/generated height mismatch");
+ return height;
+}
 void auditFillChunk(LevelChunk&c,std::vector<uint8_t>const&bytes,std::vector<Block const*>const&palette,VegetationPair*vegetation){
  if(bytes.size()<260||bytes[0]!=75||bytes[1]!=87||bytes[2]!=50)throw std::runtime_error("Audit terrain encoding mismatch");
- std::vector<Block const*> data(16*16*384,palette[0]);BlockVolume volume({data.data(),data.data()+data.size()},16,384,16,*palette[0],-64);size_t offset=260;
+ int height=auditVolumeHeight(c.getDimension()),generatedHeight=field->generationHeight();
+ std::vector<Block const*> data(16*16*height,palette[0]);BlockVolume volume({data.data(),data.data()+data.size()},16,height,16,*palette[0],-64);size_t offset=260;
  auto word=[&](){if(offset+2>bytes.size())throw std::runtime_error("Audit terrain truncated");unsigned v=bytes[offset]|(bytes[offset+1]<<8);offset+=2;return v;};
- for(int col=0;col<256;++col){unsigned count=word(),y=0;for(unsigned i=0;i<count;++i){unsigned n=word(),id=word();if(n==0||y+n>384||id>=palette.size())throw std::runtime_error("Audit terrain run invalid");for(unsigned k=0;k<n;++k)data[volume.indexNoBoundsCheck(BlockPos{col%16,int(y+k),col/16})]=palette[id];y+=n;}if(y!=384)throw std::runtime_error("Audit terrain column incomplete");}
+ for(int col=0;col<256;++col){unsigned count=word(),y=0;for(unsigned i=0;i<count;++i){unsigned n=word(),id=word();if(n==0||y+n>unsigned(generatedHeight)||id>=palette.size())throw std::runtime_error("Audit terrain run invalid");for(unsigned k=0;k<n;++k)data[volume.indexNoBoundsCheck(BlockPos{col%16,int(y+k),col/16})]=palette[id];y+=n;}if(y!=unsigned(generatedHeight))throw std::runtime_error("Audit terrain column incomplete");}
  if(offset!=bytes.size())throw std::runtime_error("Audit terrain trailing bytes");
  if(vegetation)filterVegetationVolume(volume,c.getPosition(),*vegetation);
  J metadata;std::ifstream((terrainFolder()/"terrain.json"))>>metadata;std::vector<Biome const*> biomes;for(std::string name:metadata["biomeNames"]){auto b=c.getDimension().getBiomeRegistry().lookupByName("minecraft:"+name);if(!b)throw std::runtime_error("Audit biome missing");biomes.push_back(b);}
- ChunkVolume::VolumeOf<Biome> biomeVolume;biomeVolume.mNumSubChunks=24;std::vector<Biome const*> sub(4096);for(int x=0;x<16;++x)for(int z=0;z<16;++z)for(int y=0;y<16;++y)sub[(x<<8)|(z<<4)|y]=biomes.at(bytes[4+z*16+x]);biomeVolume.mSubChunkVectors.assign(24,sub);c.setBiomeFromVolume(biomeVolume);
+ ChunkVolume::VolumeOf<Biome> biomeVolume;biomeVolume.mNumSubChunks=height/16;std::vector<Biome const*> sub(4096);for(int x=0;x<16;++x)for(int z=0;z<16;++z)for(int y=0;y<16;++y)sub[(x<<8)|(z<<4)|y]=biomes.at(bytes[4+z*16+x]);biomeVolume.mSubChunkVectors.assign(height/16,sub);c.setBiomeFromVolume(biomeVolume);
  c.setBlockVolume(volume,0);c.setPreWorldGenHeightMap(volume.computeHeightMap());c.recomputeHeightMap(true);
  // Match the production secondary-water layer without scheduling real ticks.
  offset=260;for(int col=0;col<256;++col){unsigned count=word(),y=0;for(unsigned i=0;i<count;++i){unsigned n=word(),id=word();if(id==49||id==50||(id>=56&&id<=60))for(unsigned k=0;k<n;++k)c.setExtraBlock(ChunkBlockPos{BlockPos{col%16,int(y+k)-64,col/16},-64},*palette[8],nullptr);y+=n;}}
@@ -92,17 +98,19 @@ void auditFillChunk(LevelChunk&c,std::vector<uint8_t>const&bytes,std::vector<Blo
 void fillPortalGround(LevelChunk&c,std::vector<Block const*>const&palette){
  // Native structural planning needs seeded geology and climate, not another
  // complete vegetation/ore/landscape decoration pass for 36 neighbours.
- std::vector<Block const*> data(16*384*16,palette[0]);BlockVolume volume({data.data(),data.data()+data.size()},16,384,16,*palette[0],-64);
+ int height=auditVolumeHeight(c.getDimension()),generatedHeight=field->generationHeight();
+ std::vector<Block const*> data(16*height*16,palette[0]);BlockVolume volume({data.data(),data.data()+data.size()},16,height,16,*palette[0],-64);
  J metadata;std::ifstream((terrainFolder()/"terrain.json"))>>metadata;std::vector<Biome const*> biomes;for(std::string name:metadata["biomeNames"]){auto b=c.getDimension().getBiomeRegistry().lookupByName("minecraft:"+name);if(!b)throw std::runtime_error("Portal biome missing");biomes.push_back(&*b);}
  std::vector<Biome const*> sub(4096);auto cp=c.getPosition();
- for(int z=0;z<16;++z)for(int x=0;x<16;++x){int wx=cp.x*16+x+32768,wz=cp.z*16+z+32768;auto s=field->surface(wx,wz);std::array<uint16_t,384> column{};std::fill_n(column.begin(),4,uint16_t(1));field->materialColumn(s,wx,wz,319,column.data());for(int y=0;y<384;++y)data[volume.indexNoBoundsCheck(BlockPos{x,y,z})]=palette.at(column[y]);for(int y=0;y<16;++y)sub[(x<<8)|(z<<4)|y]=biomes.at(s.biome);}
- ChunkVolume::VolumeOf<Biome> biomeVolume;biomeVolume.mNumSubChunks=24;biomeVolume.mSubChunkVectors.assign(24,sub);c.setBiomeFromVolume(biomeVolume);c.setBlockVolume(volume,0);c.setPreWorldGenHeightMap(volume.computeHeightMap());c.recomputeHeightMap(true);
+ for(int z=0;z<16;++z)for(int x=0;x<16;++x){int wx=cp.x*16+x+32768,wz=cp.z*16+z+32768;auto s=field->surface(wx,wz);std::vector<uint16_t> column(generatedHeight);std::fill_n(column.begin(),4,uint16_t(1));field->materialColumn(s,wx,wz,generatedHeight-65,column.data());for(int y=0;y<generatedHeight;++y)data[volume.indexNoBoundsCheck(BlockPos{x,y,z})]=palette.at(column[y]);for(int y=0;y<16;++y)sub[(x<<8)|(z<<4)|y]=biomes.at(s.biome);}
+ ChunkVolume::VolumeOf<Biome> biomeVolume;biomeVolume.mNumSubChunks=height/16;biomeVolume.mSubChunkVectors.assign(height/16,sub);c.setBiomeFromVolume(biomeVolume);c.setBlockVolume(volume,0);c.setPreWorldGenHeightMap(volume.computeHeightMap());c.recomputeHeightMap(true);
 }
 std::vector<Biome const*> nativeCaptureBiomes(Dimension&d){J metadata;std::ifstream((terrainFolder()/"terrain.json"))>>metadata;std::vector<Biome const*>result;for(std::string name:metadata["biomeNames"]){auto b=d.getBiomeRegistry().lookupByName("minecraft:"+name);if(!b)throw std::runtime_error("Native capture biome missing");result.push_back(&*b);}return result;}
 void fillSharedCaptureGround(LevelChunk&c,std::vector<Block const*>const&palette,std::vector<Biome const*>const&biomes){
- auto cp=c.getPosition();auto ground=worldgen_rules::buildFrozenCaptureGround(*field,{cp.x,cp.z});std::vector<Block const*>data(16*384*16,palette[0]);BlockVolume volume({data.data(),data.data()+data.size()},16,384,16,*palette[0],-64);std::vector<Biome const*>sub(4096);
- for(int z=0;z<16;++z)for(int x=0;x<16;++x){size_t col=z*16+x;for(int y=0;y<384;++y)data[volume.indexNoBoundsCheck(BlockPos{x,y,z})]=palette.at(ground.blocks[col*384+y]);for(int y=0;y<16;++y)sub[(x<<8)|(z<<4)|y]=biomes.at(ground.biomes[col]);}
- ChunkVolume::VolumeOf<Biome>biomeVolume;biomeVolume.mNumSubChunks=24;biomeVolume.mSubChunkVectors.assign(24,sub);c.setBiomeFromVolume(biomeVolume);c.setBlockVolume(volume,0);c.setPreWorldGenHeightMap(volume.computeHeightMap());c.recomputeHeightMap(true);
+ int height=auditVolumeHeight(c.getDimension());
+ auto cp=c.getPosition();auto ground=worldgen_rules::buildFrozenCaptureGround(*field,{cp.x,cp.z});std::vector<Block const*>data(16*height*16,palette[0]);BlockVolume volume({data.data(),data.data()+data.size()},16,height,16,*palette[0],-64);std::vector<Biome const*>sub(4096);
+ for(int z=0;z<16;++z)for(int x=0;x<16;++x){size_t col=z*16+x;for(int y=0;y<ground.height;++y)data[volume.indexNoBoundsCheck(BlockPos{x,y,z})]=palette.at(ground.blocks[col*ground.height+y]);for(int y=0;y<16;++y)sub[(x<<8)|(z<<4)|y]=biomes.at(ground.biomes[col]);}
+ ChunkVolume::VolumeOf<Biome>biomeVolume;biomeVolume.mNumSubChunks=height/16;biomeVolume.mSubChunkVectors.assign(height/16,sub);c.setBiomeFromVolume(biomeVolume);c.setBlockVolume(volume,0);c.setPreWorldGenHeightMap(volume.computeHeightMap());c.recomputeHeightMap(true);
 }
 worldgen_rules::FrozenCaptureState nativeCaptureRead(BlockSource&blocks,worldgen_rules::StructurePoint p){BlockPos q{p.x,p.y,p.z};return {uintptr_t(&blocks.getBlock(q)),uintptr_t(&blocks.getExtraBlock(q))};}
 bool nativeCaptureEqual(worldgen_rules::FrozenCaptureState a,worldgen_rules::FrozenCaptureState b){return *reinterpret_cast<Block const*>(a.primary)==*reinterpret_cast<Block const*>(b.primary)&&*reinterpret_cast<Block const*>(a.secondary)==*reinterpret_cast<Block const*>(b.secondary);}
@@ -117,14 +125,14 @@ bool publishNativeCapture(BlockSource&blocks,worldgen_rules::FrozenCaptureProgra
 }
 void placeSharedFrozenPortal(Dimension&d,BlockSource&blocks,ChunkPos cp,ExtraPlan&plan,ChunkPos anchor,uint seed){
  if(!plan.portal){
-  auto began=std::chrono::steady_clock::now();auto spec=worldgen_rules::planFrozenCapture(worldgen_rules::FrozenCaptureKind::Portal,{anchor.x,anchor.z},seed,sharedBox(*plan.start->boundingBox),plan.floor,plan.start->pieces->size());
+  auto began=std::chrono::steady_clock::now();auto spec=worldgen_rules::planFrozenCapture(worldgen_rules::FrozenCaptureKind::Portal,{anchor.x,anchor.z},seed,sharedBox(*plan.start->boundingBox),plan.floor,plan.start->pieces->size(),field->generationHeight()-65);
   AuditChunkSource source(d,nativeBox(spec.chunks));auto tokens=source.access();BlockSource native(source,false,true);auto palette=auditPalette();auto biomes=nativeCaptureBiomes(d);
   worldgen_rules::forEachFrozenCaptureChunk(spec,[&](auto cp){fillSharedCaptureGround(*source.getExistingChunk({cp.x,cp.z}),palette,biomes);villageTerrain(native,{cp.x,cp.z},plan.terrain);});
   auto program=worldgen_rules::captureFrozenStructure(spec,[&](auto p){return nativeCaptureRead(native,p);},[&](size_t i,uint32_t partSeed,auto const&full){Random rng(partSeed,true);return (*plan.start->pieces)[i]->postProcess(native,rng,nativeBox(full));},nativeCaptureEqual,nativeCaptureName,[&](auto p,auto kind){return nativeCaptureLoot(native,p,kind);});
   plan.diagnostics["frozenPortal"]={{"chunks",spec.chunkCount},{"writes",program.writes},{"chests",program.chests},{"classifiedStates",program.classifiedStates},{"ms",std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-began).count()}};
   plan.portal=std::make_shared<worldgen_rules::FrozenCaptureProgram>(std::move(program));
  }
- publishNativeCapture(blocks,*plan.portal,{{cp.x*16,-64,cp.z*16},{cp.x*16+15,319,cp.z*16+15}});
+ publishNativeCapture(blocks,*plan.portal,{{cp.x*16,-64,cp.z*16},{cp.x*16+15,field->generationHeight()-65,cp.z*16+15}});
 }
 void placeFrozenPortal(Dimension&d,BlockSource&blocks,ChunkPos cp,ExtraPlan&plan,ChunkPos anchor,uint seed){
  if(worldgen_rules::sharedStructurePlan(input.at("config").value("sharedRules",J::object()).value("revision",std::string{}))){placeSharedFrozenPortal(d,blocks,cp,plan,anchor,seed);return;}
@@ -134,10 +142,10 @@ void placeFrozenPortal(Dimension&d,BlockSource&blocks,ChunkPos cp,ExtraPlan&plan
   AuditChunkSource source(d,halo);auto tokens=source.access();BlockSource native(source,false,true);auto palette=auditPalette();
   for(int z=chunk(halo.min.z);z<=chunk(halo.max.z);++z)for(int x=chunk(halo.min.x);x<=chunk(halo.max.x);++x){fillPortalGround(*source.getExistingChunk({x,z}),palette);villageTerrain(native,{x,z},plan.terrain);}
   halo.min.x=chunk(halo.min.x)*16;halo.min.z=chunk(halo.min.z)*16;halo.max.x=chunk(halo.max.x)*16+15;halo.max.z=chunk(halo.max.z)*16+15;
-  halo.min.y=std::max(-58,plan.floor-24);halo.max.y=std::min(319,plan.floor+48);
+  halo.min.y=std::max(-58,plan.floor-24);halo.max.y=std::min(field->generationHeight()-65,plan.floor+48);
   std::vector<std::pair<Block const*,Block const*>> original;original.reserve((halo.max.x-halo.min.x+1)*(halo.max.z-halo.min.z+1)*(halo.max.y-halo.min.y+1));
   for(int z=halo.min.z;z<=halo.max.z;++z)for(int x=halo.min.x;x<=halo.max.x;++x)for(int y=halo.min.y;y<=halo.max.y;++y){BlockPos q{x,y,z};original.emplace_back(&native.getBlock(q),&native.getExtraBlock(q));}
-  BoundingBox full=halo;full.min.y=-64;full.max.y=319;
+  BoundingBox full=halo;full.min.y=-64;full.max.y=field->generationHeight()-65;
   for(size_t i=0;i<plan.start->pieces->size();++i){Random rng(seed,true);StructureFeature::setRandomSeedFor(rng,anchor.x,anchor.z,extraSpec(1)->salt+int(i),seed);if(!(*plan.start->pieces)[i]->postProcess(native,rng,full))throw std::runtime_error("Native whole portal placement refused seeded ground");}
   size_t offset=0;unsigned frames=0;
   for(int z=halo.min.z;z<=halo.max.z;++z)for(int x=halo.min.x;x<=halo.max.x;++x)for(int y=halo.min.y;y<=halo.max.y;++y){BlockPos q{x,y,z};auto const&a=native.getBlock(q);auto const&extra=native.getExtraBlock(q);auto before=original.at(offset++);if(a!=*before.first||extra!=*before.second)plan.portalWrites[{x,y,z}]={&a,&extra};if(a.getTypeName()=="minecraft:obsidian"||a.getTypeName()=="minecraft:crying_obsidian")++frames;if(a.getTypeName()=="minecraft:chest"){auto*actor=native.getBlockEntity(q);if(!actor)throw std::runtime_error("Native portal chest actor missing");auto*chest=static_cast<ChestBlockActor*>(actor);plan.portalChests[{x,y,z}]={*chest->mLootTable,chest->mLootTableSeed};}}
@@ -150,10 +158,10 @@ void placeFrozenPortal(Dimension&d,BlockSource&blocks,ChunkPos cp,ExtraPlan&plan
 bool placeSharedFrozenTemple(BlockSource&blocks,AutoBlueprint&plan,BoundingBox const&clip){
  if(!plan.temple){
   auto&d=blocks.getDimension();auto cp=ChunkPos{plan.start->chunkX,plan.start->chunkZ};uint seed=structureSeed(d);auto began=std::chrono::steady_clock::now();
-  auto spec=worldgen_rules::planFrozenCapture(worldgen_rules::FrozenCaptureKind::Pyramid,{cp.x,cp.z},seed,sharedBox(*plan.start->boundingBox),0,plan.start->pieces->size());
+  auto spec=worldgen_rules::planFrozenCapture(worldgen_rules::FrozenCaptureKind::Pyramid,{cp.x,cp.z},seed,sharedBox(*plan.start->boundingBox),0,plan.start->pieces->size(),field->generationHeight()-65);
   AuditChunkSource source(d,nativeBox(spec.chunks));auto tokens=source.access();BlockSource native(source,false,true);auto palette=auditPalette();auto biomes=nativeCaptureBiomes(d);
   worldgen_rules::forEachFrozenCaptureChunk(spec,[&](auto cp){fillSharedCaptureGround(*source.getExistingChunk({cp.x,cp.z}),palette,biomes);});
-  auto biome=d.getBiomeRegistry().lookupByName("minecraft:desert");FixedBiomeSource biomeSource(*biome);Start whole(biomeSource,31,cp.x,cp.z,provider);int floor=static_cast<ScatteredFeaturePiece*>((*plan.start->pieces)[0].get())->mHeightPosition;
+  auto biome=d.getBiomeRegistry().lookupByName("minecraft:desert");FixedBiomeSource biomeSource(*biome);Start whole(biomeSource,field->seaLevel(),cp.x,cp.z,provider);int floor=static_cast<ScatteredFeaturePiece*>((*plan.start->pieces)[0].get())->mHeightPosition;
   whole.moveBoundingBoxes(floor-whole.boundingBox->min.y);for(auto&piece:*whole.pieces)static_cast<ScatteredFeaturePiece*>(piece.get())->mHeightPosition=floor;whole.calculateBoundingBox();
   auto program=worldgen_rules::captureFrozenStructure(spec,[&](auto p){return nativeCaptureRead(native,p);},[&](size_t,uint32_t nativeSeed,auto const&full){Random rng(nativeSeed,true);return whole.postProcess(native,rng,nativeBox(full));},nativeCaptureEqual,nativeCaptureName,[&](auto p,auto kind){return nativeCaptureLoot(native,p,kind);});
   if(!auditPlanningStarts)std::ofstream(folder/"temple-plan-metrics.jsonl",std::ios::app)<<J{{"anchor",{cp.x*16,cp.z*16}},{"writes",program.writes},{"chests",program.chests},{"brushable",program.brushable},{"classifiedStates",program.classifiedStates},{"ms",std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-began).count()}}.dump()<<'\n';
@@ -167,10 +175,10 @@ bool placeFrozenTemple(BlockSource&blocks,AutoBlueprint&plan,Random&,BoundingBox
   auto&d=blocks.getDimension();auto cp=ChunkPos{plan.start->chunkX,plan.start->chunkZ};auto b=*plan.start->boundingBox;auto halo=b;halo.min.x-=8;halo.min.z-=8;halo.max.x+=8;halo.max.z+=8;
   auto began=std::chrono::steady_clock::now();AuditChunkSource source(d,halo);auto tokens=source.access();BlockSource native(source,false,true);auto palette=auditPalette();
   for(int z=chunk(halo.min.z);z<=chunk(halo.max.z);++z)for(int x=chunk(halo.min.x);x<=chunk(halo.max.x);++x)fillPortalGround(*source.getExistingChunk({x,z}),palette);
-  halo.min.x=chunk(halo.min.x)*16;halo.min.z=chunk(halo.min.z)*16;halo.max.x=chunk(halo.max.x)*16+15;halo.max.z=chunk(halo.max.z)*16+15;halo.min.y=std::max(-58,b.min.y-24);halo.max.y=std::min(319,b.max.y+8);
+  halo.min.x=chunk(halo.min.x)*16;halo.min.z=chunk(halo.min.z)*16;halo.max.x=chunk(halo.max.x)*16+15;halo.max.z=chunk(halo.max.z)*16+15;halo.min.y=std::max(-58,b.min.y-24);halo.max.y=std::min(field->generationHeight()-65,b.max.y+8);
   std::vector<std::pair<Block const*,Block const*>> before;for(int z=halo.min.z;z<=halo.max.z;++z)for(int x=halo.min.x;x<=halo.max.x;++x)for(int y=halo.min.y;y<=halo.max.y;++y){BlockPos p{x,y,z};before.emplace_back(&native.getBlock(p),&native.getExtraBlock(p));}
-  auto biome=d.getBiomeRegistry().lookupByName("minecraft:desert");FixedBiomeSource biomes(*biome);Start whole(biomes,31,cp.x,cp.z,provider);int floor=static_cast<ScatteredFeaturePiece*>((*plan.start->pieces)[0].get())->mHeightPosition;whole.moveBoundingBoxes(floor-whole.boundingBox->min.y);for(auto&piece:*whole.pieces)static_cast<ScatteredFeaturePiece*>(piece.get())->mHeightPosition=floor;whole.calculateBoundingBox();
-  Random random(structureSeed(d),true);StructureFeature::setRandomSeedFor(random,cp.x,cp.z,14357617,structureSeed(d));auto full=halo;full.min.y=-64;full.max.y=319;if(!whole.postProcess(native,random,full))throw std::runtime_error("Whole native pyramid placement refused");
+  auto biome=d.getBiomeRegistry().lookupByName("minecraft:desert");FixedBiomeSource biomes(*biome);Start whole(biomes,field->seaLevel(),cp.x,cp.z,provider);int floor=static_cast<ScatteredFeaturePiece*>((*plan.start->pieces)[0].get())->mHeightPosition;whole.moveBoundingBoxes(floor-whole.boundingBox->min.y);for(auto&piece:*whole.pieces)static_cast<ScatteredFeaturePiece*>(piece.get())->mHeightPosition=floor;whole.calculateBoundingBox();
+  Random random(structureSeed(d),true);StructureFeature::setRandomSeedFor(random,cp.x,cp.z,14357617,structureSeed(d));auto full=halo;full.min.y=-64;full.max.y=field->generationHeight()-65;if(!whole.postProcess(native,random,full))throw std::runtime_error("Whole native pyramid placement refused");
   size_t offset=0;unsigned chests=0,brushable=0;for(int z=halo.min.z;z<=halo.max.z;++z)for(int x=halo.min.x;x<=halo.max.x;++x)for(int y=halo.min.y;y<=halo.max.y;++y){BlockPos p{x,y,z};auto const&block=native.getBlock(p);auto const&extra=native.getExtraBlock(p);auto old=before.at(offset++);if(block!=*old.first||extra!=*old.second)plan.templeWrites[{x,y,z}]={&block,&extra};if(block.getTypeName()=="minecraft:chest"||block.getTypeName()=="minecraft:suspicious_sand"){auto*actor=native.getBlockEntity(p);if(!actor)throw std::runtime_error("Pyramid native loot actor missing");if(block.getTypeName()=="minecraft:chest"){auto*a=static_cast<ChestBlockActor*>(actor);plan.templeLoot[{x,y,z}]={*a->mLootTable,a->mLootTableSeed};++chests;}else{auto*a=static_cast<BrushableBlockActor*>(actor);plan.templeLoot[{x,y,z}]={*a->mLootTable,a->mLootTableSeed};++brushable;}}}
   if(chests!=4||!brushable)throw std::runtime_error("Pyramid trap/archaeology loot is incomplete");plan.templeReady=true;
   if(!auditPlanningStarts)std::ofstream(folder/"temple-plan-metrics.jsonl",std::ios::app)<<J{{"anchor",{cp.x*16,cp.z*16}},{"writes",plan.templeWrites.size()},{"chests",chests},{"brushable",brushable},{"ms",std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-began).count()}}.dump()<<'\n';
@@ -185,8 +193,8 @@ void memoryTempleAudit(Dimension&d,int order){
  J data=input;uint seed=structureSeed(d);AuditPlanScope scope(d,data,seed);auto&plan=autoBlueprint(d,{chunk(-15728),chunk(-15328)},seed);if(!plan.start)throw std::runtime_error("Temple sample rejected");auto box=*plan.start->boundingBox;auto halo=box;halo.min.x-=16;halo.min.z-=16;halo.max.x+=16;halo.max.z+=16;AuditChunkSource source(d,halo);auto tokens=source.access();BlockSource blocks(source,false,true);auto palette=auditPalette();nativegen::Engine engine(input,{},false,field.get());
  for(int z=chunk(halo.min.z);z<=chunk(halo.max.z);++z)for(int x=chunk(halo.min.x);x<=chunk(halo.max.x);++x)auditFillChunk(*source.getExistingChunk({x,z}),engine.chunk(x,z),palette,nullptr);
  std::vector<ChunkPos> chunks;for(int z=chunk(box.min.z);z<=chunk(box.max.z);++z)for(int x=chunk(box.min.x);x<=chunk(box.max.x);++x)chunks.push_back({x,z});if(order==1)std::reverse(chunks.begin(),chunks.end());
- if(order==2){Random rng(seed,true);plan.start->postProcess(blocks,rng,box);}else for(auto cp:chunks){Random rng(seed,true);StructureFeature::setRandomSeedFor(rng,cp.x,cp.z,14357617,seed);plan.start->postProcess(blocks,rng,{{cp.x*16,-64,cp.z*16},{cp.x*16+15,319,cp.z*16+15}});}
- box.min.y=std::max(-58,box.min.y-16);box.max.y=std::min(319,box.max.y+8);
+ if(order==2){Random rng(seed,true);plan.start->postProcess(blocks,rng,box);}else for(auto cp:chunks){Random rng(seed,true);StructureFeature::setRandomSeedFor(rng,cp.x,cp.z,14357617,seed);plan.start->postProcess(blocks,rng,{{cp.x*16,-64,cp.z*16},{cp.x*16+15,field->generationHeight()-65,cp.z*16+15}});}
+ box.min.y=std::max(-58,box.min.y-16);box.max.y=std::min(field->generationHeight()-65,box.max.y+8);
  uint64_t hash=1469598103934665603ull;J actors=J::array(),counts=J::object(),invalid=J::array();unsigned invalidTotal=0;for(int z=box.min.z;z<=box.max.z;++z)for(int x=box.min.x;x<=box.max.x;++x)for(int y=box.min.y;y<=box.max.y;++y){BlockPos p{x,y,z};auto const&b=blocks.getBlock(p);uint64_t h=b.mSerializationIdHash;for(int s=0;s<64;s+=8)hash=(hash^((h>>s)&255))*1099511628211ull;counts[b.getTypeName()]=counts.value(b.getTypeName(),0)+1;auto const&name=b.getTypeName();bool bad=(groundPlant(name)||name=="minecraft:sculk_vein")&&!b.canSurvive(blocks,p);bad|=name=="minecraft:hay_block"&&blocks.getBlock({x,y-1,z}).isAir();if(bad){++invalidTotal;if(invalid.size()<100)invalid.push_back({{"pos",{x,y,z}},{"name",name}});}if(auto*a=blocks.getBlockEntity(p)){CompoundTag tag;SaveContext context;a->save(tag,context);actors.push_back(J::parse(tag.toSnbt(SnbtFormat::Jsonify),nullptr,false,true));}}
  std::ofstream(folder/"memory-temple-audit.json")<<J{{"order",order},{"box",boxJson(box)},{"stateHash",std::to_string(hash)},{"counts",counts},{"blockActors",actors},{"chunks",chunks.size()}}.dump(2);
 }
@@ -220,7 +228,7 @@ void runMemoryPlanAudit(Dimension&d,int profile,int type,int x,int z,int order){
  std::set<int64_t> originalActors;for(auto*a:d.getLevel().getRuntimeActorList())originalActors.insert(a->getOrCreateUniqueID().rawID);
  struct ActorCleanup{Level&level;std::set<int64_t> const&baseline;~ActorCleanup(){std::vector<Actor*>drop;for(auto*a:level.getRuntimeActorList())if(!baseline.contains(a->getOrCreateUniqueID().rawID))drop.push_back(a);for(auto*a:drop)a->remove();}} actorCleanup{d.getLevel(),originalActors};
  std::vector<ChunkPos> orderChunks;for(int zz=chunk(halo.min.z);zz<=chunk(halo.max.z);++zz)for(int xx=chunk(halo.min.x);xx<=chunk(halo.max.x);++xx)orderChunks.push_back({xx,zz});if(order)std::reverse(orderChunks.begin(),orderChunks.end());
- for(auto cp:orderChunks){BoundingBox clip{{cp.x*16,-64,cp.z*16},{cp.x*16+15,319,cp.z*16+15}};if(type==12)placeVillage(blocks,cp,villages.at({anchor.x,anchor.z}),data.seed);else if(type<12)placeExtras(d,blocks,cp,{{type,anchor}},data.seed,true);else {auto&plan=automaticBlueprints.at({anchor.x,anchor.z});Random rng(data.seed,true);StructureFeature::setRandomSeedFor(rng,cp.x,cp.z,14357617,data.seed);if(plan.igloo)placeIgloo(blocks,*plan.igloo,clip);else if(!(box.max.x<clip.min.x||box.min.x>clip.max.x||box.max.z<clip.min.z||box.min.z>clip.max.z))placeScatteredNative(blocks,plan,rng,clip);}}
- auto sample=halo;sample.min.y=std::max(-58,box.min.y-20);sample.max.y=std::min(319,box.max.y+12);J result=readAuditVolume(blocks,sample);result.update(J{{"profile",profile},{"family",start->getStructureName()},{"type",type},{"anchor",{x,z}},{"worldSeed",data.worldSeed},{"nativeSeed",data.seed},{"order",order},{"chunks",orderChunks.size()},{"ms",std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-began).count()}});if(type==8)result["cityConnectionSpans"]=cityConnections(*start,data.seed,cityNeighbours(d,*start,data.seed)).size();if(type==12){auto const&v=villages.at({anchor.x,anchor.z});result["villageDiagnostics"]=v.diagnostics;result["oasisColumns"]=v.oasis.size();}
+ for(auto cp:orderChunks){BoundingBox clip{{cp.x*16,-64,cp.z*16},{cp.x*16+15,field->generationHeight()-65,cp.z*16+15}};if(type==12)placeVillage(blocks,cp,villages.at({anchor.x,anchor.z}),data.seed);else if(type<12)placeExtras(d,blocks,cp,{{type,anchor}},data.seed,true);else {auto&plan=automaticBlueprints.at({anchor.x,anchor.z});Random rng(data.seed,true);StructureFeature::setRandomSeedFor(rng,cp.x,cp.z,14357617,data.seed);if(plan.igloo)placeIgloo(blocks,*plan.igloo,clip);else if(!(box.max.x<clip.min.x||box.min.x>clip.max.x||box.max.z<clip.min.z||box.min.z>clip.max.z))placeScatteredNative(blocks,plan,rng,clip);}}
+ auto sample=halo;sample.min.y=std::max(-58,box.min.y-20);sample.max.y=std::min(field->generationHeight()-65,box.max.y+12);J result=readAuditVolume(blocks,sample);result.update(J{{"profile",profile},{"family",start->getStructureName()},{"type",type},{"anchor",{x,z}},{"worldSeed",data.worldSeed},{"nativeSeed",data.seed},{"order",order},{"chunks",orderChunks.size()},{"ms",std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-began).count()}});if(type==8)result["cityConnectionSpans"]=cityConnections(*start,data.seed,cityNeighbours(d,*start,data.seed)).size();if(type==12){auto const&v=villages.at({anchor.x,anchor.z});result["villageDiagnostics"]=v.diagnostics;result["oasisColumns"]=v.oasis.size();}
  if(type<12)result["planDiagnostics"]=extraPlans.at({type,anchor.x,anchor.z}).diagnostics;std::ofstream(folder/"memory-plan-audit.json")<<result.dump(2);
 }

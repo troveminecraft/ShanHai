@@ -58,7 +58,7 @@ void legacyScarpRelief(Surface&s,int wx,int wz){
    if(hi-lo<3)continue;
    s.cliffLow=lo;s.cliffHigh=std::min(hi,s.height-4);s.scarp=side;
   }
-  s.continuous=(s.height-31)/123.;s.e=s.continuous;
+  s.continuous=(s.height-seaLevelValue)/123.;s.e=s.continuous;
  }
 }
 // Original analytic loft, informed by volume/density terrain representations
@@ -112,7 +112,7 @@ void scarpRelief(Surface&s,int wx,int wz){
   // Keep a rock shell below the foot and throughout the upper lip. The cave
   // depth must not use the raised rim for a column also open below that rim.
   if(s.scarp>0)s.scarpCaveCeiling=int(std::floor(mix(side,original,foot)-caveRoof));
-  s.continuous=(s.height-31)/123.;s.e=s.continuous;
+  s.continuous=(s.height-seaLevelValue)/123.;s.e=s.continuous;
  }
 }
 // Used only by the offline seed builder / diagnostic CLI. No world scan in BDS.

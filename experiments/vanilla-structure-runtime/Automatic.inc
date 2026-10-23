@@ -105,7 +105,7 @@ bool placeScatteredNative(BlockSource &blocks, AutoBlueprint &plan, Random &rng,
                     continue;
                 queueStructureEntities(plan.start,
                                        {{owner.first * 16, -64, owner.second * 16},
-                                        {owner.first * 16 + 15, 319, owner.second * 16 + 15}},
+                                        {owner.first * 16 + 15, field->generationHeight()-65, owner.second * 16 + 15}},
                                        "igloo", {int(plan.start->chunkX), int(plan.start->chunkZ)}, seed);
             }
         }
@@ -123,7 +123,7 @@ bool placeScatteredNative(BlockSource &blocks, AutoBlueprint &plan, Random &rng,
                 if (!biome)
                     throw std::runtime_error("Native scattered biome missing");
                 FixedBiomeSource source(*biome);
-                auto local = std::make_unique<Start>(source, 31, recipe.anchor.x, recipe.anchor.z, provider);
+                auto local = std::make_unique<Start>(source, field->seaLevel(), recipe.anchor.x, recipe.anchor.z, provider);
                 int dy = worldgen_rules::scatteredFreshMove(recipe, sharedBox(*local->boundingBox));
                 local->moveBoundingBoxes(dy);
                 for (auto &piece : *local->pieces)
@@ -172,7 +172,7 @@ bool placeScatteredNative(BlockSource &blocks, AutoBlueprint &plan, Random &rng,
     if (!b)
         throw std::runtime_error("Native scattered biome missing");
     FixedBiomeSource source(*b);
-    Start local(source, 31, cp.x, cp.z, provider);
+    Start local(source, field->seaLevel(), cp.x, cp.z, provider);
     int floor = static_cast<ScatteredFeaturePiece *>((*plan.start->pieces)[0].get())->mHeightPosition;
     local.moveBoundingBoxes(floor - local.boundingBox->min.y);
     for (auto &piece : *local.pieces)
@@ -321,7 +321,7 @@ AutoBlueprint &autoBlueprint(Dimension &dim, ChunkPos candidate, uint seed) {
     if (!biome)
         throw std::runtime_error("Missing native biome");
     FixedBiomeSource source(*biome);
-    auto start = std::make_unique<Start>(source, 31, candidate.x, candidate.z, provider);
+    auto start = std::make_unique<Start>(source, field->seaLevel(), candidate.x, candidate.z, provider);
     if (!start->isValid())
         return plan;
     auto initial = *start->boundingBox;
@@ -333,7 +333,7 @@ AutoBlueprint &autoBlueprint(Dimension &dim, ChunkPos candidate, uint seed) {
             initial.min.y < -58)
             return plan;
     }
-    int lo = 320, hi = -64, total = 0;
+    int lo = field->generationHeight()-64, hi = -64, total = 0;
     // Full footprint (441 columns), only after the cheap native spacing rejection.
     int columns = 0;
     std::optional<worldgen_rules::FrozenIglooPlan> sharedIgloo;
@@ -343,7 +343,7 @@ AutoBlueprint &autoBlueprint(Dimension &dim, ChunkPos candidate, uint seed) {
         worldgen_rules::ScatteredLayoutPlan fit;
         if (igloo) {
             sharedIgloo = sharedIglooGeometry(*igloo);
-            fit = worldgen_rules::fitFrozenIglooFloor(*sharedIgloo, center.biome, sample);
+            fit = worldgen_rules::fitFrozenIglooFloor(*sharedIgloo, center.biome, sample, field->generationHeight()-65);
         } else
             fit = worldgen_rules::planScatteredLayout({{initial.min.x, initial.min.y, initial.min.z},
                                                        {initial.max.x, initial.max.y, initial.max.z}},
@@ -428,7 +428,7 @@ AutoBlueprint &autoBlueprint(Dimension &dim, ChunkPos candidate, uint seed) {
         worldgen_rules::sharedStructurePlan(
             input.at("config").value("sharedRules", J::object()).value("revision", std::string{})))
         plan.fragments = worldgen_rules::planScatteredFragments(center.biome, {candidate.x, candidate.z},
-                                                                seed, sharedBox(*start->boundingBox), floor);
+                                                                seed, sharedBox(*start->boundingBox), floor, field->generationHeight()-65);
     if (auditPlanningStarts) {
         auditPlanningStarts->push_back(std::move(start));
         return plan;
@@ -470,28 +470,25 @@ unsigned clearReservedPlants(BlockSource &blocks, ChunkPos cp, VegetationPair &p
          after = pair.reserved->vegetationChunk(cp.x, cp.z);
     auto air = Block::tryGetFromRegistry("minecraft:air");
     unsigned n = 0;
-    for (int z = 0; z < 16; ++z)
-        for (int x = 0; x < 16; ++x)
-            for (int y = -60; y < 320; ++y) {
-                int i = (z * 16 + x) * 384 + y + 64;
-                if (!worldgen_rules::structureReservationCandidate(before[i], after[i]))
-                    continue;
-                BlockPos p{cp.x * 16 + x, y, cp.z * 16 + z};
+    int height=worldgen_rules::vegetationColumnHeight(before,after);
+    if(!air)throw std::runtime_error("Air block unavailable during structure vegetation repair");
+    worldgen_rules::visitVegetationReservations(before,after,[&](int x,int y,int z,int previous,int reserved){
+                BlockPos p{cp.x * 16 + x, y-64, cp.z * 16 + z};
                 if (keep && keep->contains({p.x, p.y, p.z}))
-                    continue;
+                    return;
                 auto name = blocks.getBlock(p).getTypeName();
-                if (!worldgen_rules::structureReservationRemoves(before[i], after[i], name))
-                    continue;
+                if (!worldgen_rules::structureReservationRemoves(previous, reserved, name))
+                    return;
                 clearPlantBlock(blocks, p, *air);
                 ++n;
                 // Thin snow on the removed crown/trunk must not remain floating.
                 BlockPos above{p.x, p.y + 1, p.z};
-                if (p.y < 319 && blocks.getBlock(above).getTypeName() == "minecraft:snow_layer" &&
+                if (y+1 < height && blocks.getBlock(above).getTypeName() == "minecraft:snow_layer" &&
                     (!keep || !keep->contains({above.x, above.y, above.z}))) {
                     clearPlantBlock(blocks, above, *air);
                     ++n;
                 }
-            }
+    });
     return n;
 }
 VegetationPair &structureVegetationPair(AutoBlueprint const &plan) {
@@ -531,15 +528,7 @@ LL_TYPE_INSTANCE_HOOK(DecorationTask, ll::memory::HookPriority::Normal, ChunkSou
     DecorationTaskContext context(view, owner);
     origin(owner, view);
 }
-LL_TYPE_INSTANCE_HOOK(AutoStage, ll::memory::HookPriority::Normal, FlatWorldGenerator,
-                      &FlatWorldGenerator::$decorationPostProcessChunk, bool, ChunkViewSource &view) {
-    if (!automaticStructures || mLevel->getLevelData().getLevelName() != activeWorld)
-        return origin(view);
-    if (structureStageFailed)
-        return false;
-    auto ok = origin(view);
-    if (!ok)
-        return false;
+bool runAutomaticStage(Level &level, ChunkViewSource &view) {
     ++stageCalls;
     StageTimer timer;
     std::optional<std::array<int,2>> failureChunk;
@@ -554,8 +543,8 @@ LL_TYPE_INSTANCE_HOOK(AutoStage, ll::memory::HookPriority::Normal, FlatWorldGene
         if (!center || center->getState().load() != ChunkState::DecorationPostProcessing)
             throw std::runtime_error("Unexpected center phase");
         if (!structureChunkInside(cp->x, cp->z))
-            return ok;
-        uint seed = mLevel->getLevelData().getSeed().to32BitRandomSeed();
+            return true;
+        uint seed = level.getLevelData().getSeed().to32BitRandomSeed();
         std::set<std::pair<int, int>> nearby;
         for (int z = structureCell(cp->z - 3); z <= structureCell(cp->z + 2); ++z)
             for (int x = structureCell(cp->x - 3); x <= structureCell(cp->x + 2); ++x) {
@@ -577,13 +566,13 @@ LL_TYPE_INSTANCE_HOOK(AutoStage, ll::memory::HookPriority::Normal, FlatWorldGene
             spacingRejectNanos += std::chrono::duration_cast<std::chrono::nanoseconds>(
                                       std::chrono::steady_clock::now() - timer.began)
                                       .count();
-            return ok;
+            return true;
         }
         std::string dbKey(8, '\0');
         std::memcpy(dbKey.data(), &cp->x, 4);
         std::memcpy(dbKey.data() + 4, &cp->z, 4);
         dbKey.push_back(char(LevelChunkTag::Version));
-        auto &db = mLevel->getLevelStorage();
+        auto &db = level.getLevelStorage();
         bool stored = db.hasKey(dbKey, DBHelpers::Category::Chunk);
         if (!stored) {
             dbKey.back() = char(LevelChunkTag::LegacyVersion);
@@ -603,7 +592,7 @@ LL_TYPE_INSTANCE_HOOK(AutoStage, ll::memory::HookPriority::Normal, FlatWorldGene
             std::ofstream(folder / "automatic-storage-checks.jsonl", std::ios::app)
                 << J{{"chunk", {cp->x, cp->z}},
                      {"stored", stored},
-                     {"world", mLevel->getLevelData().getLevelName()}}
+                     {"world", level.getLevelData().getLevelName()}}
                        .dump()
                 << '\n';
         // Restore seeded native cache records on stored chunks too; never replay
@@ -628,7 +617,7 @@ LL_TYPE_INSTANCE_HOOK(AutoStage, ll::memory::HookPriority::Normal, FlatWorldGene
                 if (!(b.max.x < cp->x * 16 || b.min.x > cp->x * 16 + 15 || b.max.z < cp->z * 16 ||
                       b.min.z > cp->z * 16 + 15))
                     queueStructureEntities(
-                        p.start, {{cp->x * 16, -64, cp->z * 16}, {cp->x * 16 + 15, 319, cp->z * 16 + 15}},
+                        p.start, {{cp->x * 16, -64, cp->z * 16}, {cp->x * 16 + 15, field->generationHeight()-65, cp->z * 16 + 15}},
                         "village", anchor, seed);
                 continue;
             }
@@ -642,7 +631,7 @@ LL_TYPE_INSTANCE_HOOK(AutoStage, ll::memory::HookPriority::Normal, FlatWorldGene
                 pieces = placeVillage(blocks, *cp, p, seed);
             if (pieces)
                 queueStructureEntities(
-                    p.start, {{cp->x * 16, -64, cp->z * 16}, {cp->x * 16 + 15, 319, cp->z * 16 + 15}},
+                    p.start, {{cp->x * 16, -64, cp->z * 16}, {cp->x * 16 + 15, field->generationHeight()-65, cp->z * 16 + 15}},
                     "village", anchor, seed);
             center->setUnsaved();
             center->markSaveIfNeverSaved();
@@ -695,7 +684,7 @@ LL_TYPE_INSTANCE_HOOK(AutoStage, ll::memory::HookPriority::Normal, FlatWorldGene
             }
             if (!intersects)
                 continue;
-            BoundingBox clip{{cp->x * 16, -64, cp->z * 16}, {cp->x * 16 + 15, 319, cp->z * 16 + 15}};
+            BoundingBox clip{{cp->x * 16, -64, cp->z * 16}, {cp->x * 16 + 15, field->generationHeight()-65, cp->z * 16 + 15}};
             Random rng(seed, true);
             StructureFeature::setRandomSeedFor(rng, cp->x, cp->z, 14357617, seed);
             auto t = std::chrono::steady_clock::now();
@@ -752,19 +741,31 @@ LL_TYPE_INSTANCE_HOOK(AutoStage, ll::memory::HookPriority::Normal, FlatWorldGene
         reportStructureFailure("decoration", e, failureChunk);
         return false;
     }
-    return ok;
+    return true;
 }
-LL_TYPE_INSTANCE_HOOK(NativeLocate, ll::memory::HookPriority::Normal, FlatWorldGenerator,
-                      &FlatWorldGenerator::$findNearestStructureFeature, bool, HashedString type,
-                      BlockPos const &from, BlockPos &result, bool fresh, std::optional<HashedString> tag) {
-    if (!automaticStructures || mLevel->getLevelData().getLevelName() != activeWorld)
-        return origin(type, from, result, fresh, tag);
+bool decorationGeneratorMatches(void const *generator, ChunkViewSource const &view) {
+    // Void's true-return stub can also be its structure-phase method. Require
+    // the exact task/view and decoration phase, without dereferencing this.
+    auto *owner=DecorationTaskContext::ownerIf(view);
+    if (!owner || owner->getState().load()!=ChunkState::DecorationPostProcessing)
+        return false;
+    auto &dimension=owner->getDimension();
+    return static_cast<int>(dimension.getDimensionId())==0 &&
+           dimension.getLevel().getLevelData().getLevelName()==activeWorld &&
+           dimension.getWorldGenerator()==generator;
+}
+LL_TYPE_INSTANCE_HOOK(AutoStage, ll::memory::HookPriority::Normal, WorldGenerator,
+                      ll::memory::unchecked(&FlatWorldGenerator::$decorationPostProcessChunk), bool, ChunkViewSource &view) {
+    return worldgen_rules::afterStructureDecoration(automaticStructures && decorationGeneratorMatches(this,view),
+        structureStageFailed, [&] { return origin(view); }, [&] { return runAutomaticStage(*mLevel, view); });
+}
+std::optional<bool> locateNativeStructure(Dimension &d, HashedString type, BlockPos const &from,
+                                          BlockPos &result, bool fresh, std::optional<HashedString> tag) {
     if (structureStageFailed)
         return false;
     try {
         std::lock_guard guard(stageMutex);
         initialize();
-        auto &d = *mDimension;
         auto &f = registeredFeature(d);
         std::ofstream(folder / "locate-requests.jsonl", std::ios::app)
             << J{{"type", type.getString()},
@@ -790,7 +791,7 @@ LL_TYPE_INSTANCE_HOOK(NativeLocate, ll::memory::HookPriority::Normal, FlatWorldG
                                                 std::optional<HashedString>{type});
         }
         if (type != *f.mStructureFeatureType)
-            return origin(type, from, result, fresh, tag);
+            return {};
         auto biome = d.getBiomeRegistry().lookupByName("minecraft:plains");
         TerrainPointBiomes actual(d, *biome);
         // Void's modern structure-set registry is empty; dispatch the registered
@@ -802,3 +803,19 @@ LL_TYPE_INSTANCE_HOOK(NativeLocate, ll::memory::HookPriority::Normal, FlatWorldG
         return false;
     }
 }
+// VoidGenerator inherits findNearestStructureFeature from WorldGenerator.
+LL_TYPE_INSTANCE_HOOK(NativeLocate, ll::memory::HookPriority::Normal, WorldGenerator,
+                      ll::memory::unchecked(&FlatWorldGenerator::$findNearestStructureFeature), bool, HashedString type,
+                      BlockPos const &from, BlockPos &result, bool fresh, std::optional<HashedString> tag) {
+    if (automaticStructures && structureGeneratorMatches(this))
+        if (auto handled=locateNativeStructure(*mDimension, type, from, result, fresh, tag)) return *handled;
+    return origin(type, from, result, fresh, tag);
+}
+LL_TYPE_INSTANCE_HOOK(BaseNativeLocate, ll::memory::HookPriority::Normal, WorldGenerator,
+                      &WorldGenerator::$findNearestStructureFeature, bool, HashedString type,
+                      BlockPos const &from, BlockPos &result, bool fresh, std::optional<HashedString> tag) {
+    if (automaticStructures && structureGeneratorMatches(this))
+        if (auto handled=locateNativeStructure(*mDimension, type, from, result, fresh, tag)) return *handled;
+    return origin(type, from, result, fresh, tag);
+}
+#include "GeneratorDispatch.inc"

@@ -146,7 +146,7 @@ bool buildSharedVillage(StructureStart &start, VillagePlan &result, ChunkPos cp,
         blueprint.pieces.push_back(sharedPoolPiece(*static_cast<PoolElementStructurePiece *>(p.get())));
     auto plan = worldgen_rules::planVillageLayout(
         blueprint, [](int x, int z) { return field->surface(x + 32768, z + 32768); },
-        [](int x, int z, uint32_t seed) { return nativegen::hash01(x, z, seed); });
+        [](int x, int z, uint32_t seed) { return nativegen::hash01(x, z, seed); }, field->generationHeight()-65);
     if (!plan.accepted)
         return false;
     // The entire plan was validated before committing any native move.
@@ -228,7 +228,7 @@ VillagePlan &villagePlan(Dimension &d, ChunkPos cp, uint seed) {
     auto center = field->surface(wx + 32768, wz + 32768);
     if (!fit(center))
         return result;
-    int lo = 320, hi = -64;
+    int lo = INT_MAX, hi = -64;
     // Cheap centre screen only. The old 193x193 square rejected villages for
     // slopes/biomes they never occupied; every actual native piece is checked
     // below before registration, including roads and houses.
@@ -337,7 +337,7 @@ void villageTerrain(BlockSource &blocks, ChunkPos cp, VillagePlan const &plan) {
                              : b.name == "minecraft:sandstone"   ? sandstone
                                                                  : sand;
                 blocks.setBlockNoUpdate({p.x, p.y, p.z}, *block);
-            });
+            }, field->generationHeight()-65);
         }
 }
 
@@ -355,7 +355,7 @@ unsigned clearUnsupportedGroundPlants(BlockSource &blocks, ChunkPos cp, int lo, 
             BlockPos q{p.x, p.y, p.z};
             return blocks.getBlock(q).canSurvive(blocks, q);
         },
-        [&](auto p) { clearPlantBlock(blocks, {p.x, p.y, p.z}, *air); });
+        [&](auto p) { clearPlantBlock(blocks, {p.x, p.y, p.z}, *air); }, field->generationHeight()-65);
 }
 unsigned placeVillage(BlockSource &blocks, ChunkPos cp, VillagePlan &plan, uint seed) {
     villageTerrain(blocks, cp, plan);
@@ -369,7 +369,7 @@ unsigned placeVillage(BlockSource &blocks, ChunkPos cp, VillagePlan &plan, uint 
             if (chunk(xz.first) != cp.x || chunk(xz.second) != cp.z)
                 continue;
             int h = field->surface(xz.first + 32768, xz.second + 32768).height;
-            for (int y = c.floor - 1; y <= h + 2; ++y) {
+            for (int y = c.floor - 1; y <= std::min(field->generationHeight()-65, h + 2); ++y) {
                 auto block = y < c.floor    ? soil
                              : y == c.floor ? (c.green ? grass : sand)
                              : y <= c.water ? water
@@ -393,7 +393,7 @@ unsigned placeVillage(BlockSource &blocks, ChunkPos cp, VillagePlan &plan, uint 
                 short(villageGround(plan, wx, wz, field->surface(wx + 32768, wz + 32768).height) + 1);
         }
     chunkPtr->setPreWorldGenHeightMap(std::move(heights));
-    BoundingBox clip{{cp.x * 16, -64, cp.z * 16}, {cp.x * 16 + 15, 319, cp.z * 16 + 15}};
+    BoundingBox clip{{cp.x * 16, -64, cp.z * 16}, {cp.x * 16 + 15, (field->generationHeight()-65), cp.z * 16 + 15}};
     unsigned count = 0;
     for (auto op :
          worldgen_rules::villagePlacementOrder(plan.sharedBlueprint, *plan.sharedLayout, {cp.x, cp.z})) {
@@ -432,7 +432,7 @@ void inspectVillage(Dimension &d, VillagePlan const &plan, int canopyHeight = 3)
     b.max.x += 6;
     b.max.z += 6;
     b.min.y -= 10;
-    b.max.y = std::min(319, b.max.y + canopyHeight);
+    b.max.y = std::min((field->generationHeight()-65), b.max.y + canopyHeight);
     ensureLoaded(d, b);
     auto &blocks = d.getBlockSourceFromMainChunkSource();
     std::map<std::string, uint16_t> ids;
@@ -609,7 +609,7 @@ void repairStructurePlants(Dimension &d, int x, int z, bool village, bool apply)
         for (auto const &r : changes)
             recorded.insert({r[0].get<int>(), r[1].get<int>(), r[2].get<int>()});
         std::vector<BlockPos> pending;
-        int top = std::min(319, b.max.y + 64), bottom = std::max(-60, b.min.y - 8);
+        int top = std::min((field->generationHeight()-65), b.max.y + 64), bottom = std::max(-60, b.min.y - 8);
         auto enqueue = [&](int xx, int yy, int zz) {
             if (xx < area.min.x || xx > area.max.x || zz < area.min.z || zz > area.max.z || yy < bottom ||
                 yy > top || keep.contains({xx, yy, zz}) || !seen.insert({xx, yy, zz}).second)
@@ -636,7 +636,7 @@ void repairStructurePlants(Dimension &d, int x, int z, bool village, bool apply)
                 clearPlantBlock(blocks, q, *air);
             dirty.insert({chunk(q.x), chunk(q.z)});
             BlockPos up{q.x, q.y + 1, q.z};
-            if (up.y < 320 && !keep.contains({up.x, up.y, up.z}) &&
+            if (up.y < (field->generationHeight()-64) && !keep.contains({up.x, up.y, up.z}) &&
                 blocks.getBlock(up).getTypeName() == "minecraft:snow_layer")
                 clearPlantBlock(blocks, up, *air);
             for (auto step : {BlockPos{1, 0, 0}, BlockPos{-1, 0, 0}, BlockPos{0, 1, 0}, BlockPos{0, -1, 0},

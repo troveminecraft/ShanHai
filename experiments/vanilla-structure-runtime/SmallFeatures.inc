@@ -47,7 +47,7 @@ struct FossilCapture {BlockSource* source;std::map<std::array<int,3>,Block const
 thread_local FossilCapture* fossilCapture=nullptr;
 bool captureFossilWrite(BlockSource* source,BlockPos const&p,Block const&block){
  auto*s=fossilCapture;if(!s||s->source!=source)return false;
- if(p.y<-58||p.y>319||!structureBoxInside(p.x,p.z,p.x,p.z))s->rejected=true;
+ if(p.y<-58||p.y>(field->generationHeight()-65)||!structureBoxInside(p.x,p.z,p.x,p.z))s->rejected=true;
  else if(block.getTypeName()!="minecraft:air")s->writes[{p.x,p.y,p.z}]=&block;
  return true;
 }
@@ -55,7 +55,7 @@ bool captureSmallWrite(BlockSource* source,BlockPos const&p){
  if(outsidePortalFragment(source,p))return false;
  auto*s=smallWriteScope;if(!s||s->source!=source)return true;
  auto const&b=s->clip;
- if(!worldgen_rules::smallFeatureWriteOwned({chunk(b.min.x),chunk(b.min.z)},{p.x,p.y,p.z},false)||source->getBlock(p).getTypeName()=="minecraft:bedrock"){++s->rejected;++smallRejectedWrites;if(s->rejectedPos.size()<8)s->rejectedPos.push_back({p.x,p.y,p.z});return false;}
+ if(!worldgen_rules::smallFeatureWriteOwned({chunk(b.min.x),chunk(b.min.z)},{p.x,p.y,p.z},false,b.max.y)||source->getBlock(p).getTypeName()=="minecraft:bedrock"){++s->rejected;++smallRejectedWrites;if(s->rejectedPos.size()<8)s->rejectedPos.push_back({p.x,p.y,p.z});return false;}
  s->before.try_emplace({p.x,p.y,p.z},&source->getBlock(p));return true;
 }
 LL_TYPE_INSTANCE_HOOK(SmallWrite,ll::memory::HookPriority::Normal,BlockSource,&BlockSource::$setBlock,bool,BlockPos const&p,Block const&block,int flags,ActorBlockSyncMessage const*sync,BlockChangeContext const&context){if(captureFossilWrite(this,p,block))return true;if(!captureSmallWrite(this,p))return false;bool done=origin(p,block,flags,sync,context);if(done)rememberStructureWall(p,block);return done;}
@@ -67,7 +67,7 @@ public:
  short getHeightmap(int x,int z)override{return short(field->surface(x+32768,z+32768).height+1);}
 };
 bool callSmallFeature(Dimension& d,BlockSource&blocks,ChunkPos cp,std::string const&kind,BlockPos pos,Random&rng){
- SmallWriteScope scope{{{cp.x*16,-58,cp.z*16},{cp.x*16+15,319,cp.z*16+15}},&blocks};
+ SmallWriteScope scope{{{cp.x*16,-58,cp.z*16},{cp.x*16+15,(field->generationHeight()-65),cp.z*16+15}},&blocks};
  smallWriteScope=&scope;struct Reset{~Reset(){smallWriteScope=nullptr;}}reset;
  auto began=std::chrono::steady_clock::now();++smallAttempts;bool placed=false;
  if(kind=="monster_room"){MonsterRoomFeature room;placed=room.$place(blocks,pos,rng);
@@ -89,7 +89,7 @@ bool callSmallFeature(Dimension& d,BlockSource&blocks,ChunkPos cp,std::string co
  if(scope.rejected||!placed){for(auto const&[p,old]:scope.before)blocks.setBlockNoUpdate({p[0],p[1],p[2]},*old);if(scope.rejected)std::ofstream(folder/"small-feature-rejections.jsonl",std::ios::app)<<J{{"kind",kind},{"pos",{pos.x,pos.y,pos.z}},{"rejectedWrites",scope.rejected},{"firstRejected",scope.rejectedPos},{"rolledBack",scope.before.size()}}.dump()<<'\n';return false;}
  if(scope.before.empty())return false;
  ++smallPlaced;auto ch=blocks.getChunkAt(pos);ch->setUnsaved();ch->markSaveIfNeverSaved();ch->markSaveNonActorDataIfDirty();
- BoundingBox written{{32000,320,32000},{-32000,-64,-32000}};
+ BoundingBox written{{32000,(field->generationHeight()-64),32000},{-32000,-64,-32000}};
  for(auto const&[p,old]:scope.before){written.min.x=std::min(written.min.x,p[0]);written.min.y=std::min(written.min.y,p[1]);written.min.z=std::min(written.min.z,p[2]);written.max.x=std::max(written.max.x,p[0]);written.max.y=std::max(written.max.y,p[1]);written.max.z=std::max(written.max.z,p[2]);}
  J row{{"world",activeWorld},{"kind",kind},{"pos",{pos.x,pos.y,pos.z}},{"chunk",{cp.x,cp.z}},{"box",boxJson(written)},{"writes",scope.before.size()},{"ms",ms}};
  auto path=worldFolder()/"karma-native-small-features.jsonl";std::ofstream history(path,std::ios::app);history<<row.dump()<<'\n';history.flush();if(!history)throw std::runtime_error("Cannot persist small-feature history");completedSmallChunks.emplace(cp.x,cp.z);return true;
@@ -123,9 +123,9 @@ void findSmallCandidates(Dimension&d,int x,int z){
  std::ofstream(folder/"small-feature-candidates.json")<<rows.dump(2);
 }
 void inspectSmallFeature(Dimension&d,BlockPos pos){
- BoundingBox b{{chunk(pos.x)*16,-58,chunk(pos.z)*16},{chunk(pos.x)*16+15,319,chunk(pos.z)*16+15}};ensureLoaded(d,b);auto&blocks=d.getBlockSourceFromMainChunkSource();J special=J::array(),counts=J::object();
+ BoundingBox b{{chunk(pos.x)*16,-58,chunk(pos.z)*16},{chunk(pos.x)*16+15,(field->generationHeight()-65),chunk(pos.z)*16+15}};ensureLoaded(d,b);auto&blocks=d.getBlockSourceFromMainChunkSource();J special=J::array(),counts=J::object();
  uint64_t hash=1469598103934665603ull;
- for(int z=b.min.z;z<=b.max.z;++z)for(int x=b.min.x;x<=b.max.x;++x)for(int y=-58;y<320;++y){BlockPos p{x,y,z};auto const&v=blocks.getBlock(p);auto n=v.getTypeName();counts[n]=counts.value(n,0)+1;uint64_t h=v.mSerializationIdHash;for(int shift=0;shift<64;shift+=8)hash=(hash^((h>>shift)&255))*1099511628211ull;
+ for(int z=b.min.z;z<=b.max.z;++z)for(int x=b.min.x;x<=b.max.x;++x)for(int y=-58;y<(field->generationHeight()-64);++y){BlockPos p{x,y,z};auto const&v=blocks.getBlock(p);auto n=v.getTypeName();counts[n]=counts.value(n,0)+1;uint64_t h=v.mSerializationIdHash;for(int shift=0;shift<64;shift+=8)hash=(hash^((h>>shift)&255))*1099511628211ull;
   if(n=="minecraft:chest"||n=="minecraft:mob_spawner"||n=="minecraft:suspicious_sand"||n=="minecraft:bone_block"){
    J row{{"pos",{x,y,z}},{"block",n}};auto actor=blocks.getBlockEntity(p);row["blockActor"]=actor!=nullptr;
    if(actor&&n=="minecraft:chest"){auto*c=static_cast<ChestBlockActor const*>(actor);row["lootTable"]=*c->mLootTable;row["lootSeed"]=c->mLootTableSeed;}
@@ -137,7 +137,7 @@ void inspectSmallFeature(Dimension&d,BlockPos pos){
  int referenceY=pos.y;bool fossil=std::any_of(special.begin(),special.end(),[](auto const&r){return r["block"]=="minecraft:bone_block";})&&counts.value("minecraft:mob_spawner",0)==0&&counts.value("minecraft:sandstone",0)<15;
  std::ifstream ledger(worldFolder()/"karma-native-small-features.jsonl");std::string line;while(std::getline(ledger,line)){auto r=J::parse(line,nullptr,false);if(!r.is_discarded()&&r.value("pos",J::array())==J::array({pos.x,pos.y,pos.z})){fossil=r.value("kind",std::string{}).find("fossil")!=std::string::npos;break;}}
  if(fossil)referenceY=field->surface(pos.x+32776,pos.z+32776).height+1;
- for(int z=b.min.z;z<=b.max.z;++z)for(int x=b.min.x;x<=b.max.x;++x)for(int y=std::max(-57,referenceY-3);y<=std::min(310,referenceY+8);++y){BlockPos p{x,y,z};if(!blocks.isSolidBlockingBlock({x,y-1,z})||blocks.getBlock(p).getTypeName()!="minecraft:air"||blocks.getBlock({x,y+1,z}).getTypeName()!="minecraft:air")continue;int64_t dx=x-(b.min.x+8),dz=z-(b.min.z+8),dy=y-referenceY,value=dx*dx+dz*dz+dy*dy*16;if(value<score){score=value;safe=p;}}
+ for(int z=b.min.z;z<=b.max.z;++z)for(int x=b.min.x;x<=b.max.x;++x)for(int y=std::max(-57,referenceY-3);y<=std::min((field->generationHeight()-74),referenceY+8);++y){BlockPos p{x,y,z};if(!blocks.isSolidBlockingBlock({x,y-1,z})||blocks.getBlock(p).getTypeName()!="minecraft:air"||blocks.getBlock({x,y+1,z}).getTypeName()!="minecraft:air")continue;int64_t dx=x-(b.min.x+8),dz=z-(b.min.z+8),dy=y-referenceY,value=dx*dx+dz*dz+dy*dy*16;if(value<score){score=value;safe=p;}}
  J destination=J::object();if(safe)destination={{"x",safe->x},{"y",safe->y},{"z",safe->z},{"kind",safe->y<32?"dry":"surface"},{"verifiedAir",true}};
  std::ofstream(folder/"small-feature-inspection.json")<<J{{"world",activeWorld},{"chunk",{chunk(pos.x),chunk(pos.z)}},{"counts",counts},{"special",special},{"hash",std::to_string(hash)},{"destination",destination},{"attempts",smallAttempts.load()},{"placed",smallPlaced.load()},{"nanos",smallNanos.load()},{"probeCalls",smallProbeCalls.load()},{"probeNanos",smallProbeNanos.load()},{"rejectedWrites",smallRejectedWrites.load()}}.dump(2);
 }

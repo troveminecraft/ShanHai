@@ -12,6 +12,7 @@
 #include "WorkerPool.h"
 #include "DerivedCache.h"
 #include "ChunkCodec.h"
+#include "BuildHeight.h"
 #include "StreamPlanner.h"
 #include "ViewGapRecovery.h"
 #include "ll/api/event/player/PlayerJoinEvent.h"
@@ -67,6 +68,7 @@
 #include "mc/world/level/dimension/Dimension.h"
 #include "mc/world/level/dimension/DimensionHeightRange.h"
 #include "mc/world/level/levelgen/flat/FlatWorldGenerator.h"
+#include "mc/world/level/levelgen/VoidGenerator.h"
 #include "mc/world/level/chunk/LevelChunk.h"
 #include "mc/world/level/BlockTickingQueue.h"
 #include "mc/world/level/chunk/ChunkViewSource.h"
@@ -76,7 +78,7 @@
 
 namespace terrain {
 using Json=nlohmann::json;
-constexpr int Side=terrain_bounds::Chunks, Half=Side/2, Height=384, Count=Side*Side;
+constexpr int Side=terrain_bounds::Chunks, Half=Side/2, Count=Side*Side;
 #ifdef KARMA_CLIENT
 std::filesystem::path Base,clientWorldPath;
 #else
@@ -92,6 +94,7 @@ std::array<NativeRuntime,Workers> runtimes;
 Json nativeData;
 bool unboundedWorld=false;
 terrain_runtime::WorldGenerationMode generationMode;
+terrain_runtime::BuildHeight buildHeight;
 bool validChunk(int x,int z){return generationMode.contains(x,z);}
 
 std::filesystem::path cachePath;
@@ -105,6 +108,8 @@ std::unique_ptr<std::once_flag> registryOnce=std::make_unique<std::once_flag>();
 Json metadata,activation;
 std::string worldName;
 std::atomic_uint generated=0,errors=0;
+std::atomic_uint flatGenerated=0,voidGenerated=0;
+std::atomic_int observedMinY=0,observedMaxYExclusive=0;
 std::atomic_bool active=false;
 bool requested=false, verifying=true;
 int completed=0,waitTicks=-1,probeX=0,probeZ=0;
@@ -209,6 +214,8 @@ std::string sha256(std::vector<uint8_t> const& data){
 #include "NativeCache.inc"
 void readData(){
  metadata=jsonFile(Base/"terrain.json");terrain_runtime::validatePaletteContract(metadata);activation=jsonFile(Base/"active-world.json");worldName=activation.at("worldName").get<std::string>();
+ buildHeight=terrain_runtime::BuildHeight::read(metadata);
+ flatGenerated=0;voidGenerated=0;observedMinY=0;observedMaxYExclusive=0;
  std::ifstream profileFile(Base/"profile.json",std::ios::binary);std::vector<uint8_t> profile((std::istreambuf_iterator<char>(profileFile)),{});
  auto expectedProfile=metadata;expectedProfile.erase("sha256");
  if(sha256(profile)!=metadata.at("sha256").get<std::string>()||Json::parse(profile)!=expectedProfile)throw std::runtime_error("Runtime metadata checksum mismatch");
@@ -227,6 +234,7 @@ void readData(){
  std::error_code ec;std::filesystem::create_directories(cachePath,ec);
  if(ec)log().warn("无法创建地形缓存目录，本次仅用内存缓存：{}",ec.message());
  nativeData=jsonFile(Base/"native/native-input.json");
+ buildHeight.requireNativeRecipe(nativeData,metadata);
  generationMode=terrain_runtime::WorldGenerationMode::read(metadata,nativeData);
  unboundedWorld=generationMode.unbounded;
  nativegen::regional::storage(nativeData,Base/"regional-cache");
@@ -237,7 +245,7 @@ void readData(){
  cacheWriter.start();
  log().info("{} 个计算器已就绪，seed={}，内存及磁盘缓存启用",Workers,metadata.at("terrainSeed").get<std::string>());
 }
-Chunk decodeChunk(std::vector<uint8_t>const&bytes){return terrain_runtime::decodeChunk(bytes,metadata.at("palette").size(),metadata.at("biomeNames").size());}
+Chunk decodeChunk(std::vector<uint8_t>const&bytes){return terrain_runtime::decodeChunk(bytes,metadata.at("palette").size(),metadata.at("biomeNames").size(),buildHeight.generatedHeight());}
 std::shared_ptr<Chunk const> getChunk(int x,int z){
  terrain_runtime::Timer overall(requestLatency);
  if(!validChunk(x,z))throw std::runtime_error("Chunk outside generation bounds");
@@ -247,7 +255,7 @@ std::shared_ptr<Chunk const> getChunk(int x,int z){
  if(auto hit=memoryGet(key)){++cacheMemoryHits;return hit;}
  auto file=cachePath/(std::to_string(key)+".bin");
  {
-  terrain_runtime::Timer reading(cacheReadLatency);auto result=terrain_runtime::readChunk(file,metadata.at("palette").size(),metadata.at("biomeNames").size());
+  terrain_runtime::Timer reading(cacheReadLatency);auto result=terrain_runtime::readChunk(file,metadata.at("palette").size(),metadata.at("biomeNames").size(),buildHeight.generatedHeight());
   if(result.state==terrain_cache::ReadState::Valid){memoryPut(key,result.value);++cacheDiskHits;return result.value;}
   else if(result.state==terrain_cache::ReadState::Invalid)++cacheInvalid;
  }
@@ -336,24 +344,21 @@ template<class F>void column(Chunk const& c,int col,F fn){size_t p=c.columns[col
 void fill(LevelChunk& lc,Chunk const& c){
  auto fillStarted=Clock::now();
  resolveRegistry(lc.getDimension());
- if(lc.getHeightRange().mMin!=-64||lc.getHeightRange().mMax!=320)throw std::runtime_error("Unsupported dimension height");
- thread_local std::vector<Block const*> blocks(16*16*Height);
- std::fill(blocks.begin(),blocks.end(),palette[0]);
- BlockVolume volume({blocks.data(),blocks.data()+blocks.size()},16,Height,16,*palette[0],-64);
- auto stride=volume.indexNoBoundsCheck(BlockPos{0,1,0})-volume.indexNoBoundsCheck(BlockPos{0,0,0});
- for(int z=0;z<16;z++)for(int x=0;x<16;x++){
-  column(c,z*16+x,[&](int y,int len,int b){terrain_runtime::validateColumnRun(y,len,b,palette.size());auto first=volume.indexNoBoundsCheck(BlockPos{x,y,z});if(stride<=0||first>=blocks.size()||size_t(len-1)>(blocks.size()-1-first)/stride)throw std::runtime_error("Block volume index out of bounds");if(stride==1)std::fill_n(blocks.begin()+first,len,palette[b]);else for(int j=0;j<len;j++)blocks[first+j*stride]=palette[b];});
- }
+ buildHeight.requireDimension(lc.getHeightRange().mMin,lc.getHeightRange().mMax);
+ thread_local std::vector<Block const*> blocks;
+ blocks.resize(buildHeight.blocks());
+ BlockVolume volume({blocks.data(),blocks.data()+blocks.size()},16,buildHeight.height(),16,*palette[0],buildHeight.MinY);
+ terrain_runtime::fillGeneratedBlockVolume(std::span<Block const*>{blocks},std::span<Block const* const>{palette},c,buildHeight,
+  [&](int x,int y,int z){return volume.indexNoBoundsCheck(BlockPos{x,y,z});});
  // A void chunk reconstructed by DBChunkStorage can have an empty/moved biome
  // vector while retaining a nonzero stack size. _setBiome(fillY=true) assumes
  // that vector already exists and dereferences it. Replace the whole volume
  // through the initialization API instead of patching uninitialized storage.
  ChunkVolume::VolumeOf<Biome> biomeVolume;
- biomeVolume.mNumSubChunks=Height/16;
+ biomeVolume.mNumSubChunks=buildHeight.subchunks();
  thread_local std::vector<Biome const*> biomeSubchunk(4096);
- for(int x=0;x<16;x++)for(int z=0;z<16;z++)for(int y=0;y<16;y++)
-  biomeSubchunk[(x<<8)|(z<<4)|y]=biomes[c.biomes[z*16+x]];
- biomeVolume.mSubChunkVectors.assign(Height/16,biomeSubchunk);
+ terrain_runtime::fillBiomeSubchunk(std::span<Biome const*>{biomeSubchunk},std::span<Biome const* const>{biomes},c);
+ biomeVolume.mSubChunkVectors.assign(buildHeight.subchunks(),biomeSubchunk);
  lc.setBiomeFromVolume(biomeVolume);
  lc.setBlockVolume(volume,0);
  // Aquatic plants replace the primary water block but retain source water in
@@ -367,6 +372,7 @@ void fill(LevelChunk& lc,Chunk const& c){
   for(int j=y;j<y+len;j++)lc.setExtraBlock(ChunkBlockPos{BlockPos{col%16,j-64,col/16},-64},*palette[8],nullptr);
  });
  lc.setPreWorldGenHeightMap(volume.computeHeightMap());lc.recomputeHeightMap(true);lc.setUnsaved();
+ observedMinY=lc.getHeightRange().mMin;observedMaxYExclusive=lc.getHeightRange().mMax;
  auto fillUs=std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-fillStarted).count();fillLatency.observe(fillUs);fillMicros+=fillUs;recordMax(maxFillMicros,fillUs);
  unsigned n=++generated;if(n<=3||n%256==0)logChunkDiagnostic(ll::io::LogLevel::Info,"地形生成调用={}, chunk=({},{}), state={}, readOnly={}",n,lc.getPosition().x,lc.getPosition().z,int(lc.getState().load()),lc.isReadOnly());
 }
@@ -375,9 +381,21 @@ LL_TYPE_INSTANCE_HOOK(Generate,ll::memory::HookPriority::Normal,FlatWorldGenerat
  auto p=lc.getPosition();std::string_view phase="validate-generator";
  try{
   if(!mIsVoidWorld)throw std::runtime_error("Target is not a void flat world");
+  buildHeight.requireDimension(lc.getHeightRange().mMin,lc.getHeightRange().mMax);
   phase="calculate-or-decode";auto const& c=getChunk(p.x,p.z);
   if(generated.load()<3)log().info("[生成线程] thread={} 主线程={} chunk=({},{})",GetCurrentThreadId(),GetCurrentThreadId()==mainThread,p.x,p.z);
-  phase="initialize-chunk";origin(lc,force);phase="fill-and-prefilter";fill(lc,*c);
+  phase="initialize-chunk";origin(lc,force);phase="fill-and-prefilter";fill(lc,*c);++flatGenerated;
+ }catch(std::exception const& e){calculatorFailure(e,phase,std::array<int,2>{p.x,p.z});}
+}
+// A data-driven minecraft:generation=void can select the independent native
+// VoidGenerator. Keep the legacy flat path for saved worlds and cover both.
+LL_TYPE_INSTANCE_HOOK(GenerateVoid,ll::memory::HookPriority::Normal,VoidGenerator,&VoidGenerator::$loadChunk,void,LevelChunk& lc,bool force){
+ if(!active||static_cast<int>(lc.getDimension().getDimensionId())!=0||mLevel->getLevelData().getLevelName()!=worldName||index(lc.getPosition())<0){origin(lc,force);return;}
+ auto p=lc.getPosition();std::string_view phase="validate-void-generator";
+ try{
+  buildHeight.requireDimension(lc.getHeightRange().mMin,lc.getHeightRange().mMax);
+  phase="calculate-or-decode";auto const& c=getChunk(p.x,p.z);
+  phase="initialize-chunk";origin(lc,force);phase="fill-and-prefilter";fill(lc,*c);++voidGenerated;
  }catch(std::exception const& e){calculatorFailure(e,phase,std::array<int,2>{p.x,p.z});}
 }
 #include "GlacierWeather.inc"
@@ -386,6 +404,7 @@ void writeReport(){
  unsigned restarts=0;for(auto& runtime:runtimes)restarts+=runtime.restarts.load();
  Json report={{"worldName",worldName},{"terrainSeed",metadata.at("terrainSeed")},{"totalChunks",Count},{"pendingLoads",pendingLoads.size()},{"loadRequests",loadRequests},{"loadsReady",loadReady},{"sha256",metadata.at("sha256")},{"generatedThisSession",generated.load()},{"calculationWaitMs",calculationMs.load()},{"calculatorRestarts",restarts},{"calculatorWorkers",Workers},{"cacheMemoryHits",cacheMemoryHits.load()},{"cacheDiskHits",cacheDiskHits.load()},{"cacheComputed",cacheComputed.load()},{"cacheInvalid",cacheInvalid.load()},{"missingSavedChunks",missingSavedChunks},{"completedChunks",completed},{"checkedBlocks",checked},{"errors",errors.load()},{"mode","on-demand"},{"ready",active.load()},{"automaticPregen",false},{"probeRunning",requested}};
  report["backend"]="native-cpp";
+ report["height"]={{"minY",buildHeight.MinY},{"buildMaxYExclusive",buildHeight.maxYExclusive},{"generatedMaxYExclusive",buildHeight.generatedMaxYExclusive},{"subchunks",buildHeight.subchunks()},{"observedMinY",observedMinY.load()},{"observedMaxYExclusive",observedMaxYExclusive.load()},{"flatGeneratorChunks",flatGenerated.load()},{"voidGeneratorChunks",voidGenerated.load()}};
  report["arrivalRecovery"]={{"started",arrivalStarts},{"resends",arrivalResends},{"rebinds",arrivalRebinds},{"timeouts",arrivalTimeouts}};
  report["viewGapRecovery"]={{"repairs",viewGapRepairs},{"resolved",viewGapResolved},{"resends",viewGapResends},{"patchesPerPlayer",2},{"patchRadius",8},{"scanSeconds",1}};
  report["playerViews"]=Json::array();for(auto const&[name,s]:playerStreams)report["playerViews"].push_back({{"name",name},{"chunk",{s.cx,s.cz}},{"radius",s.viewRadius},{"unfinished",s.visible.gaps.size()}});
@@ -476,6 +495,7 @@ bool Mod::load() {
         mainThread = GetCurrentThreadId();
         terrain_runtime::HookTransaction hooks;
         hooks.add<Generate>("terrain::Generate");
+        hooks.add<GenerateVoid>("terrain::GenerateVoid");
         hooks.add<ObserveLoad>("terrain::ObserveLoad");
         active = true;
         hooks.commit();
@@ -527,7 +547,7 @@ bool Mod::enable(){
 bool Mod::disable(){
  if(ll::getGamingStatus()==ll::GamingStatus::Running||ll::getGamingStatus()==ll::GamingStatus::Starting){log().error("按需地形生成器不能在运行中禁用，请正常停服后更新");return false;}
  if(testJoin)ll::event::EventBus::getInstance().removeListener(testJoin);if(testLeave)ll::event::EventBus::getInstance().removeListener(testLeave);
- requested=false;if(tickListener)ll::event::EventBus::getInstance().removeListener(tickListener);glacierWeatherPlayers.clear();playerStreams.clear();streamingPolicy=nullptr;StreamPriority::unhook();view.reset();ObserveLoad::unhook();Generate::unhook();active=false;cacheWriter.stop();for(auto& runtime:runtimes)runtime.stop();return true;
+ requested=false;if(tickListener)ll::event::EventBus::getInstance().removeListener(tickListener);glacierWeatherPlayers.clear();playerStreams.clear();streamingPolicy=nullptr;StreamPriority::unhook();view.reset();ObserveLoad::unhook();GenerateVoid::unhook();Generate::unhook();active=false;cacheWriter.stop();for(auto& runtime:runtimes)runtime.stop();return true;
 }
 }
 #ifndef KARMA_CLIENT

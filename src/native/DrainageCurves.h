@@ -42,12 +42,12 @@ struct RiverAnchor {double water=0,radius=0;RiverPoint downstream{};};
 template<class Point,class Sample,class GroundArray,class ParentArray,class FlowArray,class DistanceArray,class SinkArray>
 J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,GroundArray const&ground,
                  ParentArray const&parent,FlowArray const&flow,DistanceArray const&distance,
-                 SinkArray const&sink,Point point,Sample sample){
+                 SinkArray const&sink,Point point,Sample sample,int seaLevel=31,int maxSurfaceY=319){
  auto eligible=[](auto const&s){return s.stone<=.001&&s.volcanic<=0;};
  std::vector<int> sources;
  for(int i:order){auto[x,z]=point(i);auto const&s=ground[i];
   if(x<gx*2048+128||x>=(gx+1)*2048-128||z<gz*2048+128||z>=(gz+1)*2048-128||
-     s.height<65||s.height>245||s.humidity<.40||flow[i]<3||distance[i]<200||parent[i]<0)continue;
+     s.height<65||s.height>maxSurfaceY-74||s.humidity<.40||flow[i]<3||distance[i]<200||parent[i]<0)continue;
   if(hash01(x,z,seed^63107)<.55)sources.push_back(i);
  }
  std::sort(sources.begin(),sources.end(),[&](int a,int b){
@@ -63,7 +63,7 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
   std::vector<int> path;int end=source;
   while(parent[end]>=0&&path.size()<96&&!network.contains(end)){path.push_back(end);end=parent[end];}
   bool tributary=network.contains(end);
-  if(path.size()<3||path.size()>=96||(!tributary&&(sink[end]<31||independent>=6)))continue;
+  if(path.size()<3||path.size()>=96||(!tributary&&(sink[end]<seaLevel||independent>=6)))continue;
   path.push_back(end);double receiver=tributary?network.at(end).water:sink[end];
   bool main=!tributary&&distance[source]>1200&&flow[source]>=12;
   double width=main?8.:ground[source].height>=105?1.8:2.6;
@@ -103,7 +103,7 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
    network.emplace(node,RiverAnchor{water[i],radius[i],direction(tangent)});
   }
   auto[EX,EZ]=point(end);
-  routes.push_back({{"source",{SX,SZ}},{"join",{EX,EZ}},{"receiver",tributary?"river":receiver==31?"ocean":"lake"},
+  routes.push_back({{"source",{SX,SZ}},{"join",{EX,EZ}},{"receiver",tributary?"river":receiver==seaLevel?"ocean":"lake"},
                     {"firstSegment",begin},{"segmentCount",segments.size()-begin},{"length",run.back()},{"main",main}});
   accepted.push_back({SX,SZ});if(!tributary)++independent;
  }

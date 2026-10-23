@@ -1,6 +1,6 @@
 // Explicit developer readbacks; never called by ordinary chunk generation.
 void sampleAcceptance(Dimension&d,BlockPos pos){
- BoundingBox box{{pos.x-2,std::max(-63,pos.y-4),pos.z-2},{pos.x+2,std::min(318,pos.y+4),pos.z+2}};ensureLoaded(d,box);
+ BoundingBox box{{pos.x-2,std::max(-63,pos.y-4),pos.z-2},{pos.x+2,std::min((field->generationHeight()-66),pos.y+4),pos.z+2}};ensureLoaded(d,box);
  auto&blocks=d.getBlockSourceFromMainChunkSource();J cells=J::array();
  for(int z=box.min.z;z<=box.max.z;++z)for(int x=box.min.x;x<=box.max.x;++x)for(int y=box.min.y;y<=box.max.y;++y){BlockPos q{x,y,z};auto const&b=blocks.getBlock(q);cells.push_back({{"pos",{x,y,z}},{"name",b.getTypeName()},{"survives",b.canSurvive(blocks,q)},{"state",J::parse(b.mSerializationId->toSnbt(SnbtFormat::Jsonify),nullptr,false,true)}});}
  auto s=field->surface(pos.x+32768,pos.z+32768);

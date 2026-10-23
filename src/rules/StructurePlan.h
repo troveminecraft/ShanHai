@@ -55,7 +55,7 @@ struct VillageLayoutPlan {
  std::map<VillageXZ,std::vector<StructureEntityMarker>> population;
  std::vector<StructureWrite> witnesses;
  std::vector<StructurePoint> wallPositions;
- size_t surfaceQueries{};int groundMin=320,groundMax=-64;
+ size_t surfaceQueries{};int groundMin=INT_MAX,groundMax=-64;int maxY=319;
 };
 inline bool sharedStructurePlan(std::string_view revision){return revision==StructurePlanRevision;}
 // Villages own their streets/aprons as well as individual buildings. Surface
@@ -78,14 +78,14 @@ inline bool villageDecorBlocked(StructureBlueprintPiece const&p,std::span<Struct
  }return false;
 }
 template<class Sample> int villageSiteStyle(ChunkPosition anchor,Sample sample){
- auto center=sample(anchor.x*16,anchor.z*16);int style=villageStyle(center.biome),lo=320,hi=-64;
+ auto center=sample(anchor.x*16,anchor.z*16);int style=villageStyle(center.biome),lo=INT_MAX,hi=-64;
  for(int z=-VillageSampleRadius;z<=VillageSampleRadius;z+=VillageSampleStep)for(int x=-VillageSampleRadius;x<=VillageSampleRadius;x+=VillageSampleStep){auto s=sample(anchor.x*16+x,anchor.z*16+z);if(!villageSurfaceAllowed(s,style))return -1;lo=std::min(lo,s.height);hi=std::max(hi,s.height);if(hi-lo>VillageMaxSlope)return -1;}
  return style;
 }
 // The sampler is immutable terrain, never the live world's half-built chunks.
 // One cache covers validation, origin fitting, road fitting and oasis planning.
-template<class Sample,class Hash> VillageLayoutPlan planVillageLayout(VillageBlueprint const&input,Sample sample,Hash hash){
- VillageLayoutPlan out;out.verticalMoves.resize(input.pieces.size());out.blockedFeatures.resize(input.pieces.size());
+template<class Sample,class Hash> VillageLayoutPlan planVillageLayout(VillageBlueprint const&input,Sample sample,Hash hash,int maxY=319){
+ VillageLayoutPlan out;out.maxY=maxY;out.verticalMoves.resize(input.pieces.size());out.blockedFeatures.resize(input.pieces.size());
  if(input.pieces.size()>4096){out.rejection="piece-limit";return out;}
  using Surface=decltype(sample(0,0));std::map<VillageXZ,Surface> terrain;
  auto at=[&](int x,int z)->Surface const&{auto key=VillageXZ{x,z};auto it=terrain.find(key);if(it==terrain.end()){++out.surfaceQueries;it=terrain.emplace(key,sample(x,z)).first;}return it->second;};
@@ -98,18 +98,18 @@ template<class Sample,class Hash> VillageLayoutPlan planVillageLayout(VillageBlu
   int wx=input.anchor.x*16,wz=input.anchor.z*16;
   if(p.box.valid()&&(p.box.min.x<wx-VillageReach||p.box.max.x>wx+VillageReach||p.box.min.z<wz-VillageReach||p.box.max.z>wz+VillageReach)){out.rejection="piece-reach";return out;}
   if(p.cells.size()>131072){out.rejection="template-limit";return out;}
-  VillageCells local;std::map<VillageXZ,int> footing,doors;int entry=320;
+  VillageCells local;std::map<VillageXZ,int> footing,doors;int entry=INT_MAX;
   for(auto const&c:p.cells)if(c.block.name.ends_with("_door"))entry=std::min(entry,p.origin.y+c.local.y-1);
   for(auto const&c:p.cells){auto q=villageWorldPoint(p,c.local);auto n=villagePlanningBlock(c.block.name,c.finalState);auto key=VillageXZ{q.x,q.z};
    if(p.rigid){if(n.empty()||n=="minecraft:structure_void")continue;local[{q.x,q.y,q.z}]=n;
     if(q.y<p.origin.y-1||q.y>p.origin.y+1||!villageFoundationBlock(n))continue;
-    mergeMinimum(footing,key,q.y-1);if(entry<320)mergeMinimum(doors,key,entry);
+    mergeMinimum(footing,key,q.y-1);if(entry!=INT_MAX)mergeMinimum(doors,key,entry);
    }else if(p.location.find("/streets/")!=std::string_view::npos&&!villagePavement(c).empty()){
     auto[it,added]=out.roadOffsets.emplace(key,c.local.y);if(added||c.local.y>=it->second){it->second=c.local.y;roadMaterials[key]=villagePavement(c);}
    }
   }
   trimVillageFarmFooting(local,footing);
-  int dy=0;if(p.rigid){auto shift=villageOriginOffset(local,footing,doors,height);if(!shift){out.rejection="steep-footing";return out;}dy=*shift;}out.verticalMoves[i]=dy;
+  int dy=0;if(p.rigid){auto shift=villageOriginOffset(local,footing,doors,height,maxY);if(!shift){out.rejection="steep-footing";return out;}dy=*shift;}out.verticalMoves[i]=dy;
   auto box=p.box.moved(dy);out.bounds.include(box);
   if(box.valid())for(int z=box.min.z;z<=box.max.z;z+=VillagePieceStep)for(int x=box.min.x;x<=box.max.x;x+=VillagePieceStep){auto const&s=at(x,z);
    if(!villageSurfaceAllowed(s,style)||(p.rigid&&std::abs(s.height-(p.origin.y+dy))>VillagePieceMaxOffset)){out.rejection="piece-terrain";return out;}
@@ -123,9 +123,9 @@ template<class Sample,class Hash> VillageLayoutPlan planVillageLayout(VillageBlu
  }
  for(auto const&p:input.pieces)if(p.kind!=StructurePieceKind::Template)out.bounds.include(p.box);
  auto b=out.bounds;int wx=input.anchor.x*16,wz=input.anchor.z*16;
- if(!b.valid()||b.min.x<wx-VillageReach||b.max.x>wx+VillageReach||b.min.z<wz-VillageReach||b.max.z>wz+VillageReach){out.rejection="village-reach";return out;}
+ if(!b.valid()||b.min.y< -58||b.max.y>maxY||b.min.x<wx-VillageReach||b.max.x>wx+VillageReach||b.min.z<wz-VillageReach||b.max.z>wz+VillageReach){out.rejection="village-reach";return out;}
  for(size_t i=0;i<input.pieces.size();++i)out.blockedFeatures[i]=villageDecorBlocked(input.pieces[i],input.pieces);
- out.ground=planVillageGround(cells,out.foundations,out.doors,out.roadOffsets,height);
+ out.ground=planVillageGround(cells,out.foundations,out.doors,out.roadOffsets,height,maxY);
  // Publish road surfaces from the same immutable plan used by projection.
  // Do not lower an already placed path based on incidental dirt underneath.
  // Rigid template columns own their blocks, including resolved jigsaw cells.
@@ -134,7 +134,7 @@ template<class Sample,class Hash> VillageLayoutPlan planVillageLayout(VillageBlu
   auto it=out.ground.fitted.find(xz);int y=(it==out.ground.fitted.end()?height(xz.first,xz.second):it->second)+offset;
   auto c=cells.find({xz.first,y,xz.second});if(c!=cells.end()&&!villageOpen(c->second)&&!villageSoil(c->second))continue;
   // A floor/roof above this point can be an interior: template air must survive.
-  if(villageCoveredGround(cells,xz,y,out.bounds.max.y,[](auto n){return n;}))continue;
+  if(villageCoveredGround(cells,xz,y,out.bounds.max.y,[](auto n){return n;},maxY))continue;
   std::string_view material=roadMaterials.at(xz);
   out.roadSurfaceWrites[{spacingCell(xz.first,16),spacingCell(xz.second,16)}].push_back({{xz.first,y,xz.second},{material,0}});
  }
@@ -147,7 +147,7 @@ template<class Sample,class Hash> VillageLayoutPlan planVillageLayout(VillageBlu
  for(auto const&[xz,h]:out.ground.fitted){if(out.foundations.contains(xz))continue;auto it=out.templateBlocks.find({xz.first,h,xz.second});if(it==out.templateBlocks.end())continue;
   // Padding repairs belong outside buildings. Filling air under a roof or
   // elevated floor turns an interior/porch into a dirt-filled room.
-  if(villageCoveredGround(out.templateBlocks,xz,h,out.bounds.max.y,[](auto const&b){return b.name;}))continue;
+  if(villageCoveredGround(out.templateBlocks,xz,h,out.bounds.max.y,[](auto const&b){return b.name;},maxY))continue;
   auto original=it->second;if(original.name!="minecraft:air"&&original.name!="minecraft:snow_layer")continue;
   auto& writes=out.paddingWrites[{spacingCell(xz.first,16),spacingCell(xz.second,16)}];
   for(int y=h;y>=h-8;--y){auto c=out.templateBlocks.find({xz.first,y,xz.second});if(c==out.templateBlocks.end()||(c->second.name!="minecraft:air"&&c->second.name!="minecraft:snow_layer"))break;
@@ -156,7 +156,7 @@ template<class Sample,class Hash> VillageLayoutPlan planVillageLayout(VillageBlu
   if(original.name=="minecraft:snow_layer"){auto above=out.templateBlocks.find({xz.first,h+1,xz.second});if(above==out.templateBlocks.end()||above->second.name=="minecraft:air"){out.templateBlocks[{xz.first,h+1,xz.second}]=original;writes.push_back({{xz.first,h+1,xz.second},original});}}
  }
  if(input.biome==11)for(int attempt=0;attempt<12&&out.oasis.empty();++attempt){double angle=attempt*.5235987756;int x=(b.min.x+b.max.x)/2+int(std::cos(angle)*((b.max.x-b.min.x)/2+20)),z=(b.min.z+b.max.z)/2+int(std::sin(angle)*((b.max.z-b.min.z)/2+20));
-  int radius=6+int(hash(x,z,input.seed^77123)*3),lo=320,hi=-64;bool valid=true;
+  int radius=6+int(hash(x,z,input.seed^77123)*3),lo=INT_MAX,hi=-64;bool valid=true;
   for(int dz=-radius-3;dz<=radius+3&&valid;++dz)for(int dx=-radius-3;dx<=radius+3&&valid;++dx){auto const&t=at(x+dx,z+dz);if(t.biome!=11||t.water>=t.height||t.river||t.lake||t.volcanic>.01||t.stone>.01)valid=false;lo=std::min(lo,t.height);hi=std::max(hi,t.height);
    for(auto const&p:input.pieces){auto bb=p.box;if(!bb.valid())continue;if(x+dx>=bb.min.x-3&&x+dx<=bb.max.x+3&&z+dz>=bb.min.z-3&&z+dz<=bb.max.z+3){valid=false;break;}}
   }
@@ -210,16 +210,16 @@ template<class Get,class Set> void applyVillageRepairs(VillageLayoutPlan const&p
  }
 
 }
-template<class Set> void writeStructureGroundColumn(int x,int z,int natural,int target,int biome,Set set){
+template<class Set> void writeStructureGroundColumn(int x,int z,int natural,int target,int biome,Set set,int maxY=319){
  if(target==natural)return;
- if(natural< -64||natural>319||target< -58||target>319)throw std::runtime_error("Invalid fitted structure ground column");
+ if(natural< -64||natural>maxY||target< -58||target>maxY)throw std::runtime_error("Invalid fitted structure ground column");
  auto fill=biome==11?"minecraft:sandstone":"minecraft:dirt",top=biome==11?"minecraft:sand":"minecraft:grass_block";
  if(target>natural)for(int y=std::max(-58,natural);y<target;++y)set(StructurePoint{x,y,z},StructureBlock{fill,0});
- else for(int y=target+1;y<=std::min(319,natural+2);++y)set(StructurePoint{x,y,z},StructureBlock{"minecraft:air",0});
+ else for(int y=target+1;y<=std::min(maxY,natural+2);++y)set(StructurePoint{x,y,z},StructureBlock{"minecraft:air",0});
  set(StructurePoint{x,target,z},StructureBlock{top,0});
 }
-template<class Set> void writeVillageOasisColumn(VillageOasisColumn c,int x,int z,int natural,Set set){
- for(int y=c.floor-1;y<=natural+2;++y){std::string_view n=y<c.floor?"minecraft:dirt":y==c.floor?(c.green?"minecraft:grass_block":"minecraft:sand"):y<=c.water?"minecraft:water":"minecraft:air";set(StructurePoint{x,y,z},StructureBlock{n,0});}
+template<class Set> void writeVillageOasisColumn(VillageOasisColumn c,int x,int z,int natural,Set set,int maxY=319){
+ for(int y=c.floor-1;y<=std::min(maxY,natural+2);++y){std::string_view n=y<c.floor?"minecraft:dirt":y==c.floor?(c.green?"minecraft:grass_block":"minecraft:sand"):y<=c.water?"minecraft:water":"minecraft:air";set(StructurePoint{x,y,z},StructureBlock{n,0});}
 }
 inline int extraPlacementSeedSalt(int type,size_t piece){return extraSpec(type)->salt+int(piece);}
 inline uint32_t extraPieceSeed(int type,size_t piece,ChunkPosition anchor,ChunkPosition owner,uint32_t seed){auto cp=(type==1||type==2||type==4||type==5||type==9)?anchor:owner;return placementSeed(cp.x,cp.z,extraPlacementSeedSalt(type,piece),seed);}
@@ -239,7 +239,7 @@ struct ExtraLayoutPlan {
 };
 // All families use the upstream's frozen floor and eligibility pipeline. No
 // platform is allowed to invent a second per-piece or live-heightmap filter.
-template<class Sample> ExtraLayoutPlan planExtraLayout(ExtraBlueprint const&input,Sample sample){
+template<class Sample> ExtraLayoutPlan planExtraLayout(ExtraBlueprint const&input,Sample sample,int maxY=319){
  ExtraLayoutPlan out;int type=input.type;out.bounds=input.bounds;
  auto spec=extraSpec(type);if(!spec||input.pieces.empty()||input.pieces.size()>4096||!input.bounds.valid()){out.rejection="invalid-blueprint";return out;}
  using Surface=decltype(sample(0,0));std::map<VillageXZ,Surface> cache;
@@ -251,31 +251,31 @@ template<class Sample> ExtraLayoutPlan planExtraLayout(ExtraBlueprint const&inpu
   if(!b.valid()||int64_t(b.max.x)-b.min.x>spec->radius*32||int64_t(b.max.z)-b.min.z>spec->radius*32)return false;
   for(int z=b.min.z;z<=b.max.z;z+=step)for(int x=b.min.x;x<=b.max.x;x+=step){auto const&s=at(x,z);bool allowed;
    if(mode==0)allowed=s.water<s.height&&!s.river&&!s.lake&&s.volcanic<=.01&&s.iceHabitat<=.01&&villageStyle(s.biome)>=0;
-   else if(mode==3)allowed=s.ocean>=.5&&s.water>=30&&s.height<=25&&s.height>=-40&&!s.lake&&!s.river&&s.iceHabitat<=.01;
+   else if(mode==3)allowed=s.ocean>=.5&&s.water>=surfaceSeaLevel(s)-1&&s.height<=surfaceSeaLevel(s)-6&&s.height>=-40&&!s.lake&&!s.river&&s.iceHabitat<=.01;
    else allowed=extraFootprintAllowed(type,s);
    if(!allowed)return false;lo=std::min(lo,s.height);hi=std::max(hi,s.height);
    if(hi-lo>(mode==0?4:mode==3?3:extraMaxSlope(type)))return false;
   }return true;
  };
- if(type==1||type==2||type==4||type==5||type==7||type==10){int lo=320,hi=-64;if(!scan(out.bounds,3,-1,lo,hi)||(type==5&&hi>6)){out.rejection="extra-footprint";return out;}
+ if(type==1||type==2||type==4||type==5||type==7||type==10){int lo=INT_MAX,hi=-64;if(!scan(out.bounds,3,-1,lo,hi)||(type==5&&hi>surfaceSeaLevel(center)-25)){out.rejection="extra-footprint";return out;}
   out.floor=(lo+hi)/2+1;
   if(type==1){out.bounds.min.y=out.floor-4;out.bounds.max.y=out.floor+35;}
   else if(type==4){out.bounds.min.y=lo-4;out.bounds.max.y=hi;for(auto&b:out.pieceBounds)b=out.bounds;}
   else if(type==2||type==5||type==7){int dy=(type==5?hi+1:out.floor)-out.bounds.min.y;out.bounds=out.bounds.moved(dy);for(size_t i=0;i<input.pieces.size();++i){out.verticalMoves[i]=dy;out.pieceBounds[i]=out.pieceBounds[i].moved(dy);}}
   if(type==7)for(size_t i=0;i<input.pieces.size();++i)for(auto const&c:input.pieces[i].cells){auto n=c.block.name;if(n=="minecraft:air"||n=="minecraft:structure_void"||n=="minecraft:structure_block")continue;auto q=villageWorldPoint(input.pieces[i],c.local,out.verticalMoves[i]);if(q.y<out.floor-1||q.y>out.floor+1)continue;mergeMinimum(out.fittedGround,{q.x,q.z},q.y-1);}
  }
- if(type==0||type==3){out.bounds={};for(size_t i=0;i<input.pieces.size();++i){auto const&p=input.pieces[i];int lo=320,hi=-64;
+ if(type==0||type==3){out.bounds={};for(size_t i=0;i<input.pieces.size();++i){auto const&p=input.pieces[i];int lo=INT_MAX,hi=-64;
    if(!scan(p.box,1,type,lo,hi)){out.rejection="piece-footprint";return out;}
    int desired=type==0?(lo+hi)/2+1:lo,dy=desired-p.origin.y;out.verticalMoves[i]=dy;out.pieceBounds[i]=p.box.moved(dy);out.bounds.include(out.pieceBounds[i]);
    if(type==0)out.pads.push_back({out.pieceBounds[i],desired-1});
   }
  }
  auto b=out.bounds;bool underground=extraUnderground(type);
- if(!b.valid()||b.min.y< -58||b.max.y>310||(underground&&b.max.y>center.height-10)||b.min.x<wx-spec->radius*16||b.max.x>wx+spec->radius*16||b.min.z<wz-spec->radius*16||b.max.z>wz+spec->radius*16){out.rejection="extra-bounds";return out;}
+ if(!b.valid()||b.min.y< -58||b.max.y>maxY-9||(underground&&b.max.y>center.height-10)||b.min.x<wx-spec->radius*16||b.max.x>wx+spec->radius*16||b.min.z<wz-spec->radius*16||b.max.z>wz+spec->radius*16){out.rejection="extra-bounds";return out;}
  for(int z=b.min.z;z<=b.max.z;z+=16)for(int x=b.min.x;x<=b.max.x;x+=16){auto const&t=at(x,z);if((underground&&t.height<b.max.y+8)||(!extraMarine(type)&&type!=4&&t.ocean>.1)||t.volcanic>.01){out.rejection="extra-cover";return out;}}
  out.accepted=true;return out;
 }
-struct ScatteredLayoutPlan {bool accepted=false;int floor{},low=320,high=-64;};
+struct ScatteredLayoutPlan {bool accepted=false;int floor{},low=INT_MAX,high=-64;};
 template<class Sample> ScatteredLayoutPlan planScatteredLayout(StructureBox box,int biome,Sample sample){
  ScatteredLayoutPlan out;int64_t sum=0,count=0;if(!box.valid()||int64_t(box.max.x)-box.min.x>128||int64_t(box.max.z)-box.min.z>128)return out;
  for(int z=box.min.z;z<=box.max.z;++z)for(int x=box.min.x;x<=box.max.x;++x){auto s=sample(x,z);if(!scatteredFootprintAllowed(s,biome))return out;out.low=std::min(out.low,s.height);out.high=std::max(out.high,s.height);sum+=s.height+1;++count;if(out.high-out.low>scatteredMaxSlope(biome))return out;}

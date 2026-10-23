@@ -30,7 +30,7 @@ bool wetDryAccepted(int gx,int gz,WetDryTree const&a){
 }
 void wetDryEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>const&surfaces){
  auto put=[&](int X,int y,int Z,uint16_t id,bool wood=false){int x=X-x0,z=Z-z0;
-  if(x<0||x>=16||z<0||z>=16||y<-60||y>319)return;
+  if(x<0||x>=16||z<0||z>=16||y<-60||y>Height-65)return;
   auto const&s=surfaces[z*16+x];if(y<=std::max({s.height,s.water,s.lava}))return;
   auto&v=raw[(z*16+x)*Height+y+64];if(v==0||(wood&&(v==11||v==17)))v=id;
  };
@@ -92,7 +92,7 @@ void wetDryEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,25
   bool swamp=s.biome==10||wet>dry;double intensity=swamp?wet:dry;
   bool water=s.water>h&&s.water-h<=3&&!s.lakeFrozen&&s.lava<h&&(s.wetland>0||s.lake||s.river>0);
   bool fringe=false;
-  if(s.biome==3&&h==31&&s.water<h&&hash01(X,Z,terrainSeed^15211)<.13)
+  if(s.biome==3&&h==field.seaLevel()&&s.water<h&&hash01(X,Z,terrainSeed^15211)<.13)
    for(int d:{8,16})for(auto [dx,dz]:{std::pair{d,0},{-d,0},{0,d},{0,-d}})if(field.surface(X+dx,Z+dz,false).biome==10)fringe=true;
   bool margin=intensity>0&&!s.kind&&!s.lake&&!s.river&&s.stone<.01&&s.giant<.01&&s.barren<.01&&s.height>=32&&s.height<180&&s.cliffLow==-32768;
   if(!wetDryHabitat(s)&&!water&&!fringe&&!margin)continue;
@@ -100,7 +100,7 @@ void wetDryEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,25
   if(water){
    if(pick>.065)continue;bool nearby=s.wetland>.45;
    for(auto [dx,dz]:{std::pair{8,0},{-8,0},{0,8},{0,-8}})if(field.surface(X+dx,Z+dz,false).biome==10){nearby=true;break;}
-   if(nearby&&s.water<318&&col[s.water+64]==8&&!col[s.water+65])col[s.water+65]=SwampLily;
+   if(nearby&&s.water<Height-66&&col[s.water+64]==8&&!col[s.water+65])col[s.water+65]=SwampLily;
    continue;
   }
   if(s.rock||h>300||s.water>=h||s.lava>=h||(!soil(col[h+64])&&!((swamp||fringe)&&col[h+64]==5))||col[h+65]||blocked(X,Z))continue;

@@ -133,13 +133,13 @@ template <class Handle, class Clip = StructureBox> class StructureEntityQueue {
 template <class Queue, class Handle, class Population, class Loaded>
 size_t enqueueLoadedPopulationOwners(Queue &queue, LifecycleJson const &ledger, Handle handle,
                                      Population const &population, std::string_view family,
-                                     ChunkPosition anchor, uint32_t seed, Loaded loaded) {
+                                     ChunkPosition anchor, uint32_t seed, Loaded loaded, int maxY=319) {
     size_t count = 0;
     for (auto const &[owner, markers] : population) {
         ChunkPosition cp{owner.first, owner.second};
         if (markers.empty() || !loaded(cp))
             continue;
-        StructureBox clip{{cp.x * 16, -64, cp.z * 16}, {cp.x * 16 + 15, 319, cp.z * 16 + 15}};
+        StructureBox clip{{cp.x * 16, -64, cp.z * 16}, {cp.x * 16 + 15, maxY, cp.z * 16 + 15}};
         using Clip = decltype(typename Queue::Job{}.clip);
         if (queue.enqueue(ledger, handle,
                           Clip{{clip.min.x, clip.min.y, clip.min.z}, {clip.max.x, clip.max.y, clip.max.z}},
@@ -153,7 +153,7 @@ size_t enqueueLoadedVillageOwners(Queue &queue, LifecycleJson const &ledger, Han
                                   VillageLayoutPlan const &plan, ChunkPosition anchor, uint32_t seed,
                                   Loaded loaded) {
     return enqueueLoadedPopulationOwners(queue, ledger, handle, plan.population, "village", anchor, seed,
-                                         loaded);
+                                         loaded, plan.maxY);
 }
 inline void completeStructureEntityClaim(LifecycleJson &ledger, std::string const &key,
                                          LifecycleJson actors) {
@@ -184,10 +184,10 @@ inline uint32_t structureEntitySeed(ChunkPosition owner, uint32_t seed) {
     return placementSeed(owner.x, owner.z, 146731099, seed);
 }
 template <class Get>
-std::optional<StructurePoint> supportedStructureEntityPosition(StructurePoint p, Get blockName) {
+std::optional<StructurePoint> supportedStructureEntityPosition(StructurePoint p, Get blockName, int maxY=319) {
     for (int dy : {0, 1, -1, 2, -2, 3}) {
         StructurePoint q{p.x, p.y + dy, p.z};
-        if (q.y <= -64 || q.y >= 319)
+        if (q.y <= -64 || q.y >= maxY)
             continue;
         auto floor = blockName(StructurePoint{q.x, q.y - 1, q.z});
         if (floor == "minecraft:air" || floor == "minecraft:water" || floor == "minecraft:lava")
@@ -232,7 +232,7 @@ prepareVillagePopulation(VillageLayoutPlan const &plan, ChunkPosition owner, Loa
     std::vector<StructureEntityMarker> result;
     result.reserve(markers.size());
     for (auto const &m : markers) {
-        auto p = supportedStructureEntityPosition(m.position, name);
+        auto p = supportedStructureEntityPosition(m.position, name, plan.maxY);
         if (!p)
             return {};
         result.push_back({*p, m.definition});

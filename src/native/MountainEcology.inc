@@ -8,7 +8,7 @@ void mountainEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,
  for(int gz=int(std::floor((z0-3)/24.));gz<=int(std::floor((z0+18)/24.));gz++)for(int gx=int(std::floor((x0-3)/24.));gx<=int(std::floor((x0+18)/24.));gx++){
   int X=gx*24+3+int(hash01(gx,gz,terrainSeed^2201)*18),Z=gz*24+3+int(hash01(gx,gz,terrainSeed^2202)*18);
   auto s=field.surface(X,Z,false);if(!mountainHabitat(s)||s.height>190||!clearStructure(X,Z)||hash01(gx,gz,terrainSeed^2203)>.22)continue;
-  int lo=320,hi=-64;bool valid=true;std::vector<std::array<int,3>> cells;
+  int lo=Height-64,hi=-64;bool valid=true;std::vector<std::array<int,3>> cells;
   for(int dz=-1;dz<=1;dz++)for(int dx=-1;dx<=1;dx++){
    auto b=field.surface(X+dx,Z+dz,false);if(!mountainHabitat(b)||field.material(b,X+dx,b.height,Z+dz)!=4)valid=false;
    lo=std::min(lo,b.height);hi=std::max(hi,b.height);cells.push_back({X+dx,Z+dz,b.height});

@@ -42,19 +42,19 @@ inline void trimVillageFarmFooting(VillageCells const&cells,std::map<VillageXZ,i
  for(auto const&[p,n]:cells){farm|=n=="minecraft:farmland";if(n=="minecraft:farmland"||n=="minecraft:water"||(!villageSoil(n)&&!villageOpen(n)&&villageFoundationBlock(n)))core.emplace(p[0],p[2]);}
  if(farm)std::erase_if(footing,[&](auto const&e){return !core.contains(e.first);});
 }
-template<class Cells,class Name> bool villageCoveredGround(Cells const&cells,VillageXZ xz,int ground,int ceiling,Name name){
- for(int y=ground+1;y<=std::min(319,ceiling);++y){auto c=cells.find({xz.first,y,xz.second});if(c!=cells.end()){auto n=name(c->second);if(villageFoundationBlock(n)&&!villageSoil(n)&&!villageOpen(n))return true;}}
+template<class Cells,class Name> bool villageCoveredGround(Cells const&cells,VillageXZ xz,int ground,int ceiling,Name name,int maxY=319){
+ for(int y=ground+1;y<=std::min(maxY,ceiling);++y){auto c=cells.find({xz.first,y,xz.second});if(c!=cells.end()){auto n=name(c->second);if(villageFoundationBlock(n)&&!villageSoil(n)&&!villageOpen(n))return true;}}
  return false;
 }
 // Actual-footing and narrow apron rules extracted from the LLBDS adapter.
 // Template padding and structure_void never define a rectangular foundation.
 struct VillageGroundPlan {std::map<VillageXZ,int> fitted,finished;};
-inline int villageFinishedHeight(VillageCells const&cells,VillageXZ xz,int h,std::map<VillageXZ,int> const&){
+inline int villageFinishedHeight(VillageCells const&cells,VillageXZ xz,int h,std::map<VillageXZ,int> const&,int maxY=319){
   auto at=[&](int y)->std::string_view{auto it=cells.find({xz.first,y,xz.second});return it==cells.end()?"":it->second;};
   // Read this column's buried soil and first structural surface. A building
   // may have several stair levels and low planter borders: its lowest door
   // floor is not a valid height for every column in the footprint.
-  for(int y=h+1;y<=std::min(h+8,319);++y){
+  for(int y=h+1;y<=std::min(h+8,maxY);++y){
    auto n=at(y);
    if(n=="minecraft:farmland")return y;
    if(n.empty()||n=="minecraft:air"||n=="minecraft:structure_void")return y==h+1?h+1:y-1;
@@ -93,11 +93,11 @@ template<class Visit> void villageApproaches(VillageCells const&cells,std::map<V
 // Roads are projected later; no whole-village or bounding-box levelling.
 template<class Sample> std::optional<int> villageOriginOffset(
  VillageCells const&cells,std::map<VillageXZ,int> const&foundations,
- std::map<VillageXZ,int> const&doors,Sample sample){
+ std::map<VillageXZ,int> const&doors,Sample sample,int maxY=319){
  if(foundations.empty())return 0;
  std::vector<int> offsets,edges;int approachFloor=std::numeric_limits<int>::min();offsets.reserve(foundations.size());
  for(auto const&[xz,h]:foundations){
-  int finished=villageFinishedHeight(cells,xz,h,doors);
+  int finished=villageFinishedHeight(cells,xz,h,doors,maxY);
   offsets.push_back(sample(xz.first,xz.second)-finished);
   villageApproaches(cells,foundations,xz,finished,[&](VillageXZ outside,int distance){
    approachFloor=std::max(approachFloor,sample(outside.first,outside.second)-finished-distance);
@@ -119,13 +119,13 @@ template<class Sample> std::optional<int> villageOriginOffset(
 }
 template<class Sample> VillageGroundPlan planVillageGround(
  VillageCells const&cells,std::map<VillageXZ,int> const&foundations,
- std::map<VillageXZ,int> const&doors,std::map<VillageXZ,int> const&roadOffsets,Sample sample){
+ std::map<VillageXZ,int> const&doors,std::map<VillageXZ,int> const&roadOffsets,Sample sample,int maxY=319){
  std::map<VillageXZ,int> finished,result,approachMinimum;
  std::map<VillageXZ,std::pair<double,double>> blends;
  std::map<VillageXZ,double> strength;
  for(auto const&[xz,h]:foundations){
   auto at=[&](int y)->std::string_view{auto it=cells.find({xz.first,y,xz.second});return it==cells.end()?"":it->second;};
-  int top=villageFinishedHeight(cells,xz,h,doors);bool exposed=false;
+  int top=villageFinishedHeight(cells,xz,h,doors,maxY);bool exposed=false;
   for(int y=h+1;y<=h+2;++y)exposed|=villageSoil(at(y))&&villageOpen(at(y+1));
   finished[xz]=top;
   villageApproaches(cells,foundations,xz,top,[&](VillageXZ outside,int distance){auto [it,added]=approachMinimum.emplace(outside,top-distance);if(!added)it->second=std::max(it->second,top-distance);});

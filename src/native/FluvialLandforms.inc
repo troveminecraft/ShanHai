@@ -34,7 +34,7 @@ void fluvialRelief(Surface&s,int wx,int wz){
  auto const&a=*it;s.height=a.height;s.water=a.water;s.fluvialType=a.type;s.fluvialTop=a.top;
  s.cliffLow=s.cliffHigh=s.riverCutLow=s.riverCutHigh=-32768;s.drip=0;s.riverDeposit=false;
  s.wetland=s.wetlandMoisture=0;s.scarp=0;s.scarpWarped=false;s.lakeFrozen=false;
- s.continuous=s.e=(s.height-31)/123.;s.kind=a.water>s.height?2:0;
+ s.continuous=s.e=(s.height-seaLevelValue)/123.;s.kind=a.water>s.height?2:0;
  s.river=a.type==1&&s.kind?1:0;s.lake=a.type==2?(s.kind?1:2):0;
 }
 void fluvialSkin(Surface&s){

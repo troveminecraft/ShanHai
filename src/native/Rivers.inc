@@ -51,7 +51,7 @@ void loadRivers(){
    auto const&a=runs.at(riverSegments.size());s.runA=a.at(0);s.runB=a.at(1);
    if(!std::isfinite(s.runA)||!std::isfinite(s.runB)||s.runA<0||s.runB<s.runA)throw std::runtime_error("Invalid headwater distance");
   }
-  if(s.aw<s.bw||s.bw<31||s.aw>290||s.ar<.65||s.br<.65||s.ar>32||s.br>32||std::hypot(s.ax-s.bx,s.az-s.bz)>40)
+  if(s.aw<s.bw||s.bw<seaLevelValue||s.aw>generatedMaxYExclusive-30||s.ar<.65||s.br<.65||s.ar>32||s.br>32||std::hypot(s.ax-s.bx,s.az-s.bz)>40)
    throw std::runtime_error("Invalid river segment");
   if(auto found=bends.find({s.ax,s.az,s.bx,s.bz});found!=bends.end()){
     s.main=smooth(4.,12.,(s.ar+s.br)*.5);s.bend=found->second;
@@ -86,7 +86,7 @@ void loadRivers(){
 }
 void riverRelief(Surface&s,int wx,int wz,bool connectWater=true){
  if(riverSegments.empty()||s.lake==1||s.stone>.01||s.volcanic>0)return;
- bool marine=s.water==31&&s.height<31;
+ bool marine=s.water==seaLevelValue&&s.height<seaLevelValue;
  double x=wx-32768,z=wz-32768;auto it=riverBins.find(key2(int(std::floor(x/64)),int(std::floor(z/64))));if(it==riverBins.end())return;
  auto guards=riverTreeBins.find(key2(int(std::floor(x/64)),int(std::floor(z/64))));
  double treeEdge=INFINITY;
@@ -231,12 +231,12 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true){
  // Continue the same channel footprint across shallow seas without raising
  // sea level or filling naturally deeper seabeds. Lakes retain their mask.
  if(matchedRiverBanks&&best<=0&&wetWeightSum>1e-12)water=int(std::floor(wetLevelSum/wetWeightSum+1e-6));
- if(marine){water=31;slopeMax=0;}
+ if(marine){water=seaLevelValue;slopeMax=0;}
  if(best<=0){double depth=std::max(depthSum/weightSum,1.+std::ceil(slopeMax*1.42));
   depth=std::max({2.,1.+std::ceil(slopeMax*1.42),mix(mouthBlend,depth,1.)});
   // Shoal the near-sea river floor by one block, fading upstream over five
   // blocks of water elevation. Keep naturally deeper seabeds unchanged.
-  double shoal=1-smooth(31.,36.,double(water));
+  double shoal=1-smooth(seaLevelValue,seaLevelValue+5,double(water));
   bed=std::min(original,std::min(double(water-1),water-1-(depth-1)*(1-smooth(0,radius,dist))+shoal));
   // Signed, smoothed curvature controls both banks of a real bend. The
   // point bar shoals on the inside; the thalweg deepens towards the outside.
@@ -300,7 +300,7 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true){
     Surface neighbour;neighbour.height=int(original);
     // At a sea entrance the adjacent natural column may already be marine.
     // Reusing this column's dry height would predict a higher river pool and
-    // miss the actual Y=31 water face. Sample the real receiving surface only
+    // miss the actual sea-level water face. Sample the real receiving surface only
     // in this short transition; ordinary inland columns keep the fast path.
     if(alluvialBanks&&!marine&&shoal>0)neighbour=compute(wx+dx,wz+dz,false);
     riverRelief(neighbour,wx+dx,wz+dz,false);
@@ -399,7 +399,7 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true){
      // A visible bite must share a block face with the open channel. A
      // rounded projection alone can reach across a solid low shore and
      // leave a buried pocket behind it, especially on a diagonal bank.
-     bool openFace=false;int faceFloor=319;
+     bool openFace=false;int faceFloor=generatedMaxYExclusive-1;
      for(auto [dx,dz]:std::array<std::pair<int,int>,4>{{{1,0},{-1,0},{0,1},{0,-1}}}){
       Surface face;face.height=int(original);riverRelief(face,wx+dx,wz+dz,false);
       if(face.river>0&&face.water==water){openFace=true;faceFloor=std::min(faceFloor,face.height);}
@@ -425,7 +425,7 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true){
   s.riverOuter=outer;
  }
  if(marine&&bed>=original)return;
- s.height=int(std::floor(bed+1e-6));s.continuous=(s.height-31)/123.;s.e=s.continuous;
+ s.height=int(std::floor(bed+1e-6));s.continuous=(s.height-seaLevelValue)/123.;s.e=s.continuous;
  if(localRiverBeds){s.riverShore=smooth(.35,.95,dist/std::max(1.,radius));s.riverSlope=bankSlopeSum/weightSum;}
  s.cliffLow=s.cliffHigh=-32768;s.drip=0;
  if(best<=0&&s.height<water){s.water=std::max(s.water,water);s.kind=2;s.river=1;s.lake=0;s.lakeFrozen=false;}

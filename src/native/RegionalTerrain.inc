@@ -66,7 +66,7 @@ double regionalHeight(double wx,double wz,double height){
 }
 void finalTerrainClimate(Surface&s,double temperatureNoise,double erosionValue){
  if(!regionalEnabled)return;
- s.continuous=s.e=(s.height-31)/123.;
+ s.continuous=s.e=(s.height-seaLevelValue)/123.;
  auto const&q=C.at("transition");auto const&r=C.at("regionalTerrain");
  double high=smooth(num(r,"mountainElevation")-num(q,"domHeightWidth"),num(r,"mountainElevation")+num(q,"domHeightWidth"),s.height);
  s.plateau=high*smooth(.65-num(q,"domErosionWidth"),.65+num(q,"domErosionWidth"),erosionValue);s.mount=high-s.plateau;

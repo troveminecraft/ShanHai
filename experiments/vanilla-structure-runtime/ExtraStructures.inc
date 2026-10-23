@@ -596,7 +596,7 @@ bool fitSharedExtra(StructureStart &start, ExtraPlan &result, int type, ChunkPos
         blueprint.pieces.push_back(std::move(p));
     }
     auto plan = worldgen_rules::planExtraLayout(
-        blueprint, [](int x, int z) { return field->surface(x + 32768, z + 32768); });
+        blueprint, [](int x, int z) { return field->surface(x + 32768, z + 32768); }, field->generationHeight()-65);
     if (!plan.accepted)
         return false;
     result.floor = plan.floor;
@@ -687,7 +687,7 @@ ExtraPlan &extraPlan(Dimension &d, int type, ChunkPos cp) {
     } else {
         if (type == 1 || type == 2 || type == 4 || type == 5 || type == 7 || type == 10) {
             auto b = *start->boundingBox;
-            int lo = 320, hi = -64;
+            int lo = INT_MAX, hi = -64;
             for (int z = b.min.z; z <= b.max.z; z += 3)
                 for (int x = b.min.x; x <= b.max.x; x += 3) {
                     auto t = field->surface(x + 32768, z + 32768);
@@ -754,7 +754,7 @@ ExtraPlan &extraPlan(Dimension &d, int type, ChunkPos cp) {
             for (auto const &ptr : *start->pieces) {
                 auto &p = *static_cast<PillagerOutpostPieces::PillagerOutpostPiece *>(ptr.get());
                 auto b = *p.mBoundingBox;
-                int lo = 320, hi = -64;
+                int lo = INT_MAX, hi = -64;
                 for (int z = b.min.z; z <= b.max.z; ++z)
                     for (int x = b.min.x; x <= b.max.x; ++x) {
                         auto t = field->surface(x + 32768, z + 32768);
@@ -783,7 +783,7 @@ ExtraPlan &extraPlan(Dimension &d, int type, ChunkPos cp) {
             for (auto const &ptr : *start->pieces) {
                 auto &p = *static_cast<OceanRuinPieces::OceanRuinPiece *>(ptr.get());
                 auto b = *p.mBoundingBox;
-                int lo = 320, hi = -64;
+                int lo = INT_MAX, hi = -64;
                 for (int z = b.min.z; z <= b.max.z; ++z)
                     for (int x = b.min.x; x <= b.max.x; ++x) {
                         auto t = field->surface(x + 32768, z + 32768);
@@ -803,7 +803,7 @@ ExtraPlan &extraPlan(Dimension &d, int type, ChunkPos cp) {
         }
         auto b = *start->boundingBox;
         bool underground = worldgen_rules::extraUnderground(type);
-        if (b.min.y < -58 || b.max.y > 310 || (underground && b.max.y > surf.height - 10) ||
+        if (b.min.y < -58 || b.max.y > (field->generationHeight()-74) || (underground && b.max.y > surf.height - 10) ||
             b.min.x < wx - s->radius * 16 || b.max.x > wx + s->radius * 16 || b.min.z < wz - s->radius * 16 ||
             b.max.z > wz + s->radius * 16)
             return r;
@@ -930,7 +930,7 @@ VegetationPair &extraVegetationPair(ExtraPlan const &p) {
 }
 void placeExtras(Dimension &d, BlockSource &blocks, ChunkPos cp,
                  std::vector<std::pair<int, ChunkPos>> const &candidates, uint seed, bool prefiltered) {
-    BoundingBox clip{{cp.x * 16, -64, cp.z * 16}, {cp.x * 16 + 15, 319, cp.z * 16 + 15}};
+    BoundingBox clip{{cp.x * 16, -64, cp.z * 16}, {cp.x * 16 + 15, (field->generationHeight()-65), cp.z * 16 + 15}};
     for (auto const &[type, anchor] : candidates) {
         auto &p = extraPlan(d, type, anchor);
         if (!p.start)

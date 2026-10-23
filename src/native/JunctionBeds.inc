@@ -31,7 +31,7 @@ void buildJunctionBeds(){
    double da=std::hypot(a.ax-p.x,a.az-p.z),db=std::hypot(a.bx-p.x,a.bz-p.z);
    if(std::min(da,db)>64||std::min(std::abs(a.aw-p.level),std::abs(a.bw-p.level))>8)continue;
    double old=std::max(2.,mix(smooth(1.,4.,std::max(a.ar,a.br)),1.,2.5));
-   double oldA=old-(p.lake?0.:1-smooth(31.,36.,a.aw)),oldB=old-(p.lake?0.:1-smooth(31.,36.,a.bw));
+   double oldA=old-(p.lake?0.:1-smooth(seaLevelValue,seaLevelValue+5,a.aw)),oldB=old-(p.lake?0.:1-smooth(seaLevelValue,seaLevelValue+5,a.bw));
    auto lake=lakeAt(roundJS(p.x)+32768,roundJS(p.z)+32768);
    bool naturalBasin=p.lake&&lake&&lake->sealAlcoves;
    if(naturalBasin){
@@ -59,7 +59,7 @@ void buildJunctionBeds(){
    Surface end;
    for(int step=1;step<=9;++step){
     auto s=compute(roundJS(x+nx*step*4)+32768,roundJS(z+nz*step*4)+32768,false);
-    if(s.stone>.01||s.volcanic>0||s.lake||s.height>=p.level||s.water!=31)break;
+    if(s.stone>.01||s.volcanic>0||s.lake||s.height>=p.level||s.water!=seaLevelValue)break;
     length=step*4;end=s;
    }
    if(length>0){
@@ -77,7 +77,7 @@ void buildJunctionBeds(){
     double a=angle+turn,X=std::round(x+4*std::cos(a)),Z=std::round(z+4*std::sin(a));
     if(std::abs(X)>4094||std::abs(Z)>4094)continue;
     auto s=compute(int(X)+32768,int(Z)+32768,false);
-    if(s.stone>.01||s.volcanic>0||s.height>=p.level||(p.lake?s.lake!=1:s.water!=31))continue;
+    if(s.stone>.01||s.volcanic>0||s.height>=p.level||(p.lake?s.lake!=1:s.water!=seaLevelValue))continue;
     double score=s.height+1.5*std::abs(turn);
     if(score<best){best=score;nx=X;nz=Z;na=a;chosen=s;}
    }
@@ -95,11 +95,11 @@ void junctionBed(Surface&s,int wx,int wz){
  double x=wx-32768,z=wz-32768;auto it=bedBins.find(key2(int(std::floor(x/64)),int(std::floor(z/64))));if(it==bedBins.end())return;
  double target=s.height;
  for(auto id:it->second){auto const&a=bedReaches[id];double dx=a.bx-a.ax,dz=a.bz-a.az;
-  if(a.marineFan&&(s.lake||s.water!=31))continue;
+  if(a.marineFan&&(s.lake||s.water!=seaLevelValue))continue;
   double t=clamp(((x-a.ax)*dx+(z-a.az)*dz)/std::max(1.,dx*dx+dz*dz),0,1),dist=std::hypot(x-a.ax-t*dx,z-a.az-t*dz);
   if(dist>=a.width+3)continue;
   // Only carve submerged, connected water. Never flood dry ground here.
-  if(s.water<=s.height||(!s.river&&!s.lake&&s.water!=31))continue;
+  if(s.water<=s.height||(!s.river&&!s.lake&&s.water!=seaLevelValue))continue;
   double width=a.marineFan?a.width*(.65+.35*t):a.width;
   if(matchedRiverBanks&&a.marineFan)width*=1+.16*matNoise.at(x/13.+47,z/13.-31);
   double floor=mix(t,a.ah,a.bh),weight=1-smooth(width*.55,width+3,dist);

@@ -35,6 +35,6 @@ void aridSurface(Surface&s,int wx,int wz){
     ||s.wetland>0||s.cliffLow!=-32768||s.riverCutLow!=-32768||s.desert<=.4
     ||a.height-s.height>3||s.height-a.height>2)throw std::runtime_error("Arid footprint does not match dry ground");
  s.height=a.height;s.aridType=a.type;s.aridTop=a.top;
- s.continuous=s.e=(s.height-31)/123.;s.treeD=0;s.rockCap=0;s.rock=0;
+ s.continuous=s.e=(s.height-seaLevelValue)/123.;s.treeD=0;s.rockCap=0;s.rock=0;
  s.surf=7;s.soilSand=a.top==5?1:0;if(a.type!=1||s.sandCover>.5)s.biome=11;s.kind=0;s.oasis=0;
 }

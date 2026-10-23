@@ -10,7 +10,7 @@ void understory(int x0,int z0,std::vector<uint16_t>& raw,std::array<Surface,256>
   for(auto const&t:trees)if(std::hypot(x-t->x,z-t->z)<t->radius+1)return true;
   return std::hypot(x-32768,z-32768)<12;
  };
- auto eligible=[](Surface const&s){return s.giant>.02&&s.stone<.05&&!s.kind&&s.height>35&&s.height<317&&s.cliffLow==-32768;};
+ auto eligible=[&](Surface const&s){return s.giant>.02&&s.stone<.05&&!s.kind&&s.height>35&&s.height<Height-67&&s.cliffLow==-32768;};
  // A seven-block anchor grid is jittered across each full cell. The patch
  // field groups the shrubs, while sparse spaces remain walkable.
  for(int gz=int(std::floor((z0-3)/7.));gz<=int(std::floor((z0+18)/7.));gz++)for(int gx=int(std::floor((x0-3)/7.));gx<=int(std::floor((x0+18)/7.));gx++){

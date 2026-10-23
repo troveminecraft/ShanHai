@@ -7,13 +7,13 @@ namespace worldgen_rules {
 // frozen whole-footprint floor, owner seed, immutable seeded neighbour reads.
 // Native object construction, registered states and world writes are services.
 struct ScatteredFragmentRecipe {int biome;ChunkPosition anchor;uint32_t worldSeed;StructureBox bounds;int floor;};
-inline ScatteredFragmentRecipe planScatteredFragments(int biome,ChunkPosition anchor,uint32_t seed,StructureBox bounds,int floor){
- if((biome!=13&&biome!=10)||!bounds.valid()||bounds.min.y< -58||bounds.max.y>319||floor!=bounds.min.y||bounds.min.x< -30000000||bounds.min.z< -30000000||bounds.max.x>=30000000||bounds.max.z>=30000000||int64_t(bounds.max.x)-bounds.min.x>128||int64_t(bounds.max.z)-bounds.min.z>128)throw std::runtime_error("Invalid scattered fragment recipe");
+inline ScatteredFragmentRecipe planScatteredFragments(int biome,ChunkPosition anchor,uint32_t seed,StructureBox bounds,int floor,int maxY=319){
+ if((biome!=13&&biome!=10)||!bounds.valid()||bounds.min.y< -58||bounds.max.y>maxY||floor!=bounds.min.y||bounds.min.x< -30000000||bounds.min.z< -30000000||bounds.max.x>=30000000||bounds.max.z>=30000000||int64_t(bounds.max.x)-bounds.min.x>128||int64_t(bounds.max.z)-bounds.min.z>128)throw std::runtime_error("Invalid scattered fragment recipe");
  return {biome,anchor,seed,bounds,floor};
 }
 inline std::string_view scatteredNativeBiome(ScatteredFragmentRecipe const&r){return r.biome==13?"minecraft:jungle":"minecraft:swampland";}
 inline bool scatteredSeededRead(StructureBox const&owner,StructurePoint p){return p.x<owner.min.x||p.x>owner.max.x||p.z<owner.min.z||p.z>owner.max.z;}
-inline bool scatteredFragmentWriteOwned(StructureBox const&owner,StructurePoint p){return !scatteredSeededRead(owner,p)&&p.y>=-58&&p.y<=319;}
+inline bool scatteredFragmentWriteOwned(StructureBox const&owner,StructurePoint p){return !scatteredSeededRead(owner,p)&&p.y>=std::max(-58,owner.min.y)&&p.y<=owner.max.y;}
 inline int scatteredFreshMove(StructureBox expected,int floor,StructureBox initial){
  if(!initial.valid())throw std::runtime_error("Native scattered start has no geometry");int64_t shift=int64_t(floor)-initial.min.y;if(shift<INT_MIN||shift>INT_MAX||int64_t(initial.max.y)+shift<INT_MIN||int64_t(initial.max.y)+shift>INT_MAX)throw std::runtime_error("Native scattered floor shift overflow");auto moved=initial.moved(int(shift));if(moved.min!=expected.min||moved.max!=expected.max)throw std::runtime_error("Fresh scattered geometry differs from native record");return int(shift);
 }

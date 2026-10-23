@@ -25,6 +25,12 @@ try {
 } finally { Pop-Location }
 $bin = Join-Path $build 'windows/x64/release'
 $cases = @(
+    @{Name='build_height'; Args=@($output)},
+    @{Name='structure_height'; Args=@()},
+    @{Name='vegetation_columns'; Args=@()},
+    @{Name='mountain_height'; Args=@()},
+    @{Name='sea_level'; Args=@((Join-Path $output 'inputs/positive.json'),(Join-Path $output 'sea-level.json'))},
+    @{Name='raised_terrain'; Args=@((Join-Path $output 'inputs/positive.json'),(Join-Path $output 'raised-terrain-seed5.json'))},
     @{Name='test_teleport_policy'; Args=@()},
     @{Name='palette_contract'; Args=@()},
     @{Name='creation_status'; Args=@()},
@@ -49,5 +55,7 @@ foreach ($case in $cases) {
     & (Join-Path $bin ($case.Name+'.exe')) @arguments
     if ($LASTEXITCODE) { throw "Failed: $($case.Name)" }
 }
+$raisedTerrain = Get-Content -LiteralPath (Join-Path $output 'raised-terrain-seed5.json') -Raw | ConvertFrom-Json
+if ($raisedTerrain.lakeSamples -le 0) { throw 'Raised-terrain fixtures did not exercise a real closed lake basin' }
 @{passed=$true; cases=$cases.Name; pythonCases=8; reproducibleSeeds=@('5','-1','9223372036854775807'); gameplayTestPerformed=$false} |
     ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $output 'host-tests.json')

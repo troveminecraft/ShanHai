@@ -51,12 +51,12 @@ KARMA_NOINLINE void smallIceSpikes(int x0,int z0,std::vector<uint16_t>&raw,std::
     for(int k=0;k<5;++k){double a=d.nx[k]*dx+d.nz[k]*dz+inset-d.distance[k],b=d.distance[k]-d.nx[k]*d.ax-d.nz[k]*d.az;
      if(std::abs(b)<1e-12){if(a>0)hi=-1;}else if(b>0)hi=std::min(hi,-a/b);else lo=std::max(lo,-a/b);
     }
-    if(hi<lo||hi<0||lo>1)return std::pair{320,-64};
+    if(hi<lo||hi<0||lo>1)return std::pair{Height-64,-64};
     return std::pair{d.base+int(std::ceil(d.height*clamp(lo,0.,1.))),d.base+int(std::floor(d.height*clamp(hi,0.,1.)))};
    };
    auto outer=interval(-.8);if(outer.first>outer.second)continue;
    auto mantle=interval(.6),core=interval(1.6);auto col=raw.data()+i*Height;
-   for(int y=std::max(s.height+1,outer.first);y<=std::min(319,outer.second);++y){
+   for(int y=std::max(s.height+1,outer.first);y<=std::min(Height-65,outer.second);++y){
     if(col[y+64])continue; // Preserve the accepted large cones and all solids.
     col[y+64]=uint16_t(y<mantle.first||y>mantle.second?9:y>=core.first&&y<=core.second&&y<d.base+d.height*.65?144:143);
    }

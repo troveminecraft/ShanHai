@@ -55,7 +55,7 @@ void tickStructureEntities(Level &level) {
         for (auto [x, z] : chunks) {
             auto c = d->getChunkSource().getExistingChunk({x, z});
             if (c && c->getState().load() == ChunkState::Loaded)
-                queueStructureEntities(plan.start, {{x * 16, -64, z * 16}, {x * 16 + 15, 319, z * 16 + 15}},
+                queueStructureEntities(plan.start, {{x * 16, -64, z * 16}, {x * 16 + 15, (field->generationHeight()-65), z * 16 + 15}},
                                        "village", {it->first.first, it->first.second},
                                        level.getLevelData().getSeed().to32BitRandomSeed());
         }
@@ -155,7 +155,7 @@ void tickStructureEntities(Level &level) {
                         auto supported = worldgen_rules::supportedStructureEntityPosition(
                             {p.x, p.y, p.z}, [&](worldgen_rules::StructurePoint q) {
                                 return blocks.getBlock({q.x, q.y, q.z}).getTypeName();
-                            });
+                            }, field->generationHeight()-65);
                         if (!supported)
                             throw std::runtime_error("Village native actor marker has no supported headroom");
                         spawnMarker(*supported, spawn.definition);
@@ -287,7 +287,7 @@ void tickIglooEntities(Level &level) {
                 [&](worldgen_rules::ChunkPosition cp) {
                     auto c = d->getChunkSource().getExistingChunk({cp.x, cp.z});
                     return c && c->getState().load() == ChunkState::Loaded;
-                });
+                }, field->generationHeight()-65);
         }
         return;
     }

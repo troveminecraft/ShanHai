@@ -70,7 +70,7 @@ void desertSkin(Surface&s,int x,int z){
  if(s.desert<=.02||s.water>s.height||s.lake||s.river||s.riverDeposit||s.giant>.01||s.stone>.01||s.barren>0||s.scarp>.01)return;
  // Rivers expose their real nearest wet-bank distance and water datum.
  // A high terrace does not become green merely because a river is below it.
- if(s.riverBankWater>31&&std::isfinite(s.riverBankEdge)&&s.height>=s.riverBankWater){
+ if(s.riverBankWater>seaLevelValue&&std::isfinite(s.riverBankEdge)&&s.height>=s.riverBankWater){
   double width=10+14*clamp(s.mainRiver,0,1);
   s.oasis=(1-smooth(2,width,s.riverBankEdge))*(1-smooth(2,7,s.height-s.riverBankWater))*s.desert;
  }

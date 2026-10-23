@@ -20,7 +20,7 @@ KARMA_NOINLINE void oreProfiles(int x0,int z0,std::vector<uint16_t>&raw,std::arr
  for(auto const&s:surfaces)if(s.volcanic<=.01&&!s.vent&&s.scarp<=.01)top=std::max(top,s.height-5);
  std::array<Surface,324> halo{};std::array<bool,324> known{};
  auto isAir=[&](int x,int y,int z){
-  if(y<-64||y>319)return false;
+  if(y<-64||y>Height-65)return false;
   // Outside the supported map BDS builds void. Do not invent a solid halo
   // that permits buried-only ores to become exposed on the actual map edge.
   if(oreBoundaryAir&&(x0+x-32768<terrain_bounds::MinBlock||x0+x-32768>terrain_bounds::MaxBlock||
@@ -47,7 +47,7 @@ KARMA_NOINLINE void oreProfiles(int x0,int z0,std::vector<uint16_t>&raw,std::arr
     int dx=0,dy=0,dz=0;
     for(int step=0;step<(b.type==2?b.size*2:(caveHabitatRefinement&&b.type==7?1:b.size));++step){
      int x=X+dx,y=Y+dy,z=Z+dz;
-     if(x>=0&&x<16&&z>=0&&z<16&&y>=(finalTerrainOres?-59:-56)&&y<320){
+     if(x>=0&&x<16&&z>=0&&z<16&&y>=(finalTerrainOres?-59:-56)&&y<Height-64){
       int i=z*16+x;auto const&s=surfaces[i];auto&block=raw[i*Height+y+64];
       bool copperExtra=b.type==2&&step>=b.size;
       bool permitted=y<=s.height-5&&s.volcanic<=.01&&!s.vent&&s.scarp<=.01;

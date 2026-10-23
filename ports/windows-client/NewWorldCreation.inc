@@ -7,6 +7,9 @@
 #include "mc/client/gui/screens/SceneFactory.h"
 #include "mc/client/gui/screens/interfaces/ISceneStack.h"
 #include "mc/client/gui/screens/models/IContentManager.h"
+#include "mc/resources/IResourcePackRepository.h"
+#include "mc/deps/core/file/Path.h"
+#include "mc/platform/UUID.h"
 #include "NewWorldFiles.h"
 #include "NewWorldStatus.h"
 
@@ -150,6 +153,7 @@ struct Job {
 };
 std::map<Facet*,std::shared_ptr<Job>> jobs;
 std::map<WorldCreationHelper*,std::shared_ptr<Job>> prepared;
+std::map<WorldCreationHelper*,std::shared_ptr<Job>> awaitingServer;
 bool alive(std::weak_ptr<bool> const& ref){auto p=ref.lock();return p&&*p;}
 void resetFacet(Facet&f,std::string const&error={}){
  facetField(f,&Facet::mInWorldCreation)=false;facetField(f,&Facet::mIsDirty)=true;
@@ -295,7 +299,7 @@ LL_TYPE_INSTANCE_HOOK(CreateFiles,ll::memory::HookPriority::Normal,WorldCreation
   *mLevelSettings->mDefaultSpawn=BlockPos{spawn.at("x").get<int>(),spawn.at("y").get<int>(),spawn.at("z").get<int>()};
   installPreparedWorld(root,j->path/"prepared");
   {std::lock_guard lock(freshWorldMutex);freshWorldSeeds[std::filesystem::weakly_canonical(root)]=j->seed;}
-  j->attached=true;prepared.erase(this);
+  j->attached=true;prepared.erase(this);awaitingServer[this]=j;
   j->trace("attached");
   terrain::log().info("Karma new world attached: {} seed={}",root.string(),j->seed);
   std::ofstream(diagnostics/"new-world-created.json")<<Json{{"world",root.string()},{"seed",j->seed},{"attached",true}}.dump(2);
@@ -310,10 +314,40 @@ LL_TYPE_INSTANCE_HOOK(CreateFiles,ll::memory::HookPriority::Normal,WorldCreation
  }
  return result;
 }
+LL_TYPE_INSTANCE_HOOK(CreateServer,ll::memory::HookPriority::Normal,WorldCreationHelper,&WorldCreationHelper::startLocalServer,bool){
+ auto found=awaitingServer.find(this);
+ if(found==awaitingServer.end())return origin();
+ auto j=found->second;
+ if(j->failed||j->cancelled)return false;
+ try{
+  auto root=std::filesystem::u8path(mContentManager.getWorldPath(*mLevelSummary->mId).value);
+  // This boundary is after native selected-pack copying and before native
+  // startLocalServerAsync constructs its world pack stack and dimensions.
+  // Re-merge here because the copy stage may have replaced the selection file.
+  auto uuid=installPreparedHeightPack(root,j->path/"prepared");
+  if(!uuid.empty()){
+   auto& repository=*mResourcePackRepository;
+   repository.addWorldResourcePacks(Core::Path(root));
+   repository.refreshPacks();
+   if(!repository.getResourcePackByUUID(mce::UUID::fromString(uuid)))
+    throw std::runtime_error("Height behavior pack was not registered before local server startup");
+  }
+  j->trace("height_pack_registered_before_server");
+  std::ofstream(diagnostics/"new-world-height-pack.json")<<Json{{"world",root.string()},
+   {"packUuid",uuid},{"repositoryRegistered",!uuid.empty()},{"stage","before-local-server"},
+   {"runtimeHeightVerified",false}}.dump(2);
+ }catch(std::exception const&e){
+  j->fail(std::string("主世界高度包接入失败：")+e.what());return false;
+ }
+ bool started=origin();
+ if(started)awaitingServer.erase(this);
+ return started;
+}
 LL_TYPE_INSTANCE_HOOK(CreateFacetClose,ll::memory::HookPriority::Normal,Facet,&Facet::$dtor,void){
  auto it=jobs.find(this);
  if(it!=jobs.end()){
-  auto j=it->second;j->cancel();std::erase_if(prepared,[&](auto const&p){return p.second==j;});jobs.erase(it);
+  auto j=it->second;j->cancel();std::erase_if(prepared,[&](auto const&p){return p.second==j;});
+  std::erase_if(awaitingServer,[&](auto const&p){return p.second==j;});jobs.erase(it);
  }
  origin();
 }
@@ -331,12 +365,12 @@ void enable(){
  std::error_code ignored;std::filesystem::remove(modFolder/"creation-abi-error.txt",ignored);
  std::ofstream(modFolder/"creation-abi.json")<<Json{{"supported",true},{"providerOffset",0x1f8},{"statusOffset",0x29}}.dump(2);
  terrain_runtime::HookTransaction hooks;
- hooks.add<CreateStage>("CreateStage");hooks.add<CreateFiles>("CreateFiles");hooks.add<CreateFacetClose>("CreateFacetClose");
+ hooks.add<CreateStage>("CreateStage");hooks.add<CreateFiles>("CreateFiles");hooks.add<CreateServer>("CreateServer");hooks.add<CreateFacetClose>("CreateFacetClose");
  hooks.commit();hooksInstalled=true;
  terrain::log().info("Karma create-world ABI verified: provider=0x1f8, status=0x29");
 }
 void disable(){
- for(auto const&[f,j]:jobs)j->cancel();jobs.clear();prepared.clear();
- if(hooksInstalled){CreateStage::unhook();CreateFiles::unhook();CreateFacetClose::unhook();hooksInstalled=false;}
+ for(auto const&[f,j]:jobs)j->cancel();jobs.clear();prepared.clear();awaitingServer.clear();
+ if(hooksInstalled){CreateStage::unhook();CreateFiles::unhook();CreateServer::unhook();CreateFacetClose::unhook();hooksInstalled=false;}
 }
 }

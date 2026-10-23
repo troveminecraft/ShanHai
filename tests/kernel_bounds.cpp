@@ -9,12 +9,12 @@ struct EngineBoundaryTest {
     }
     static void run(J const& data) {
         Engine e(data, {}, true);
-        constexpr int height = 384, cells = 256 * height;
+        int height = e.Height, cells = 256 * height, maxY = height-65;
         constexpr uint16_t guard = 60000;
         std::array<Surface, 256> surfaces{};
         for (auto& s : surfaces) s.kind = 1;
         auto& s = surfaces[255];
-        s = Surface{}; s.height = 317; s.glacier = .7; s.superGlacier = .2;
+        s = Surface{}; s.height = maxY-2; s.glacier = .7; s.superGlacier = .2;
         int X = 0, Z = 0; bool found = false;
         for (int z = -256; z < 256 && !found; ++z)
             for (int x = -256; x < 256 && !found; ++x) {
@@ -30,34 +30,34 @@ struct EngineBoundaryTest {
                 e.detailSites.get(key2(gx,gz), [] { return Engine::DetailSite{}; });
         std::vector<uint16_t> raw(cells+128, 0);
         std::fill(raw.begin()+cells, raw.end(), guard);
-        raw[255*height+317+64]=143;
+        raw[255*height+maxY-2+64]=143;
         e.landscapePass(X-15+32768,Z-15+32768,raw,surfaces);
         require(std::all_of(raw.begin()+cells,raw.end(),[](auto b){return b==guard;}),
                 "Landscape pass wrote beyond last column");
-        require(raw[255*height+383]==146, "Snow cap must remain at y=319");
+        require(raw[256*height-1]==146, "Snow cap must remain at last legal Y");
         // Same operation on an interior column must not overwrite the next bedrock.
         surfaces[254]=surfaces[255]; surfaces[255].kind=1;
         std::fill(raw.begin(),raw.end(),0); raw[255*height]=1;
-        raw[254*height+317+64]=143;
+        raw[254*height+maxY-2+64]=143;
         e.landscapePass(X-14+32768,Z-15+32768,raw,surfaces);
         require(raw[255*height]==1, "Landscape pass corrupted adjacent bedrock");
         surfaces[254].kind=1;
         e.fracturedGlaciers=true; e.refinedGlaciers=false; e.snowRifts=false;
         e.closedIceRifts=false; e.gradualIceEcotone=false; e.glacierEcologyEnabled=false;
         e.continuousGlacierBodies=false;
-        for (int y : {-64,-48,318,319}) {
+        for (int y : {-64,-48,maxY-1,maxY}) {
             s=Surface{}; s.height=y; s.glacier=1; s.superGlacier=1;
             std::fill(raw.begin(),raw.begin()+cells,143);
             std::fill(raw.begin()+cells,raw.end(),guard);
             auto rifts=e.glacierBody(32768,32768,raw,surfaces);
-            require(rifts[255].bodyTop<=319, "Glacier publishes out-of-world height");
+            require(rifts[255].bodyTop<=maxY, "Glacier publishes out-of-world height");
             require(std::all_of(raw.begin()+cells,raw.end(),[](auto b){return b==guard;}),
                     "Glacier wrote beyond last column");
         }
-        std::array<uint16_t,384> column{};
-        s.height=319;
+        std::vector<uint16_t> column(height);
+        s.height=maxY;
         bool rejected=false;
-        try { e.field.materialColumn(s,32768,32768,320,column.data()); }
+        try { e.field.materialColumn(s,32768,32768,maxY+1,column.data()); }
         catch(std::out_of_range const&) { rejected=true; }
         require(rejected,"Out-of-range material column must be rejected before writing");
     }
@@ -68,6 +68,8 @@ int main(int argc,char** argv) {
         if(argc!=2)throw std::runtime_error("expected generated native input");
         nativegen::J data;std::ifstream(argv[1])>>data;
         nativegen::EngineBoundaryTest::run(data);
-        std::cout<<"production snow/glacier passes preserve column bounds and neighbour bedrock\n";
+        data["config"]["generatedMaxYExclusive"]=512;
+        nativegen::EngineBoundaryTest::run(data);
+        std::cout<<"production snow/glacier passes preserve 384/576 column bounds and neighbour bedrock\n";
     } catch(std::exception const& e) { std::cerr<<e.what()<<'\n';return 1; }
 }

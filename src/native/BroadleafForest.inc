@@ -46,7 +46,7 @@ std::vector<OakPoint> oakSpine(Broadleaf const&a){
 }
 void broadleafForest(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>const&surfaces){
  auto trees=broadleaves(x0,z0,16);
- auto put=[&](int x,int y,int z,int id,bool wood=false){int X=x-x0,Z=z-z0;if(X<0||X>=16||Z<0||Z>=16||y<-60||y>319)return;auto const&s=surfaces[Z*16+X];if(y<=s.height||y<=s.water||y<=s.lava)return;auto&v=raw[(Z*16+X)*Height+y+64];if(v==0||(wood&&(v==11||v==13||v==15||v==17||v==66)))v=uint8_t(id);};
+ auto put=[&](int x,int y,int z,int id,bool wood=false){int X=x-x0,Z=z-z0;if(X<0||X>=16||Z<0||Z>=16||y<-60||y>Height-65)return;auto const&s=surfaces[Z*16+X];if(y<=s.height||y<=s.water||y<=s.lava)return;auto&v=raw[(Z*16+X)*Height+y+64];if(v==0||(wood&&(v==11||v==13||v==15||v==17||v==66)))v=uint8_t(id);};
  for(auto const&a:trees){if(nativeReserved(a.x,a.z)||!forestTreeKept(a.x,a.z))continue;
   auto spine=oakSpine(a);
   auto crown=[&](double cx,double cy,double cz,double r,double ry){
@@ -129,7 +129,7 @@ void broadleafForest(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,
   auto const&s=surfaces[z*16+x];if(!broadleafHabitat(s)||s.rock)continue;int h=s.height,X=x0+x,Z=z0+z;auto col=raw.data()+(z*16+x)*Height;
   if(col[h+64]!=4||col[h+65])continue;
   double patch=clamp(.5+understoryNoise.at(X/27.,Z/27.),0,1),pick=hash01(X,Z,terrainSeed^2451);bool shade=false;
-  for(int y=h+3;y<=std::min(h+18,319);y++)if(col[y+64]==11||col[y+64]==66){shade=true;break;}
+  for(int y=h+3;y<=std::min(h+18,Height-65);y++)if(col[y+64]==11||col[y+64]==66){shade=true;break;}
   if(shade&&patch>.58)col[h+64]=33;
   int gx=int(std::floor(X/16.)),gz=int(std::floor(Z/16.));
   int ax=gx*16+2+int(hash01(gx,gz,terrainSeed^2461)*12),az=gz*16+2+int(hash01(gx,gz,terrainSeed^2462)*12);

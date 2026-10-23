@@ -33,7 +33,7 @@ IceRegion iceRegion(int gx,int gz){return iceRegions.get(key2(gx,gz),[&]{
   double sea=INFINITY;
   for(int distance:{192,384,768,1280}){for(auto [sx,sz]:{std::pair{-1,0},std::pair{1,0},std::pair{0,-1},std::pair{0,1},std::pair{-1,-1},std::pair{1,1},std::pair{-1,1},std::pair{1,-1}}){
    auto shore=streamingRegions?regionalClimateSample(roundJS(r.x+dx+sx*distance)+32768,roundJS(r.z+dz+sz*distance)+32768):base(roundJS(r.x+dx+sx*distance)+32768,roundJS(r.z+dz+sz*distance)+32768);
-   if(shore.height<31&&shore.water==31)sea=std::min(sea,double(distance));
+   if(shore.height<seaLevelValue&&shore.water==seaLevelValue)sea=std::min(sea,double(distance));
   }if(std::isfinite(sea))break;}
   double score=c.T+sea/6400.;
   if(score<best){best=score;bx=r.x+dx;bz=r.z+dz;found=true;}

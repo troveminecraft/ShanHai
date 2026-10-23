@@ -2,13 +2,14 @@
 #include <set>
 #include "../WorldBounds.h"
 #include "Noise.h"
+#include "MountainHeight.h"
 #include "CaveNetwork.h"
 #include "FiniteCaves.h"
 #include "CavernGroups.h"
 #include "RegionalPlans.h"
 namespace nativegen {
 inline double num(J const&j,char const*k){return j.at(k).get<double>();}
-struct Surface {bool mushroom=false,mushroomZone=false;int badlands=0;int16_t seaCutLow=-32768,seaCutHigh=-32768;float seaBank=0,volcanicDeposit=1;double glacier=0,superGlacier=0,iceHabitat=0;int iceGround=-1;int iceThickness=0;bool iceSnow=false;int cavePoolBed=320,caveSealFloor=320;int aridType=0,aridTop=-1;double sandCover=1,desert=0,desertSand=0,desertCrest=0,desertPatch=0,oasis=0;int fluvialType=0,fluvialTop=-1;double riverShore=0,riverSlope=0,riverSection=0;int riverBedMaterial=-1;int riverBankWater=-32768;double riverBankEdge=INFINITY;bool riverDeposit=false,scarpWarped=false;int scarpCaveCeiling=319;int riverCutLow=-32768,riverCutHigh=-32768,riverCutWater=-32768;double riverOuter=0,scarp=0;int preRiverHeight=0,height=0,water=-32768,cliffLow=-32768,cliffHigh=-32768,drip=0,biome=0,kind=0,surf=0,treeK=1,rock=0,lake=0,aquifer=-1,lava=-32768;bool vent=false,lakeFrozen=false,volcanicMountainRock=false;double wetland=0,wetlandMoisture=0;int wetlandLevel=-32768;double mainRiver=0,riverBar=0,riverJunction=0,riverBankCut=0,river=0,soilSand=0,volcanicHot=0,estuary=0,volcanic=0,barren=0,ocean=0,coast=0,raw=0,T=0,H=0,ridge=0,e=0,continuous=0,mount=0,plateau=0,basin=0,stone=0,pillar=0,giant=0,treeD=0,rockCap=0;};
+struct Surface {int seaLevel=31;bool mushroom=false,mushroomZone=false;int badlands=0;int16_t seaCutLow=-32768,seaCutHigh=-32768;float seaBank=0,volcanicDeposit=1;double glacier=0,superGlacier=0,iceHabitat=0;int iceGround=-1;int iceThickness=0;bool iceSnow=false;int cavePoolBed=320,caveSealFloor=320;int aridType=0,aridTop=-1;double sandCover=1,desert=0,desertSand=0,desertCrest=0,desertPatch=0,oasis=0;int fluvialType=0,fluvialTop=-1;double riverShore=0,riverSlope=0,riverSection=0;int riverBedMaterial=-1;int riverBankWater=-32768;double riverBankEdge=INFINITY;bool riverDeposit=false,scarpWarped=false;int scarpCaveCeiling=319;int riverCutLow=-32768,riverCutHigh=-32768,riverCutWater=-32768;double riverOuter=0,scarp=0;int preRiverHeight=0,height=0,water=-32768,cliffLow=-32768,cliffHigh=-32768,drip=0,biome=0,kind=0,surf=0,treeK=1,rock=0,lake=0,aquifer=-1,lava=-32768;bool vent=false,lakeFrozen=false,volcanicMountainRock=false;double wetland=0,wetlandMoisture=0;int wetlandLevel=-32768;double mainRiver=0,riverBar=0,riverJunction=0,riverBankCut=0,river=0,soilSand=0,volcanicHot=0,estuary=0,volcanic=0,barren=0,ocean=0,coast=0,raw=0,T=0,H=0,ridge=0,e=0,continuous=0,mount=0,plateau=0,basin=0,stone=0,pillar=0,giant=0,treeD=0,rockCap=0;};
 struct ReliefNode{double v,relief,pos,corr;};
 struct Cliff{bool valid=false;double x=0,z=0,h=0,slope=0,nx=0,nz=0,crest=0;};
 class Field {
@@ -16,6 +17,9 @@ class Field {
  // Opt-in for the mobile runtime; desktop/BDS retain their existing defaults.
  bool localPlanningCulling=false;
  J const&data;J const&C;uint32_t terrainSeed;Density graph,caves;
+ int seaLevelValue=C.value("seaLevel",31);
+ int generatedMaxYExclusive=C.value("generatedMaxYExclusive",320);
+ int mountainPeakY=C.value("mountainPeakY",0);
  std::function<double(double,double,double)> offset,erosion,ridge,temp,humidity,cave;
  Perlin low,high,secondary,warpX,warpZ,stoneNoise,giantNoise,matNoise,rockNoise,treeNoise,biomeNoise;
  std::array<Cache<uint64_t,double>,2> rawNodes{{Cache<uint64_t,double>(8192),Cache<uint64_t,double>(8192)}};
@@ -50,11 +54,18 @@ class Field {
  double summit=smooth(num(q,"highReliefLo"),num(q,"highReliefHi"),rel)*smooth(num(q,"highPosLo"),num(q,"highPosHi"),pos);
  if(summit>0)detail+=summit*num(q,"highAmplitude")*(high.fbm(x/num(q,"highWavelength")+3.7,z/num(q,"highWavelength")+11.3,int(num(q,"highOctaves")),true)-num(q,"highRidgeMean"));
  auto const&s=q.at("secondary");double mask=smooth(num(s,"mountainLow"),num(s,"mountainHigh"),v);if(mask>0){double px=x-32768,pz=z-32768,dx=num(s,"warpBlocks")*warpX.at(px/num(s,"warpWavelength"),pz/num(s,"warpWavelength")),dz=num(s,"warpBlocks")*warpZ.at(px/num(s,"warpWavelength"),pz/num(s,"warpWavelength"));double u=(num(s,"rotationCos")*px-num(s,"rotationSin")*pz+num(s,"offsetX")+dx)/num(s,"wavelength"),w=(num(s,"rotationSin")*px+num(s,"rotationCos")*pz+num(s,"offsetZ")+dz)/num(s,"wavelength");detail+=mask*num(s,"amplitude")*(secondary.fbm(u,w,int(num(s,"octaves")),true)-num(s,"ridgeMean"));}
- auto const&sp=q.at("spike");double result=v1+detail+landformCorrection(x,z)-num(sp,"maxCut")*smooth(num(sp,"prominenceLo"),num(sp,"prominenceHi"),v-regional)*smooth(6,16,rel);return applyRegional?desertHeight(x,z,regionalHeight(x,z,result)):result;
+ auto const&sp=q.at("spike");double result=v1+detail+landformCorrection(x,z)-num(sp,"maxCut")*smooth(num(sp,"prominenceLo"),num(sp,"prominenceHi"),v-regional)*smooth(6,16,rel);result=applyRegional?desertHeight(x,z,regionalHeight(x,z,result)):result;
+ if(mountainPeakY){
+  auto const&g=C.at("giantForest");
+  double distance=std::hypot(x-32768-num(g,"centerX"),z-32768-num(g,"centerZ"));
+  double weight=smooth(num(g,"outerRadius")+64,num(g,"outerRadius")+320,distance);
+  result=mix(weight,result,raisedMountainHeight(result,mountainPeakY));
+ }
+ return result;
  }
  double uncliff(double x,double z){return shaped(x,z,vcont(x,z));}
  Cliff patch(int gx,int gz){return cliffs.get(key2(gx,gz),[&]{Cliff a;auto const&q=C.at("cliffs");auto const&s=C.at("stoneForest");if(hash01(gx,gz,terrainSeed^int(num(q,"seed")))>=num(q,"chance"))return a;double cx=(gx+.5)*num(q,"grid"),cz=(gz+.5)*num(q,"grid");if(largeStoneForestEnabled()&&std::hypot(cx-32768-num(s,"centerX"),cz-32768-num(s,"centerZ"))<=num(s,"outerRadius")+num(s,"edgeWarp")+num(q,"grid"))return a;for(int dz:{-12,0,12})for(int dx:{-12,0,12}){double x=cx+dx,z=cz+dz,h=uncliff(x,z);if(h<num(q,"minHeight")||h>num(q,"maxHeight"))continue;double ex=(uncliff(x+8,z)-uncliff(x-8,z))/16,ez=(uncliff(x,z+8)-uncliff(x,z-8))/16,sl=std::hypot(ex,ez);if(sl<num(q,"minSlope")||sl>num(q,"maxSlope")||(a.valid&&sl<=a.slope))continue;a={true,x,z,h,sl,ex/sl,ez/sl,0};}if(a.valid)a.crest=std::max(a.h,uncliff(a.x+a.nx*24,a.z+a.nz*24));return a;});}
- Surface compute(int wx,int wz,bool drainage=true){double x=(wx-32768)*num(C.at("epic"),"horizontalScale"),z=(wz-32768)*num(C.at("epic"),"horizontalScale");Surface s;double er=erosion(x,0,z);s.ridge=ridge(x,0,z);s.raw=224+192*offset(x,0,z);double v=shaped(wx,wz,-64+(s.raw+64)*.75);
+ Surface compute(int wx,int wz,bool drainage=true){double x=(wx-32768)*num(C.at("epic"),"horizontalScale"),z=(wz-32768)*num(C.at("epic"),"horizontalScale");Surface s;s.seaLevel=seaLevelValue;double er=erosion(x,0,z);s.ridge=ridge(x,0,z);s.raw=224+192*offset(x,0,z);double v=shaped(wx,wz,-64+(s.raw+64)*.75);
  smallStoneRelief(s,v,wx,wz);
  auto const&q=C.at("stoneForest");double px=wx-32768-num(q,"centerX"),pz=wz-32768-num(q,"centerZ"),d=std::hypot(px,pz);if(largeStoneForestEnabled()&&d<num(q,"outerRadius")+num(q,"edgeWarp")){
  s.stone=1-smooth(num(q,"innerRadius"),num(q,"outerRadius"),d+num(q,"edgeWarp")*stoneNoise.at(px/320,pz/320));if(s.stone>0){double best=-INFINITY,ph=0;Pillar const* site=nullptr;double rad=num(q,"largeRadiusMax")*1.165;for(int bz=int(std::floor((pz-rad)/128));bz<=int(std::floor((pz+rad)/128));bz++)for(int bx=int(std::floor((px-rad)/128));bx<=int(std::floor((px+rad)/128));bx++){auto it=pillarBins.find(key2(bx,bz));if(it==pillarBins.end())continue;for(auto i:it->second){auto const&a=pillars[i];double dx=px-a.x,dz=pz-a.z,r=std::hypot(dx,dz);if(r>a.outer)continue;double t=std::atan2(dz,dx),R=a.r*(1+.07*std::cos(2*t+a.phase)+.06*std::sin(3*t+a.phase*1.7)+.035*std::cos(5*t-a.phase)),gap=R-r;if(gap>best){best=gap;site=&a;}}}
@@ -94,13 +105,15 @@ class Field {
  }
 
  s.coast=s.stone>0?0:coastWeight(wx,wz,v);
- v+=s.coast*24*smooth(29,45,v)*(1-smooth(52,96,v));
+ v+=s.coast*24*smooth(seaLevelValue-2,seaLevelValue+14,v)*(1-smooth(seaLevelValue+21,seaLevelValue+65,v));
  oceanRelief(s,v,wx,wz);
  volcanicRelief(s,v,wx,wz);
- s.height=int(clamp(std::floor(v),-61,319));s.continuous=(v-31)/123;s.e=(s.height-31)/123.;auto const&tr=C.at("transition");double highW=smooth(145-num(tr,"domHeightWidth"),145+num(tr,"domHeightWidth"),s.raw);s.plateau=highW*smooth(.65-num(tr,"domErosionWidth"),.65+num(tr,"domErosionWidth"),er);s.mount=highW-s.plateau;s.basin=1-smooth(67-num(tr,"domHeightWidth"),67+num(tr,"domHeightWidth"),s.raw);
- double temperatureNoise=temp(x,0,z);s.T=(1-s.stone)*clamp(.62+temperatureNoise*.45-std::max(0.,s.raw-85)*.003,0,1)+s.stone*.67;s.H=(1-s.stone)*clamp(.52+humidity(x,0,z)*.45,.05,.95)+s.stone*.72;s.water=s.height<31?31:-32768;s.kind=s.height<31?(s.ridge<.1?1:3):0;waterSurface(s,wx,wz);s.preRiverHeight=s.height;if(drainage){riverRelief(s,wx,wz);junctionBed(s,wx,wz);}finalTerrainClimate(s,temperatureNoise,er);desertClimate(s,wx,wz);return s;
+ s.height=int(clamp(std::floor(v),-61,generatedMaxYExclusive-1));s.continuous=(v-seaLevelValue)/123;s.e=(s.height-seaLevelValue)/123.;auto const&tr=C.at("transition");double highW=smooth(145-num(tr,"domHeightWidth"),145+num(tr,"domHeightWidth"),s.raw);s.plateau=highW*smooth(.65-num(tr,"domErosionWidth"),.65+num(tr,"domErosionWidth"),er);s.mount=highW-s.plateau;s.basin=1-smooth(67-num(tr,"domHeightWidth"),67+num(tr,"domHeightWidth"),s.raw);
+ double temperatureNoise=temp(x,0,z);s.T=(1-s.stone)*clamp(.62+temperatureNoise*.45-std::max(0.,s.raw-85)*.003,0,1)+s.stone*.67;s.H=(1-s.stone)*clamp(.52+humidity(x,0,z)*.45,.05,.95)+s.stone*.72;s.water=s.height<seaLevelValue?seaLevelValue:-32768;s.kind=s.height<seaLevelValue?(s.ridge<.1?1:3):0;waterSurface(s,wx,wz);s.preRiverHeight=s.height;if(drainage){riverRelief(s,wx,wz);junctionBed(s,wx,wz);}finalTerrainClimate(s,temperatureNoise,er);desertClimate(s,wx,wz);return s;
  }
 public:
+ int seaLevel()const{return seaLevelValue;}
+ int generationHeight()const{return generatedMaxYExclusive+64;}
  J inspectMushroomIsland(int gx,int gz){auto a=mushroomIsland(gx,gz);return J{{"valid",a.valid},{"x",a.x-32768},{"z",a.z-32768},{"radius",a.r}};}
  J inspectRegionalDrainage(int gx,int gz){
   if(!streamingRegions)throw std::runtime_error("Regional recipe required");
@@ -151,6 +164,9 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
  J inspectVolcanoes(int min=terrain_bounds::MinBlock,int max=terrain_bounds::MaxBlock){return volcanoInventory(min,max);}
  explicit Field(J const&d,bool cullLocalPlans=false):data(d),C(d.at("config")),terrainSeed(C.at("seed").get<uint32_t>()),graph(d,true),caves(d,false),low(seedHash(terrainSeed,201)),high(seedHash(terrainSeed,211)),secondary(seedHash(terrainSeed,237)),warpX(seedHash(terrainSeed,238)),warpZ(seedHash(terrainSeed,239)),stoneNoise(seedHash(terrainSeed,308)),giantNoise(seedHash(terrainSeed,503)),matNoise(seedHash(terrainSeed,221)),rockNoise(seedHash(terrainSeed,222)),treeNoise(seedHash(terrainSeed,223)),biomeNoise(seedHash(terrainSeed,224)){
  localPlanningCulling=cullLocalPlans;
+ if(seaLevelValue<0||seaLevelValue>63)throw std::runtime_error("Sea level outside supported range");
+ if(generatedMaxYExclusive!=320&&generatedMaxYExclusive!=512)throw std::runtime_error("Unsupported generated height");
+ if(mountainPeakY!=0&&(mountainPeakY!=480||generatedMaxYExclusive!=512))throw std::runtime_error("Raised mountains require the 512-height profile");
  if(!d.contains("seedManifest")||d.at("seedManifest").at("runtimeSeed")!=terrainSeed)
   throw std::runtime_error("Seed package mismatch; rebuild with tools/build_seed.py");
  if(streamingRegions){if(!regional::supportedAlgorithm(d.at("regionalGeneration").at("algorithm")))throw std::runtime_error("Unsupported regional terrain recipe");streamingIdentity=regional::identity(d);}
@@ -191,8 +207,8 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
  s.soilSand=clamp(sand+4*sand*(1-sand)*soilDetail,0,1);
  // Low sandy coast is a shore, not a desert/grass ecotone. W[3]+W[4]
  // loses half its weight exactly at sea level, so use actual coast elevation.
- double beach=(1-smooth(33,39,s.height))*(1-s.coast);
- if(!s.lake&&s.stone==0&&s.volcanic==0&&s.height>=29)
+ double beach=(1-smooth(seaLevelValue+2,seaLevelValue+8,s.height))*(1-s.coast);
+ if(!s.lake&&s.stone==0&&s.volcanic==0&&s.height>=seaLevelValue-2)
   s.soilSand=std::max(s.soilSand,beach);
  if(snow>.5)s.surf=2;
  else if(s.soilSand>0)s.surf=7;
@@ -217,16 +233,16 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
  // Small streams share the surrounding biome's soil palette too. Reuse the
  // computed soil/snow/wetland fields; no neighbour-block or noise lookup.
  // The river-created slope alone must not draw a continuous stone outline.
- if(matchedRiverBanks&&s.riverBankWater>31&&std::isfinite(s.riverBankEdge))
+ if(matchedRiverBanks&&s.riverBankWater>seaLevelValue&&std::isfinite(s.riverBankEdge))
   s.rockCap*=1-(1-smooth(110.,165.,s.height))*(1-smooth(2.,6.,s.riverBankEdge));
  if(s.lake){s.surf=5;if(s.lake==1){s.treeD=0;s.giant=0;s.biome=s.lakeFrozen?19:18;}}
  if(s.volcanic>0){s.treeD*=1-s.volcanic;if(s.volcanic>.35){s.treeD=0;s.giant=0;s.biome=20;s.kind=4;}}
  // Open-water strength controls ocean ecology, not whether a submerged inlet
  // has a seabed. Otherwise narrow sea-level channels retain underwater grass.
- if((s.ocean>0||(coastalBeds&&s.stone<=.01&&s.volcanic==0))&&s.water==31&&s.height<31&&!s.lake){s.treeD=0;s.giant=0;s.kind=3;s.surf=6;s.biome=oceanBiome(s,x,z);}
+ if((s.ocean>0||(coastalBeds&&s.stone<=.01&&s.volcanic==0))&&s.water==seaLevelValue&&s.height<seaLevelValue&&!s.lake){s.treeD=0;s.giant=0;s.kind=3;s.surf=6;s.biome=oceanBiome(s,x,z);}
  if((s.river>0||s.riverDeposit)&&!s.lake){s.treeD=0;s.giant=0;s.biome=18;s.kind=2;s.surf=8;}
  riverSkin(s,x,z);
- if(s.barren>0){s.treeD*=std::pow(1-s.barren,3);if(s.height>=31&&dith(matNoise)<s.barren)s.biome=20;}
+ if(s.barren>0){s.treeD*=std::pow(1-s.barren,3);if(s.height>=seaLevelValue&&dith(matNoise)<s.barren)s.biome=20;}
  // Independent broadleaf subregion; does not modify height or drainage.
  if(s.biome==9&&s.T>=.42&&s.giant<.01&&s.stone<.01&&!s.kind&&!s.lake&&!s.river&&s.barren<.01&&s.coast<.1&&s.cliffLow==-32768&&biomeNoise.at(x/650.,z/650.)>.08&&birchSuitability(x,z)>.55){s.biome=23;s.treeK=2;}
  if(s.wetland>0){s.rockCap*=1-s.wetland;s.soilSand*=1-s.wetland;if(s.wetland>.40){s.biome=10;s.treeK=4;s.treeD=.006*s.wetland;}if(s.water>=s.height)s.treeD=0;}
@@ -253,8 +269,8 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
   // pre-drainage heights in the same cache entries already used for slope.
   // Include the outside edge's one-column halo, where rounding a tiny cut
   // to a block used to turn intact grass into isolated stone patches.
-  bool riverEdge=s.riverBankWater>31||east.riverBankWater>31||west.riverBankWater>31
-      ||south.riverBankWater>31||north.riverBankWater>31;
+  bool riverEdge=s.riverBankWater>seaLevelValue||east.riverBankWater>seaLevelValue||west.riverBankWater>seaLevelValue
+      ||south.riverBankWater>seaLevelValue||north.riverBankWater>seaLevelValue;
   if(naturalBankSlope&&riverEdge&&!s.scarpWarped){
    double natural=std::hypot(east.preRiverHeight-west.preRiverHeight,south.preRiverHeight-north.preRiverHeight)/2.;
    slope=std::min(slope,natural);
@@ -266,7 +282,7 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
  Surface surface(int x,int z,bool slope=true){if(evaluatingSmallPool){auto s=computeSurface(x,z,false);if(slope)surfaceRock(s,x,z);return s;}auto s=skinCache.get(key2(x,z),[&]{return computeSurface(x,z,false);});if(slope)surfaceRock(s,x,z);return s;}
  std::vector<std::array<int,3>> caveFalls(int cx,int cz){return cavernGroups.waterfallCandidates(cx,cz,[&](int X,int Z){return cavernHeight(X,Z);});}
  void materialColumn(Surface const&s,int x,int z,int top,uint16_t*col){
- if(top < -64 || top > 319 || s.height < -64 || s.height > 319)throw std::out_of_range("Material column outside world height");
+ if(top < -64 || top >= generatedMaxYExclusive || s.height < -64 || s.height >= generatedMaxYExclusive)throw std::out_of_range("Material column outside world height");
   int next=-60;
   if(groupedCaverns&&boundedAquifers&&waterEnabled&&s.volcanic<=0){
    // Deep uncut rock is uniform before the geology pass. Fill it once, then
@@ -292,7 +308,7 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
   }
   for(int y=next;y<=top;++y)col[y+64]=material(s,x,y,z);
  }
- uint8_t material(Surface const&s,int x,int y,int z){if(y<-64||y>319)return 0;if(y<-60)return 1;if(connectedCaves&&y<=-57)return 2;if(int v=volcanicMaterial(s,x,y,z);v>=0)return uint8_t(v);if(s.seaCutLow>-32768&&y>=s.seaCutLow&&y<=s.seaCutHigh)return y<=31?8:0;if(s.riverCutLow>-32768&&y>=s.riverCutLow&&y<=s.riverCutHigh)return y<=s.riverCutWater?8:0;if(s.cliffLow>-32768&&y>=s.cliffLow&&y<=s.cliffHigh)return 0;if(y>s.height){if(s.lava>=y)return 43;int dy=y-s.height;if(s.drip&&dy<=s.drip)return dy==s.drip?31:dy==s.drip-1?30:dy==1?28:29;return s.water>-32768&&y<=s.water?((s.river>0?false:s.lake==1?s.lakeFrozen:float(s.T)<.22)&&y==s.water?9:8):0;}if(y<=s.scarpCaveCeiling&&y<=s.height-caveRoof&&isCave(x,y,z,s.height)){if(boundedAquifers&&waterEnabled)return caveWaterMaterial(s,y,caveLavaFloor(x,z));if(s.aquifer<0)return y<waterline?8:0;if(s.aquifer==1&&y<=waterline+4)return 2;return s.aquifer==2&&y<waterline?8:0;}if(int b=badlandsMaterial(s,x,y,z);b>=0)return uint8_t(b);if(s.mushroom&&y>=s.height-4)return y==s.height?168:3;if(y<s.height-4)return 2;if(s.lava>=s.height&&s.lava>-32768)return 2;if(s.drip&&y==s.height)return 27;if(s.aridType&&y>=s.height-4)return y==s.height?s.aridTop:(s.aridType==3?48:(s.aridTop==2?2:(s.aridTop==3||s.aridTop==33)?3:(s.height-y<3?5:6)));if(glacierWetlands&&s.fluvialType&&s.iceGround>=0&&y>=s.height-3)return y==s.height?uint8_t(s.iceGround):2;if(s.fluvialType&&y>=s.height-3)return y==s.height?s.fluvialTop:(s.fluvialTop==5?5:3);if(s.surf==5){if(y<s.height-2)return 2;double pick=hash01(x,z,terrainSeed^9191^((y+64)*7381));return pick<.5?42:(s.lake==1?5:20);}if(s.surf==6)return oceanMaterial(s,x,y,z);if(s.surf==8)return riverMaterial(s,x,y,z);if(s.barren>0&&hash01(x,z,volcanicSeed^1409)<s.barren)return hash01(x,z,volcanicSeed^1407^((y+64)*7919))<.65?2:42;if(progressiveRiverBeds&&s.riverBedMaterial==5&&s.riverBankCut>0&&y>=s.height-2)return 5;if(!progressiveRiverBeds&&s.mainRiver>.4&&s.riverBar>.05&&s.riverBankCut>0&&y>=s.height-2&&(!alluvialBanks||(s.riverBankEdge<3&&s.height<=s.riverBankWater)))return 5;if(int desert=desertMaterial(s,x,y,z);desert>=0)return uint8_t(desert);if(s.iceGround>=0)return y==s.height?uint8_t(s.iceGround):(s.iceHabitat>=.10?2:3);if(s.rock)return 2;if(s.wetland>0&&s.surf!=5&&s.surf!=6&&s.surf!=8){double coverage=s.wetland*(s.water>=s.height?1.:.35+.65*s.wetlandMoisture);double patch=.48+.20*matNoise.at(x/18.,z/18.);if(coverage>patch)return y==s.height?85:3;}if(s.surf==7){
+ uint8_t material(Surface const&s,int x,int y,int z){if(y<-64||y>=generatedMaxYExclusive)return 0;if(y<-60)return 1;if(connectedCaves&&y<=-57)return 2;if(int v=volcanicMaterial(s,x,y,z);v>=0)return uint8_t(v);if(s.seaCutLow>-32768&&y>=s.seaCutLow&&y<=s.seaCutHigh)return y<=seaLevelValue?8:0;if(s.riverCutLow>-32768&&y>=s.riverCutLow&&y<=s.riverCutHigh)return y<=s.riverCutWater?8:0;if(s.cliffLow>-32768&&y>=s.cliffLow&&y<=s.cliffHigh)return 0;if(y>s.height){if(s.lava>=y)return 43;int dy=y-s.height;if(s.drip&&dy<=s.drip)return dy==s.drip?31:dy==s.drip-1?30:dy==1?28:29;return s.water>-32768&&y<=s.water?((s.river>0?false:s.lake==1?s.lakeFrozen:float(s.T)<.22)&&y==s.water?9:8):0;}if(y<=s.scarpCaveCeiling&&y<=s.height-caveRoof&&isCave(x,y,z,s.height)){if(boundedAquifers&&waterEnabled)return caveWaterMaterial(s,y,caveLavaFloor(x,z));if(s.aquifer<0)return y<waterline?8:0;if(s.aquifer==1&&y<=waterline+4)return 2;return s.aquifer==2&&y<waterline?8:0;}if(int b=badlandsMaterial(s,x,y,z);b>=0)return uint8_t(b);if(s.mushroom&&y>=s.height-4)return y==s.height?168:3;if(y<s.height-4)return 2;if(s.lava>=s.height&&s.lava>-32768)return 2;if(s.drip&&y==s.height)return 27;if(s.aridType&&y>=s.height-4)return y==s.height?s.aridTop:(s.aridType==3?48:(s.aridTop==2?2:(s.aridTop==3||s.aridTop==33)?3:(s.height-y<3?5:6)));if(glacierWetlands&&s.fluvialType&&s.iceGround>=0&&y>=s.height-3)return y==s.height?uint8_t(s.iceGround):2;if(s.fluvialType&&y>=s.height-3)return y==s.height?s.fluvialTop:(s.fluvialTop==5?5:3);if(s.surf==5){if(y<s.height-2)return 2;double pick=hash01(x,z,terrainSeed^9191^((y+64)*7381));return pick<.5?42:(s.lake==1?5:20);}if(s.surf==6)return oceanMaterial(s,x,y,z);if(s.surf==8)return riverMaterial(s,x,y,z);if(s.barren>0&&hash01(x,z,volcanicSeed^1409)<s.barren)return hash01(x,z,volcanicSeed^1407^((y+64)*7919))<.65?2:42;if(progressiveRiverBeds&&s.riverBedMaterial==5&&s.riverBankCut>0&&y>=s.height-2)return 5;if(!progressiveRiverBeds&&s.mainRiver>.4&&s.riverBar>.05&&s.riverBankCut>0&&y>=s.height-2&&(!alluvialBanks||(s.riverBankEdge<3&&s.height<=s.riverBankWater)))return 5;if(int desert=desertMaterial(s,x,y,z);desert>=0)return uint8_t(desert);if(s.iceGround>=0)return y==s.height?uint8_t(s.iceGround):(s.iceHabitat>=.10?2:3);if(s.rock)return 2;if(s.wetland>0&&s.surf!=5&&s.surf!=6&&s.surf!=8){double coverage=s.wetland*(s.water>=s.height?1.:.35+.65*s.wetlandMoisture);double patch=.48+.20*matNoise.at(x/18.,z/18.);if(coverage>patch)return y==s.height?85:3;}if(s.surf==7){
   int depth=s.height-y;
   double grain=(hash01(x,z,terrainSeed^1229)-.5)*.05;
   double mix=s.soilSand+grain;

@@ -6,6 +6,26 @@ sys.path.insert(0, str(P / 'tools'))
 from level_dat import read_file, write_file
 from select_spawn import select
 
+HEIGHT_PACK_FOLDER = 'shan-hai-build-height'
+
+def validate_new_world_recipe(data):
+    config = data.get('config', {})
+    required = dict(generatedMaxYExclusive=512, mountainPeakY=480, seaLevel=40)
+    if any(type(config.get(key)) is not int or config[key] != value for key,value in required.items()):
+        raise ValueError('New worlds require the 512-height, mountain-480, sea-40 recipe; rebuild with tools/build_streaming_seed.py')
+
+def install_height_pack(world):
+    """Only called inside a new, private preparation staging directory."""
+    pack = P/'data/build-height-pack'
+    manifest = json.loads((pack/'manifest.json').read_bytes())
+    header = manifest['header']
+    shutil.copytree(pack, world/'behavior_packs'/HEIGHT_PACK_FOLDER)
+    (world/'world_behavior_packs.json').write_text(json.dumps([
+        dict(pack_id=header['uuid'], version=header['version'])], indent=2), 'utf-8')
+    return dict(folder=HEIGHT_PACK_FOLDER, uuid=header['uuid'], version=header['version'],
+                files={str(f.relative_to(pack)).replace('\\','/'):sha(f)
+                       for f in sorted(pack.rglob('*')) if f.is_file()})
+
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -24,6 +44,7 @@ def prepare(source, template, destination, name, dll, creative=False, spawn_repo
     kernel = re.search(r'KernelVersion\[\]="([^"]+)"', (P/'src/NativeRuntime.h').read_text()).group(1)
     if data['version'] != kernel:
         raise ValueError('Seed package uses a different terrain kernel')
+    validate_new_world_recipe(data)
     ver, rootname, tags = read_file(template)
     if tags.get('Generator') != (3, 2) or 'TheVoid' not in tags.get('FlatWorldLayers', (8, ''))[1]:
         raise ValueError('Expected a verified TheVoid level.dat template')
@@ -52,6 +73,8 @@ def prepare(source, template, destination, name, dll, creative=False, spawn_repo
         base = json.loads((P/'data/runtime-template.json').read_bytes())
         meta = {k:base[k] for k in ['format','mode','version','origin','sizeBlocks','sizeChunks','productionOffset','minY','maxY','palette','biomeNames','backend','chunkCodec','vanillaBlocksOnly']}
         meta["version"]=data["version"]
+        meta.update(maxY=511,buildMaxYExclusive=512, generatedMaxYExclusive=512,
+                    buildHeightPack=install_height_pack(world))
         meta.update(terrainSeed=seed, worldSeed=seed, worldSeedIndependent=False, spawn=spawn,
                     pluginSha256=sha(dll), releaseId=json.loads((dll.parent/'manifest.json').read_bytes())['version'],
                     runtimeFiles={str(f.relative_to(runtime)).replace('\\','/'):sha(f) for f in (runtime/'native').iterdir()})
@@ -62,7 +85,8 @@ def prepare(source, template, destination, name, dll, creative=False, spawn_repo
         meta['sha256'] = hashlib.sha256(profile).hexdigest()
         (runtime/'terrain.json').write_text(json.dumps(meta, ensure_ascii=False, indent=2), 'utf-8')
         marker = dict(host='windows-client', worldName=name, worldSeed=seed, terrainSeed=seed,
-                      sha256=meta['sha256'], kernel=kernel)
+                      sha256=meta['sha256'], kernel=kernel,
+                      buildMaxYExclusive=512, generatedMaxYExclusive=512)
         marker_bytes = json.dumps(marker, ensure_ascii=False, indent=2).encode('utf-8')
         (world/'karma-worldgen.json').write_bytes(marker_bytes)
         (runtime/'active-world.json').write_bytes(marker_bytes)

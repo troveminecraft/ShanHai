@@ -81,7 +81,7 @@ KARMA_NOINLINE void undergroundEcology(int x0,int z0,std::vector<uint16_t>&raw,s
   int i=z*16+x,top=limit[i];if(top<-50||surfaces[i].glacier>.3)continue;
   int X=x0+x-32768,Z=z0+z-32768;auto col=raw.data()+i*Height;
   auto const&s=surfaces[i];double patch=habitat[i];
-  bool littoral=caveBiomesEnabled&&!stoneForestFalls&&s.stone>.002&&s.stone<.8&&s.water==31&&s.height<90;
+  bool littoral=caveBiomesEnabled&&!stoneForestFalls&&s.stone>.002&&s.stone<.8&&s.water==field.seaLevel()&&s.height<90;
   bool lush=caveBiomesEnabled&&!littoral&&patch>-.04&&s.H>.43&&s.desert<.1;
   bool damp=patch>.12&&(s.H>.48||s.aquifer==2);
   bool drip=patch<-.14&&rockField[i]>-.3;

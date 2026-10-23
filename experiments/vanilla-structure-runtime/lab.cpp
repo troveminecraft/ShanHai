@@ -64,6 +64,7 @@
 #include "mc/util/Random.h"
 #include "ll/api/memory/Hook.h"
 #include "mc/world/level/levelgen/WorldGenerator.h"
+#include "mc/world/level/levelgen/VoidGenerator.h"
 #include "mc/world/level/levelgen/structure/StructureFeatureRegistry.h"
 #include <filesystem>
 #include <fstream>
@@ -321,11 +322,22 @@ LL_TYPE_INSTANCE_HOOK(SurfaceMapProbe, ll::memory::HookPriority::Normal, WorldGe
     ++heightMapCalls;
     return terrainHeightMap(cp);
 }
-LL_TYPE_INSTANCE_HOOK(VillageHeightProbe, ll::memory::HookPriority::Normal, FlatWorldGenerator,
-                      &FlatWorldGenerator::$prepareHeights, void, BlockVolume &volume, ChunkPos const &cp,
+bool structureGeneratorMatches(void const *generator) {
+    // An ICF stub may belong to unrelated classes too: compare the known
+    // generator pointer before reading any member through the incoming this.
+    auto level=ll::service::getLevel();
+    if (!level || level->getLevelData().getLevelName() != activeWorld)
+        return false;
+    auto dimension=level->getDimension(0).lock();
+    return dimension && dimension->getWorldGenerator() == generator;
+}
+// The hook type is the common base because an ICF target can be entered with
+// either generator's this pointer. Never read derived Flat-only fields here.
+LL_TYPE_INSTANCE_HOOK(VillageHeightProbe, ll::memory::HookPriority::Normal, WorldGenerator,
+                      ll::memory::unchecked(&FlatWorldGenerator::$prepareHeights), void, BlockVolume &volume, ChunkPos const &cp,
                       std::vector<short> *heights, bool flag) {
     origin(volume, cp, heights, flag);
-    if (adaptHeightMap && heights)
+    if (adaptHeightMap && heights && structureGeneratorMatches(this))
         *heights = terrainHeightMap(cp);
 }
 J scanCandidates(Dimension &dim, int mode) {
@@ -383,7 +395,7 @@ J scanCandidates(Dimension &dim, int mode) {
             auto s = field->surface(x * 16 + 32768, z * 16 + 32768);
             if (s.biome != 11 || s.water >= s.height || s.lake || s.river || s.volcanic || s.stone)
                 continue;
-            int lo = 320, hi = -64;
+            int lo = INT_MAX, hi = -64;
             bool fit = true;
             for (int dz = -8; dz <= 32; dz += 8)
                 for (int dx = -8; dx <= 32; dx += 8) {
@@ -420,7 +432,7 @@ J scanCandidates(Dimension &dim, int mode) {
 }
 void plan(Dimension &dim, int x, int z) {
     initialize();
-    int lo = 320, hi = -64;
+    int lo = INT_MAX, hi = -64;
     unsigned desert = 0;
     for (int dz = -8; dz <= 32; dz += 4)
         for (int dx = -8; dx <= 32; dx += 4) {
@@ -440,7 +452,7 @@ void plan(Dimension &dim, int x, int z) {
     provider.calls = 0;
     provider.samples = J::array();
     auto t = std::chrono::steady_clock::now();
-    pending = std::make_unique<Start>(biomes, 31, chunk(x), chunk(z), provider);
+    pending = std::make_unique<Start>(biomes, field->seaLevel(), chunk(x), chunk(z), provider);
     double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t).count();
     if (!pending->isValid() || pending->pieces->empty())
         throw std::runtime_error("Vanilla blueprint returned no structure");
@@ -497,7 +509,7 @@ void place(Dimension &dim) {
     if (!pending || report.value("phase", std::string{}) != "planned")
         throw std::runtime_error("Plan first; no repeat placement");
     auto b = *pending->boundingBox;
-    BoundingBox local{{b.min.x - 16, -64, b.min.z - 16}, {b.max.x + 16, 319, b.max.z + 16}};
+    BoundingBox local{{b.min.x - 16, -64, b.min.z - 16}, {b.max.x + 16, (field->generationHeight()-65), b.max.z + 16}};
     ensureLoaded(dim, local);
     auto &blocks = dim.getBlockSourceFromMainChunkSource();
     J timings = J::array();
@@ -505,7 +517,7 @@ void place(Dimension &dim) {
         for (int x = chunk(b.min.x); x <= chunk(b.max.x); ++x) {
             Random random(input["config"]["seed"].get<uint32_t>() ^ uint(x) * 73856093u ^ uint(z) * 19349663u,
                           true);
-            BoundingBox clip{{x * 16, -64, z * 16}, {x * 16 + 15, 319, z * 16 + 15}};
+            BoundingBox clip{{x * 16, -64, z * 16}, {x * 16 + 15, (field->generationHeight()-65), z * 16 + 15}};
             auto t = std::chrono::steady_clock::now();
             bool ok = pending->postProcess(blocks, random, clip);
             timings.push_back(
@@ -529,7 +541,7 @@ void inspect(Dimension &dim) {
     }
     auto b = boxFromJson(report["box"]);
     b.min.y = std::max(-60, b.min.y - 16);
-    b.max.y = std::min(319, b.max.y + 8);
+    b.max.y = std::min((field->generationHeight()-65), b.max.y + 8);
     ensureLoaded(dim, b);
     auto &blocks = dim.getBlockSourceFromMainChunkSource();
     J counts = J::object(), chests = J::array(), interior = J::object(), functional = J::array();
@@ -653,7 +665,6 @@ class Mod {
         }
         structureStageFailed = false;
         hooks.add<SurfaceMapProbe>("SurfaceMapProbe");
-        hooks.add<VillageHeightProbe>("VillageHeightProbe");
         hooks.add<ModernGround>("ModernGround");
         hooks.add<VillageBuilderDepth>("VillageBuilderDepth");
         hooks.add<VillageBuilderBudget>("VillageBuilderBudget");
@@ -670,8 +681,7 @@ class Mod {
         hooks.add<FragmentChunkFastWrite>("FragmentChunkFastWrite");
         hooks.add<StructurePrefill>("StructurePrefill");
         hooks.add<DecorationTask>("DecorationTask");
-        hooks.add<AutoStage>("AutoStage");
-        hooks.add<NativeLocate>("NativeLocate");
+        installStructureGeneratorHooks(hooks);
         smallFeaturesEnabled = marker.value("smallFeatures", false);
         hooks.add<SmallWrite>("SmallWrite");
         hooks.add<SmallWriteSimple>("SmallWriteSimple");
@@ -926,7 +936,7 @@ class Mod {
                     for (int z = chunk(b.min.z); z <= chunk(b.max.z); ++z)
                         for (int x = chunk(b.min.x); x <= chunk(b.max.x); ++x)
                             queueStructureEntities(p.start,
-                                                   {{x * 16, -64, z * 16}, {x * 16 + 15, 319, z * 16 + 15}},
+                                                   {{x * 16, -64, z * 16}, {x * 16 + 15, (field->generationHeight()-65), z * 16 + 15}},
                                                    "village", anchor, seed);
                     out.success("LAB village entities queued {}", nativeEntityJobs.size());
                 } catch (std::exception const &e) {
@@ -1521,7 +1531,7 @@ class Mod {
                     else
                         for (auto cp : chunks)
                             placeIgloo(blocks, *pendingIgloo,
-                                       {{cp.x * 16, -64, cp.z * 16}, {cp.x * 16 + 15, 319, cp.z * 16 + 15}});
+                                       {{cp.x * 16, -64, cp.z * 16}, {cp.x * 16 + 15, (field->generationHeight()-65), cp.z * 16 + 15}});
                     for (auto cp : chunks)
                         d.getChunkSource().getExistingChunk(cp)->setUnsaved();
                     inspect(d);
@@ -1539,7 +1549,7 @@ class Mod {
                 try {
                     auto &d = dimension(o);
                     int x = std::get<int>(*c["x"].as_ptr()), z = std::get<int>(*c["z"].as_ptr());
-                    report = J{{"box", {x - 16, -60, z - 16, x + 24, 319, z + 24}}};
+                    report = J{{"box", {x - 16, -60, z - 16, x + 24, (field->generationHeight()-65), z + 24}}};
                     inspect(d);
                     out.success("LAB inspected wide");
                 } catch (std::exception const &e) {
@@ -1768,12 +1778,10 @@ class Mod {
         if (entityTickListener)
             ll::event::EventBus::getInstance().removeListener(entityTickListener);
         automaticStructures = false;
-        NativeLocate::unhook();
-        AutoStage::unhook();
+        uninstallStructureGeneratorHooks();
         DecorationTask::unhook();
         StructurePrefill::unhook();
         SurfaceMapProbe::unhook();
-        VillageHeightProbe::unhook();
         VillageBuilderDepth::unhook();
         VillageBuilderBudget::unhook();
         SmallWrite::unhook();

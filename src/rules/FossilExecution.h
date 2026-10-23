@@ -6,10 +6,10 @@ template<class Visit>void forEachFossilCandidate(ChunkPosition owner,uint32_t se
  for(int z=owner.z-1;z<=owner.z+1;++z)for(int x=owner.x-1;x<=owner.x+1;++x)if(fossilCandidate({x,z},seed))for(bool deep:{true,false})visit(ChunkPosition{x,z},deep);
 }
 template<class Writes,class Position,class Name>
-StructureBox fossilOutputBounds(ChunkPosition anchor,Writes const&writes,Position position,Name name){
+StructureBox fossilOutputBounds(ChunkPosition anchor,Writes const&writes,Position position,Name name,int maxY=319){
  if(writes.empty())throw std::runtime_error("Empty native fossil output");
  StructureBox box{{INT_MAX,INT_MAX,INT_MAX},{INT_MIN,INT_MIN,INT_MIN}};
- for(auto const&[key,value]:writes){auto p=position(key);if(!fossilBlockAllowed(name(value))||!fossilWriteInReach(anchor,p))throw std::runtime_error("Invalid original fossil output");
+ for(auto const&[key,value]:writes){auto p=position(key);if(!fossilBlockAllowed(name(value))||!fossilWriteInReach(anchor,p,maxY))throw std::runtime_error("Invalid original fossil output");
   box.min.x=std::min(box.min.x,p.x);box.min.y=std::min(box.min.y,p.y);box.min.z=std::min(box.min.z,p.z);box.max.x=std::max(box.max.x,p.x);box.max.y=std::max(box.max.y,p.y);box.max.z=std::max(box.max.z,p.z);
  }return box;
 }

@@ -53,6 +53,10 @@ void writeStatus(Level &level, bool closed = false) {
                 {"seed", level.getLevelData().getSeed().toUiString()},
                 {"kernel", NativeRuntime::KernelVersion},
                 {"generatedChunks", terrain::generated.load()},
+                {"flatGeneratedChunks", terrain::flatGenerated.load()},
+                {"voidGeneratedChunks", terrain::voidGenerated.load()},
+                {"buildMaxYExclusive", terrain::buildHeight.maxYExclusive},
+                {"generatedMaxYExclusive", terrain::buildHeight.generatedMaxYExclusive},
                 {"terrainErrors", terrain::errors.load()},
                 {"structureCalls", lab::stageCalls.load()},
                 {"structureErrors", lab::stageErrors.load()},
@@ -192,6 +196,9 @@ void bindWorld(Level &level, std::string const &name, LevelSettings const &setti
     terrain::clientWorldPath = root;
     terrain::Base = root / "karma";
     terrain::readData();
+    if (marker.value("buildMaxYExclusive",320) != terrain::buildHeight.maxYExclusive ||
+        marker.value("generatedMaxYExclusive",320) != terrain::buildHeight.generatedMaxYExclusive)
+        throw std::runtime_error("World marker height differs from its immutable terrain profile");
     if (terrain::nativeData.at("seedManifest").at("terrainSeed").get<std::string>() != seed)
         throw std::runtime_error("Terrain was baked for a different world seed");
     // Identity is the actual world directory and seed. Display names may be renamed.
@@ -202,6 +209,7 @@ void bindWorld(Level &level, std::string const &name, LevelSettings const &setti
     lab::clientWorldFolder = root;
     lab::folder = terrain::Base / "structures";
     std::filesystem::create_directories(lab::folder);
+    lab::saveGeneratorHookReport();
     lab::initialize();
     {
         std::lock_guard lock(lab::stageMutex);
@@ -248,6 +256,19 @@ LL_TYPE_INSTANCE_HOOK(WorldOpen, ll::memory::HookPriority::Normal, ServerLevel, 
     bool ok = origin(name, settings, experiments, id, biomes);
     if (ok && current == this) {
         try {
+            auto dimension = getOrCreateDimension(0).lock();
+            if (!dimension)
+                throw std::runtime_error("Overworld dimension is unavailable after initialization");
+            auto const &range = dimension->getHeightRange();
+            // Repository registration alone does not prove the pack was selected
+            // by the native server. Reject a mismatched dimension before joining.
+            std::ofstream(diagnostics / "world-height.json") << Json{
+                {"world",terrain::worldName},{"minY",int(range.mMin)},
+                {"maxYExclusive",int(range.mMax)},
+                {"generatedMaxYExclusive",terrain::buildHeight.generatedMaxYExclusive},
+                {"nativeDimensionVerified",int(range.mMin)==terrain_runtime::BuildHeight::MinY&&int(range.mMax)==terrain::buildHeight.maxYExclusive},
+                {"playerPlacementTested",false}}.dump(2);
+            terrain::buildHeight.requireDimension(range.mMin,range.mMax);
             // Finish native template loading on the level thread before chunk jobs can
             // mark decoration complete. Missing templates must not silently omit villages.
             lab::warmVillageTemplates(*this);
@@ -295,7 +316,7 @@ class Mod {
                 "Unsupported Minecraft executable; this adapter requires Windows 1.26.20.04.");
             return false;
         }
-        m.getLogger().info("Karma Windows client 0.1.1; local world creation enabled");
+        m.getLogger().info("Karma Windows client {}; local world creation enabled", shanhai_release::Windows);
         return true;
     }
     bool enable() {
@@ -304,10 +325,10 @@ class Mod {
         hooks.add<WorldOpen>("WorldOpen");
         hooks.add<WorldClose>("WorldClose");
         hooks.add<terrain::Generate>("terrain::Generate");
+        hooks.add<terrain::GenerateVoid>("terrain::GenerateVoid");
         hooks.add<terrain::ObserveLoad>("terrain::ObserveLoad");
         hooks.add<terrain::StreamPriority>("terrain::StreamPriority");
         hooks.add<lab::SurfaceMapProbe>("lab::SurfaceMapProbe");
-        hooks.add<lab::VillageHeightProbe>("lab::VillageHeightProbe");
         hooks.add<lab::ModernGround>("lab::ModernGround");
         hooks.add<lab::VillageBuilderDepth>("lab::VillageBuilderDepth");
         hooks.add<lab::VillageBuilderBudget>("lab::VillageBuilderBudget");
@@ -324,8 +345,7 @@ class Mod {
         hooks.add<lab::FragmentChunkFastWrite>("lab::FragmentChunkFastWrite");
         hooks.add<lab::StructurePrefill>("lab::StructurePrefill");
         hooks.add<lab::DecorationTask>("lab::DecorationTask");
-        hooks.add<lab::AutoStage>("lab::AutoStage");
-        hooks.add<lab::NativeLocate>("lab::NativeLocate");
+        lab::installStructureGeneratorHooks(hooks);
         hooks.add<lab::SmallWrite>("lab::SmallWrite");
         hooks.add<lab::SmallWriteSimple>("lab::SmallWriteSimple");
         hooks.add<lab::SmallWriteFast>("lab::SmallWriteFast");
@@ -365,6 +385,7 @@ class Mod {
         WorldOpen::unhook();
         WorldClose::unhook();
         terrain::Generate::unhook();
+        terrain::GenerateVoid::unhook();
         terrain::ObserveLoad::unhook();
         terrain::StreamPriority::unhook();
         lab::Mod::getInstance().disable();

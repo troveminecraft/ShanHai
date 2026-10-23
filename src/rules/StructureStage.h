@@ -10,8 +10,68 @@
 #include <set>
 #include <stdexcept>
 #include <utility>
+#include <span>
 
 namespace worldgen_rules {
+// Clang-cl x64 emits these two virtual-call thunks for the supported SDKs.
+// Decode the compiler's displacement; never bake a guessed vtable slot number.
+inline std::optional<unsigned> generatorVirtualSlot(std::span<uint8_t const> code) {
+    constexpr std::array<uint8_t,9> debugPrefix{0x50,0x48,0x89,0x0c,0x24,0x48,0x8b,0x0c,0x24};
+    bool spilled=code.size()>=debugPrefix.size() && std::equal(debugPrefix.begin(),debugPrefix.end(),code.begin());
+    if(spilled)code=code.subspan(debugPrefix.size());
+    if(code.size()<10 || code[0]!=0x48 || code[1]!=0x8b || code[2]!=0x01 || code[3]!=0x48 || code[4]!=0x8b) return {};
+    uint32_t displacement=0;size_t end=0;
+    if(code[5]==0x40 && code[6]<0x80) {displacement=code[6];end=7;}
+    else if(code[5]==0x80 && code.size()>=13) {
+        for(unsigned i=0;i<4;++i)displacement|=uint32_t(code[6+i])<<(8*i);
+        end=10;
+    } else return {};
+    if(spilled) {
+        if(code.size()<end+5 || code[end]!=0x41 || code[end+1]!=0x5a)return {};
+        end+=2;
+    }
+    if(code[end]!=0x48 || code[end+1]!=0xff || code[end+2]!=0xe0 ||
+       displacement%sizeof(void*) || displacement>=128*sizeof(void*)) return {};
+    return unsigned(displacement/sizeof(void*));
+}
+// Multiple generator classes may share a folded native stub. Install a detour
+// once per address, and route only this mod's primary dimension through it.
+inline bool secondaryGeneratorHook(uintptr_t primary, uintptr_t secondary) {
+    if (!primary || !secondary)
+        throw std::runtime_error("Missing native generator hook target");
+    return primary != secondary;
+}
+template<size_t N, class Write>
+void replaceGeneratorSlots(std::array<void**,N> const &slots, std::array<void*,N> const &expected,
+                           std::array<void*,N> const &replacement, Write write) {
+    for(size_t i=0;i<N;++i) {
+        if(!slots[i] || !expected[i] || !replacement[i] || *slots[i]!=expected[i])
+            throw std::runtime_error("Native generator vtable does not match SDK targets");
+        for(size_t j=0;j<i;++j) if(slots[i]==slots[j])
+            throw std::runtime_error("Duplicate native generator vtable slot");
+    }
+    size_t applied=0;
+    try {
+        for(;applied<N;++applied) write(slots[applied],replacement[applied]);
+    } catch(...) {
+        while(applied) {--applied;write(slots[applied],expected[applied]);}
+        throw;
+    }
+}
+template<size_t N, class Write>
+void restoreGeneratorSlots(std::array<void**,N> const &slots,std::array<void*,N> const &expected,
+                           std::array<void*,N> const &replacement,Write write) {
+    for(size_t i=N;i>0;--i)
+        if(slots[i-1] && *slots[i-1]==replacement[i-1]) write(slots[i-1],expected[i-1]);
+}
+template <class Origin, class Stage>
+bool afterStructureDecoration(bool target, bool failed, Origin origin, Stage stage) {
+    if (!target)
+        return origin();
+    if (failed || !origin())
+        return false;
+    return stage();
+}
 // Native decoration already supplies its owner. Keep it scoped to the exact
 // synchronous task/view; random chunk selection is not an ownership API.
 template <class View, class Chunk> class DecorationTaskScope {
@@ -26,6 +86,9 @@ template <class View, class Chunk> class DecorationTaskScope {
     DecorationTaskScope(DecorationTaskScope const &) = delete;
     DecorationTaskScope &operator=(DecorationTaskScope const &) = delete;
     ~DecorationTaskScope() { current = previous; }
+    static Chunk *ownerIf(View const &view) {
+        return current && current->view == &view ? current->owner : nullptr;
+    }
     static Chunk &ownerFor(View const &view) {
         if (!current || current->view != &view)
             throw std::runtime_error("Native decoration task context missing or view mismatched");

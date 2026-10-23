@@ -20,7 +20,8 @@ struct FrozenCaptureProgram {
  FrozenCaptureSpec spec;std::map<VillageXZ,FrozenCaptureFragment>owners;
  size_t writes{},chests{},brushable{},frames{},classifiedStates{};
 };
-inline FrozenCaptureSpec planFrozenCapture(FrozenCaptureKind kind,ChunkPosition anchor,uint32_t seed,StructureBox bounds,int floor,size_t pieces){
+inline FrozenCaptureSpec planFrozenCapture(FrozenCaptureKind kind,ChunkPosition anchor,uint32_t seed,StructureBox bounds,int floor,size_t pieces,int maxY=319){
+ if(maxY!=319&&maxY!=511)throw std::runtime_error("Unsupported native capture world height");
  if(!bounds.valid()||pieces<1||pieces>4096)throw std::runtime_error("Invalid native capture descriptor");
  int margin=kind==FrozenCaptureKind::Portal?16:8;
  auto checked=[](int64_t n){if(n<INT_MIN||n>INT_MAX)throw std::runtime_error("Native capture coordinate overflow");return int(n);};
@@ -29,11 +30,11 @@ inline FrozenCaptureSpec planFrozenCapture(FrozenCaptureKind kind,ChunkPosition 
  int minZ=cell(checked(int64_t(bounds.min.z)-margin)),maxZ=cell(checked(int64_t(bounds.max.z)+margin));
  int64_t chunks=(int64_t(maxX)-minX+1)*(int64_t(maxZ)-minZ+1);
  if(chunks<1||chunks>(kind==FrozenCaptureKind::Portal?64:2048))throw std::runtime_error("Native capture chunk limit exceeded");
- StructureBox full{{checked(int64_t(minX)*16),-64,checked(int64_t(minZ)*16)},{checked(int64_t(maxX)*16+15),319,checked(int64_t(maxZ)*16+15)}};
+ StructureBox full{{checked(int64_t(minX)*16),-64,checked(int64_t(minZ)*16)},{checked(int64_t(maxX)*16+15),maxY,checked(int64_t(maxZ)*16+15)}};
  if(full.min.x< -30000000||full.min.z< -30000000||full.max.x>=30000000||full.max.z>=30000000)throw std::runtime_error("Native capture footprint outside game coordinates");
  StructureBox scan=full;
  scan.min.y=int(std::max<int64_t>(-58,int64_t(kind==FrozenCaptureKind::Portal?floor:bounds.min.y)-24));
- scan.max.y=int(std::min<int64_t>(319,int64_t(kind==FrozenCaptureKind::Portal?floor:bounds.max.y)+(kind==FrozenCaptureKind::Portal?48:8)));
+ scan.max.y=int(std::min<int64_t>(maxY,int64_t(kind==FrozenCaptureKind::Portal?floor:bounds.max.y)+(kind==FrozenCaptureKind::Portal?48:8)));
  if(!scan.valid())throw std::runtime_error("Native capture has no valid vertical span");
  int64_t cells=chunks*256*(int64_t(scan.max.y)-scan.min.y+1);
  // Bound both the native scratch footprint and the temporary before-image.

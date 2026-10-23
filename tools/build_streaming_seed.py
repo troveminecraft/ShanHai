@@ -6,7 +6,11 @@ from seed_progress import ProgressReporter
 from process_guard import run_checked
 P=Path(__file__).resolve().parents[1]
 
+def height_settings(data):
+    data["config"].update(seaLevel=40,maxY=511,generatedMaxYExclusive=512,mountainPeakY=480)
+
 def finish_recipe(data):
+    height_settings(data)
     data['regionalGeneration']=dict(algorithm='regional-drainage-v2',coreBlocks=2048,haloBlocks=512,
                                     samplePitch=64,worldBounds=None,boundsMode='infinite',persistentPlans=True)
     data['rivers']=dict(algorithm='regional-drainage-v2',cutBanks=10,naturalBankSlope=1,sectionProfiles=1,
@@ -19,7 +23,7 @@ def build(seed,output,status=None,native_tool=None):
     output=Path(output);output.parent.mkdir(parents=True,exist_ok=True)
     progress=ProgressReporter(status);progress.stage(0,.65,'正在建立种子与区域生成规则')
     run_checked(['node',str(P/'tools/seed/build.mjs'),seed,str(P/'data/seed-template.json'),str(output)],timeout=120,stage="seed recipe")
-    data=json.loads(output.read_bytes());candidates=data['seedManifest'].pop('giantCandidates')
+    data=json.loads(output.read_bytes());height_settings(data);candidates=data['seedManifest'].pop('giantCandidates')
     # Only sparse seed landmarks are resolved here, preserving the existing
     # special-forest selection policy. No desert, lake or river survey runs.
     sample=deepcopy(data);sample['config']['regionalTerrain']['enabled']=False

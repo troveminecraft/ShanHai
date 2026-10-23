@@ -7,7 +7,7 @@ void safeDestination(Dimension& d,int type,int x,int z){
  ensureLoaded(d,b);auto& blocks=d.getBlockSourceFromMainChunkSource();bool aquatic=type==2||type==3||type==5;
  if(aquatic){int xx=(b.min.x+b.max.x)/2,zz=(b.min.z+b.max.z)/2;for(int y=35;y<60;++y)if(blocks.getBlock({xx,y,zz}).getTypeName()=="minecraft:air"&&blocks.getBlock({xx,y+1,zz}).getTypeName()=="minecraft:air"){std::ofstream(folder/"safe-destination.json")<<J{{"x",xx},{"y",y},{"z",zz},{"kind","surface"},{"verifiedAir",true}}.dump(2);return;}}
  std::optional<BlockPos> best;int64_t distance=INT64_MAX;
- for(int z=b.min.z;z<=b.max.z;++z)for(int x=b.min.x;x<=b.max.x;++x)for(int y=std::max(-59,b.min.y);y<=std::min(310,b.max.y+3);++y){
+ for(int z=b.min.z;z<=b.max.z;++z)for(int x=b.min.x;x<=b.max.x;++x)for(int y=std::max(-59,b.min.y);y<=std::min((field->generationHeight()-74),b.max.y+3);++y){
   auto const&floor=blocks.getBlock({x,y-1,z}).getTypeName();if(floor=="minecraft:air"||floor=="minecraft:water"||floor=="minecraft:lava"||removablePlant(floor))continue;
   if(blocks.getBlock({x,y,z}).getTypeName()!="minecraft:air"||blocks.getBlock({x,y+1,z}).getTypeName()!="minecraft:air")continue;
   int64_t dx=x-(b.min.x+b.max.x)/2,dz=z-(b.min.z+b.max.z)/2;int64_t score=dx*dx+dz*dz;if(score<distance){distance=score;best=BlockPos{x,y,z};}

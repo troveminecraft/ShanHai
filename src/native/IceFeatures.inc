@@ -4,11 +4,13 @@ KARMA_NOINLINE void iceFeatures(int x0,int z0,std::vector<uint16_t>&raw,std::arr
  bool any=false;for(auto const&s:surfaces)any|=s.glacier>.12;if(!any)return;
  // Snapshot the empty cave cells before decorating. Neighbour decisions must
  // not depend on whether an adjacent column already received an icicle.
+ // The cave-decoration band remains world Y=-16..128 (relative 48..192),
+ // independent of generated mountain height. Never index this mask above it.
  std::array<std::array<uint64_t,6>,256> air{};
  for(int i=0;i<256;++i)for(int y=48;y<193;++y)if(raw[i*Height+y]==0)air[i][y/64]|=1ULL<<(y%64);
  for(int z=0;z<16;++z)for(int x=0;x<16;++x){int i=z*16+x;auto const&s=surfaces[i];if(s.glacier<.12)continue;
   auto col=raw.data()+i*Height;int X=x0+x-32768,Z=z0+z-32768;
-  if(refinedGlaciers&&!glacierEcologyEnabled)for(int y=std::max(-56,s.height-2);y<=std::min(319,s.height+2);++y)if(col[y+64]==7||col[y+64]==23)col[y+64]=143;
+  if(refinedGlaciers&&!glacierEcologyEnabled)for(int y=std::max(-56,s.height-2);y<=std::min(Height-65,s.height+2);++y)if(col[y+64]==7||col[y+64]==23)col[y+64]=143;
   if(s.water>s.height&&s.glacier>.35&&s.water<=s.height+80)col[s.water+64]=9;
   if(s.kind||s.river||s.lake||(finalTerrainOres?(s.iceGround!=143&&(gradualIceEcotone||s.superGlacier<.35)):s.glacier<.30))continue;
   int lo=std::max(-56,s.height-s.iceThickness+1);
@@ -57,7 +59,7 @@ KARMA_NOINLINE void iceFeatures(int x0,int z0,std::vector<uint16_t>&raw,std::arr
   auto s=field.surface(X+32768,Z+32768,false);bool large=s.superGlacier>.65;
   if(s.glacier<.60||s.river||s.lake||s.water>=s.height||s.scarp>.01||s.cliffLow!=-32768||r(51035)>(large?.78:.38))continue;
   double radius=large?22+16*r(51037):3+4*r(51037),rx=radius,rz=radius*(.72+.28*r(51039));
-  int height=std::min(large?80+int(r(51041)*65):12+int(r(51041)*28),313-s.height);if(height<(large?55:10))continue;
+  int height=std::min(large?80+int(r(51041)*65):12+int(r(51041)*28),Height-71-s.height);if(height<(large?55:10))continue;
   bool valid=true;
   for(auto [dx,dz]:{std::pair{-int(rx),0},std::pair{int(rx),0},std::pair{0,-int(rz)},std::pair{0,int(rz)}}){auto t=field.surface(X+dx+32768,Z+dz+32768,false);if(t.glacier<.4||t.river||t.lake||t.water>=t.height||t.volcanic>.01||std::abs(t.height-s.height)>18)valid=false;}
   if(!valid)continue;double phase=r(51043)*6.283185307179586;
