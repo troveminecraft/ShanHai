@@ -21,6 +21,7 @@ def prepare(output):
   data['config'].pop('mountainPeakY',None)
   data['config'].pop('badlandsRegions',None)
   data['config'].pop('smallPoolsVersion',None)
+  data['config'].pop('riverBankSurvey',None)
   data['regionalGeneration']['algorithm']='regional-drainage-v2'
   data['rivers']['algorithm']='regional-drainage-v2'
   path.write_text(json.dumps(data,separators=(',',':')),'utf-8')

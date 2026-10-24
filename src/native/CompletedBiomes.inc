@@ -73,7 +73,7 @@ void applyBadlands(Surface&s,int x,int z,double province,bool reshape){
   s.badlands=2;s.biome=26;
   double pillar=smooth(.12,.3,variant)*smooth(.05,.40,mesaNoise.at(x/45.+19,z/45.-7))*smooth(.12,.24,province);
   double roof=18+18*clamp(.5+mesaNoise.at(x/120.-31,z/120.+23),0,1);
-  s.height=std::min(regionalBadlands?generatedMaxYExclusive-16:240,s.height+int(std::floor(roof*pillar)));
+  if(!coherentBadlands)s.height=std::min(regionalBadlands?generatedMaxYExclusive-16:240,s.height+int(std::floor(roof*pillar)));
  }else if(reshape&&s.height>=76){
   s.badlands=3;s.biome=27;
   if(variant<-.12){s.badlands=4;s.biome=28;s.treeK=1;s.treeD=.0014;}

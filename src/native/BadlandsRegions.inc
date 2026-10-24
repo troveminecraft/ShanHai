@@ -1,6 +1,7 @@
 // Opt-in province recipe. Old worlds keep the 0.1.5 surface selector unchanged.
 bool regionalBadlands=C.value("badlandsRegions",0)>=1;
-bool raisedBadlands=C.value("badlandsRegions",0)==2;
+bool raisedBadlands=C.value("badlandsRegions",0)>=2;
+bool coherentBadlands=C.value("badlandsRegions",0)>=3;
 std::unique_ptr<J> provinceSamplingData;
 std::unique_ptr<Field> provinceSamplingField;
 Surface provinceSample(int x,int z){
@@ -54,7 +55,22 @@ double badlandsHeight(double x,double z,double height){
  double shelf=-d+42*mesaNoise.at(x/160.+11,z/160.-9),rise=32;
  // Short bevels between broad shelves expose real terracotta cliff faces.
  for(int tier=1;tier<=4;++tier)rise+=22*smooth(tier*100.-4,tier*100.+4,shelf);
+ if(coherentBadlands){
+  // Eroded pillars belong to the terrain surveyed by drainage. Adding them
+  // after climate/river selection made entire pillars appear at a one-cell
+  // biome threshold (seed 11: a 26-block step beside a glacier exclusion).
+  double variant=mesaNoise.at(x/850.,z/850.);
+  double pillar=smooth(.12,.3,variant)*smooth(.05,.40,mesaNoise.at(x/45.+19,z/45.-7));
+  double roof=18+18*clamp(.5+mesaNoise.at(x/120.-31,z/120.+23),0,1);
+  rise+=roof*pillar*smooth(0.,48.,-d);
+ }
  return std::min(double(generatedMaxYExclusive-32),height+rise*smooth(0.,36.,-d)*smooth(seaLevelValue+2.,seaLevelValue+26.,height)*forest);
+}
+void badlandsClimate(double&temperature,double&humidity,int x,int z){
+ if(!coherentBadlands)return;
+ double w=dryHabitatWeight(x,z);
+ temperature=mix(w,temperature,std::max(temperature,.78));
+ humidity=mix(w,humidity,std::min(humidity,.35));
 }
 double dryHabitatWeight(int x,int z){
  if(!raisedBadlands)return 0;
