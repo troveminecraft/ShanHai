@@ -6,6 +6,17 @@
 #include <cstdint>
 
 namespace test_teleport {
+// A sand separator around a mesa is not a representative desert destination.
+template<class S> bool desertInterior(S const&s){
+    return s.biome==11 && !s.badlandsDesert && s.desert>=.5 &&
+        s.water<s.height && s.lava<s.height && !s.lake && s.river==0 &&
+        s.iceHabitat<=.01 && s.wetland<=.01 && s.stone<=.01 && s.volcanic<=.01;
+}
+template<class Sample> bool desertDestination(int x,int z,Sample sample){
+    for(int dz:{-64,0,64})for(int dx:{-64,0,64})
+        if(!desertInterior(sample(x+dx,z+dz)))return false;
+    return true;
+}
 inline bool validY(int y,int maxYExclusive){
     return (maxYExclusive==320||maxYExclusive==512)&&y>=-58&&y<=maxYExclusive-2;
 }
@@ -36,14 +47,13 @@ inline std::optional<Destination> destination(int id, int biomeCount) {
 }
 struct Update { int id; char const* name; char const* content; };
 inline constexpr Update updates[]{
-    {115, "恶地", "提高陶瓦高原海拔，增加阶地、陡坡和悬崖"},
-    {130, "恶地高原", "更高的连续高原；外围保留沙漠过渡和红沙海岸"},
-    {111, "沙漠", "与恶地共同增加干湿缓冲，避免紧邻丛林、沼泽等湿润群系"},
-    {116, "河流", "共线河段加入贝塞尔弯曲，保留支流汇流点"},
-    {108, "平原", "水坑水面与坑底升高一格，部分形成两至三个连片水坑"}
+    {116, "河流", "逐格校验两岸，支流寻找更低汇流点，修复高出岸边的水带"},
+    {115, "恶地", "统一干旱气候与地形高度，修复冰川插入和群系边缘切面"},
+    {129, "侵蚀恶地", "石柱先于河流规划生成，避免末段突然加高"},
+    {111, "沙漠", "传送点检查周围大片沙漠，排除恶地边缘沙带"}
 };
 inline std::string joinMessage() {
-    std::string result = "§9[山&海] 最近地形更新（0.1.9，待游戏内验收）";
+    std::string result = "§9[山&海] 最近地形更新（0.1.10，待游戏内验收）";
     for (auto const& u : updates)
         result += "\n§9[" + std::to_string(u.id) + "] " + u.name + "：" + u.content;
     return result + "\n§9/karma 查看全部群系/结构；/karma tp <序号> [模式]（1 创造 / 0 观察者；省略保持当前模式）。§r";

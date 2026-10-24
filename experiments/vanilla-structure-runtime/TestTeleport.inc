@@ -33,6 +33,7 @@ constexpr TestBiomeGroup testBiomes[]={
 };
 template<class S> bool testBiomeMatches(int i,S const&s){
  int b=testBiomes[i].biome;
+ if(b==11)return test_teleport::desertInterior(s);
  if(b>=0)return s.biome==b||(b==15&&s.biome>=26&&s.biome<=28)||(b==7&&s.biome==8)||(b==6&&s.biome==17)||(b==11&&s.biome==16);
  switch(b){case -1:return s.glacier>.5&&s.superGlacier<.1;case -2:return s.superGlacier>.5;
  case -3:return s.volcanic>.5;case -4:return s.stone>.5;case -5:return s.giant>.5;default:return false;}
@@ -62,8 +63,10 @@ struct StructureTestTeleport {
   }
   auto s=field->surface(x+32768,z+32768);
   auto y=test_teleport::aboveSurface(std::max({s.height+s.drip,s.water,s.lava}),8,maxYExclusive());
-  if(y)for(size_t i=0;i<biomeSpots.size();++i)if(!biomeSpots[i].is_object()&&testBiomeMatches(int(i),s))
+  if(y)for(size_t i=0;i<biomeSpots.size();++i)if(!biomeSpots[i].is_object()&&testBiomeMatches(int(i),s)){
+   if(testBiomes[i].biome==11&&!test_teleport::desertDestination(x,z,[&](int X,int Z){return field->surface(X+32768,Z+32768);}))continue;
    biomeSpots[i]={{"x",x},{"y",*y},{"z",z},{"family",testBiomes[i].key}};
+  }
  }
 
  std::unique_ptr<nativegen::Field> terrain;
@@ -102,7 +105,7 @@ struct StructureTestTeleport {
  void initialize(J const&config){
   enabled=config.value("testTeleport",false);if(!enabled)return;
   auto activation=entity_store::read(terrainFolder()/"active-world.json");
-  identity=activeWorld+":"+activation.at("worldSeed").get<std::string>()+":"+activation.at("sha256").get<std::string>()+":height-v1";
+  identity=activeWorld+":"+activation.at("worldSeed").get<std::string>()+":"+activation.at("sha256").get<std::string>()+":height-v1:desert-interior-v1";
   if(field->unbounded())searchRadius=std::clamp(config.value("testSearchRadius",20000)/20000,1,5)*20000;
   for(auto&s:spots)s=J::array();
   biomeCells=structure_test::expandingCells(16,searchRadius);

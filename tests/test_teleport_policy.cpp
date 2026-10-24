@@ -8,6 +8,11 @@
 #include <iostream>
 int main() {
     using namespace test_teleport;
+    struct Land {int biome=11,height=70,water=-32768,lava=-32768,lake=0;bool badlandsDesert=false;double desert=1,river=0,iceHabitat=0,wetland=0,stone=0,volcanic=0;};
+    Land good;assert(desertDestination(0,0,[&](int,int){return good;}));
+    auto separator=good;separator.badlandsDesert=true;assert(!desertInterior(separator));
+    auto narrow=good;narrow.desert=.01;assert(!desertInterior(narrow));
+    assert(!desertDestination(0,0,[&](int x,int z){return x==64&&z==-64?separator:good;}));
     assert(mode(0) == Mode::Observer && mode(1) == Mode::Creative);
     for (int i : {-1, 2, 6, INT_MIN, INT_MAX}) assert(!mode(i));
     assert(aboveSurface(480,8,512)==488);
