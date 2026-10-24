@@ -47,13 +47,11 @@ inline std::optional<Destination> destination(int id, int biomeCount) {
 }
 struct Update { int id; char const* name; char const* content; };
 inline constexpr Update updates[]{
-    {116, "河流", "逐格校验两岸，支流寻找更低汇流点，修复高出岸边的水带"},
-    {115, "恶地", "统一干旱气候与地形高度，修复冰川插入和群系边缘切面"},
-    {129, "侵蚀恶地", "石柱先于河流规划生成，避免末段突然加高"},
-    {111, "沙漠", "传送点检查周围大片沙漠，排除恶地边缘沙带"}
+    {114, "山地", "覆雪带随抬高后的山峰调整，保留低海拔冰雪群系"},
+    {116, "河流", "减少区域重复规划和线程等待，保留逐格河岸校验"}
 };
 inline std::string joinMessage() {
-    std::string result = "§9[山&海] 最近地形更新（0.1.10，待游戏内验收）";
+    std::string result = "§9[山&海] 最近地形更新（0.1.11，待游戏内验收）";
     for (auto const& u : updates)
         result += "\n§9[" + std::to_string(u.id) + "] " + u.name + "：" + u.content;
     return result + "\n§9/karma 查看全部群系/结构；/karma tp <序号> [模式]（1 创造 / 0 观察者；省略保持当前模式）。§r";

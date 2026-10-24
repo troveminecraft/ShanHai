@@ -15,6 +15,11 @@ int main(){
   previous=h;
  }
  assert(raisedMountainHeight(240.,480)==480.);
+ for(int h=-64;h<=240;++h){
+  double actual=raisedMountainHeight(h,480);
+  assert(std::abs(nativegen::mountainClimateHeight(actual,480)-h)<.00001);
+  assert(nativegen::mountainClimateHeight(h,0)==h);
+ }
  // Both joins preserve slope as well as height, without a ridge seam.
  for(double join:{96.,240.}){
   constexpr double e=.0001;

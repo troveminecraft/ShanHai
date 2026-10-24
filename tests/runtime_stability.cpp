@@ -34,6 +34,9 @@ int main(int argc,char**argv){try{
  for(int w=0;w<12;w++)jobs.push_back(std::async(std::launch::async,[&]{for(int j=0;j<500;j++){auto lease=pool.acquire();check(inUse[lease.i].fetch_add(1)==0,"Shared worker concurrent use");std::this_thread::yield();check(inUse[lease.i].fetch_sub(1)==1,"Lease release");}}));
  for(auto&job:jobs)job.get();try{auto lease=pool.acquire();throw 1;}catch(int){}for(int i=0;i<20;i++){auto lease=pool.acquire();}
  terrain_runtime::StreamPlanner motion;motion.update(0,0,1,0,0);auto straight=motion.update(32,0,1.2,0,0);check(straight.allowAhead&&straight.aheadX>32,"Forward lookahead");
+ check(!terrain_runtime::allowSupplementalLoading(false,0,0),"Arrival must finish its central chunks first");
+ check(!terrain_runtime::allowSupplementalLoading(true,4,0)&&!terrain_runtime::allowSupplementalLoading(true,0,33),"Optional windows pause under pressure");
+ check(terrain_runtime::allowSupplementalLoading(true,0,0),"Optional windows resume after readiness");
  auto turn=motion.update(0,0,1.4,0,0);check(turn.turned&&turn.aheadX<0,"Immediate reversal");
  auto warp=motion.update(1000,1000,1.6,0,0);check(warp.teleport&&!warp.allowAhead&&warp.aheadX==1000,"Teleport suppression");
  auto jam=motion.update(1032,1000,2,8,0);check(!jam.allowAhead,"Congestion pause");check(!motion.update(1064,1000,2.2,0,0).allowAhead,"Cooldown hysteresis");check(motion.update(1096,1000,3.3,0,0).allowAhead,"Cooldown recovery");

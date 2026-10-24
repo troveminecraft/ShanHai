@@ -8,6 +8,7 @@
 #include <queue>
 #include <sstream>
 #include <deque>
+#include <future>
 
 namespace nativegen::regional {
 inline constexpr int Core=2048,Halo=512,Pitch=64,Count=(Core+Halo*2)/Pitch+1;
@@ -21,6 +22,7 @@ inline std::string identity(J const&data){
 }
 inline std::recursive_mutex mutex;
 inline std::unordered_map<std::string,std::shared_ptr<J const>> plans;
+inline std::unordered_map<std::string,std::shared_future<std::shared_ptr<J const>>> pendingPlans;
 inline std::deque<std::string> residentOrder;
 inline std::unordered_map<std::string,std::filesystem::path> folders;
 inline void storage(J const&data,std::filesystem::path const&folder){
@@ -28,12 +30,24 @@ inline void storage(J const&data,std::filesystem::path const&folder){
  std::lock_guard lock(mutex);folders[identity(data)]=folder;
 }
 template<class F> std::shared_ptr<J const> get(std::string const&id,char const*kind,int gx,int gz,F make){
- std::lock_guard lock(mutex);
  auto name=std::string(kind)+"-"+std::to_string(gx)+"-"+std::to_string(gz);
  auto key=id+":"+name;
- if(auto i=plans.find(key);i!=plans.end())return i->second;
  std::filesystem::path path;
- if(auto dir=folders.find(id);dir!=folders.end())path=dir->second/id/(name+".json");
+ std::shared_future<std::shared_ptr<J const>> waiting;
+ std::promise<std::shared_ptr<J const>> produced;
+ {
+  std::lock_guard lock(mutex);
+  if(auto i=plans.find(key);i!=plans.end())return i->second;
+  if(auto i=pendingPlans.find(key);i!=pendingPlans.end())waiting=i->second;
+  else {
+   pendingPlans.emplace(key,produced.get_future().share());
+   if(auto dir=folders.find(id);dir!=folders.end())path=dir->second/id/(name+".json");
+  }
+ }
+ // Same-region callers share one result. Unrelated regions, and nested desert
+ // lookups made by a water planner, never wait while holding the global lock.
+ if(waiting.valid())return waiting.get();
+ try {
  J value;
  if(!path.empty()&&std::filesystem::exists(path))try{
   std::ifstream in(path);J saved;in>>saved;
@@ -48,8 +62,16 @@ template<class F> std::shared_ptr<J const> get(std::string const&id,char const*k
    if(ec)std::filesystem::remove(pending,ec); // The deterministic recipe remains usable without disk cache.
   }catch(std::exception const&){}
  }
- auto result=std::make_shared<J const>(std::move(value));plans.emplace(key,result);residentOrder.push_back(key);
- if(residentOrder.size()>384){plans.erase(residentOrder.front());residentOrder.pop_front();}return result;
+ auto result=std::make_shared<J const>(std::move(value));
+ {
+  std::lock_guard lock(mutex);plans.emplace(key,result);residentOrder.push_back(key);
+  if(residentOrder.size()>384){plans.erase(residentOrder.front());residentOrder.pop_front();}
+  produced.set_value(result);pendingPlans.erase(key);
+ }
+ return result;
+ }catch(...){
+  std::lock_guard lock(mutex);produced.set_exception(std::current_exception());pendingPlans.erase(key);throw;
+ }
 }
 struct Ground{int height;double humidity,temperature,stone,volcanic;};
 template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool curved=false,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,bool confinedBanks=false){

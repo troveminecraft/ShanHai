@@ -2,6 +2,11 @@
 #include <algorithm>
 #include <cmath>
 namespace terrain_runtime {
+// Keep the mandatory eight-chunk dependency halo. Delay optional flight and
+// gap-repair windows while the player's central 3x3 is still being built.
+inline bool allowSupplementalLoading(bool nearReady,unsigned waiting,unsigned nearPending){
+ return nearReady&&waiting<4&&nearPending<=32;
+}
 struct MotionPlan {double speed=0,aheadX=0,aheadZ=0;bool teleport=false,turned=false,allowAhead=false;};
 struct StreamPlanner {
  double x=0,z=0,at=0,vx=0,vz=0,coolUntil=0;bool sampled=false;

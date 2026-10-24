@@ -13,6 +13,7 @@ def finish_recipe(data):
     height_settings(data)
     data["config"]["badlandsRegions"]=3
     data["config"]["riverBankSurvey"]=1
+    data["config"]["mountainSnowline"]=1
     data["config"]["smallPoolsVersion"]=2
     data['regionalGeneration']=dict(algorithm='regional-drainage-v3',coreBlocks=2048,haloBlocks=512,
                                     samplePitch=64,worldBounds=None,boundsMode='infinite',persistentPlans=True)

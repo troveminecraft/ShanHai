@@ -15,12 +15,14 @@ Surface regionalClimateSample(int x,int z){
  auto s=naturalSamplingField().base(x,z);s.height=int(std::floor(desertHeight(x,z,s.height)));
  s.water=s.height<seaLevelValue?seaLevelValue:-32768;desertClimate(s,x,z);return s;
 }
+struct DesertRegionPlan{bool valid;double x,z,rx,rz;};
+Cache<uint64_t,DesertRegionPlan> desertPlans{64};
 double streamingDesertWeight(double wx,double wz){
  if(!streamingRegions||!C.contains("deserts")||!C.at("deserts").value("enabled",false))return 0;
  double X=wx-32768,Z=wz-32768,weight=0;constexpr double grid=6144.;
  int gx=int(std::floor(X/grid)),gz=int(std::floor(Z/grid));
  for(int dz=-1;dz<=1;++dz)for(int dx=-1;dx<=1;++dx){int a=gx+dx,b=gz+dz;
-  auto plan=regional::get(streamingIdentity,"desert",a,b,[&]{
+  auto plan=desertPlans.get(key2(a,b),[&]{auto saved=regional::get(streamingIdentity,"desert",a,b,[&]{
    double cx=(a+.40+.20*hash01(a,b,terrainSeed^63201))*grid,cz=(b+.40+.20*hash01(a,b,terrainSeed^63203))*grid;
    bool valid=hash01(a,b,terrainSeed^63205)<.45;auto center=naturalSamplingField().base(roundJS(cx)+32768,roundJS(cz)+32768);
    valid&=center.T>.48&&center.H<.66&&center.height>=44&&center.height<=140;
@@ -28,9 +30,9 @@ double streamingDesertWeight(double wx,double wz){
    // not generate a small substitute desert.
    for(int zz=-3;zz<=3&&valid;++zz)for(int xx=-3;xx<=3&&valid;++xx){auto s=naturalSamplingField().base(roundJS(cx+xx*880)+32768,roundJS(cz+zz*880)+32768);valid&=s.height>36&&s.stone<=.001&&s.volcanic<=0;}
    return J{{"valid",valid},{"x",cx},{"z",cz},{"rx",1900.},{"rz",1850.}};
-  });
-  if(!plan->at("valid").get<bool>())continue;
-  double px=(X-plan->at("x").get<double>())/plan->at("rx").get<double>(),pz=(Z-plan->at("z").get<double>())/plan->at("rz").get<double>();
+  });return DesertRegionPlan{saved->at("valid"),saved->at("x"),saved->at("z"),saved->at("rx"),saved->at("rz")};});
+  if(!plan.valid)continue;
+  double px=(X-plan.x)/plan.rx,pz=(Z-plan.z)/plan.rz;
   double distance=std::hypot(px,pz)+.055*desertNoise.at(X/450.,Z/450.);weight=std::max(weight,1-smooth(.72,1.25,distance));
  }
  for(auto const&r:regionalProtected)if(r.radius>=0)weight*=smooth(r.radius+100,r.radius+480,std::hypot(X-r.x,Z-r.z));

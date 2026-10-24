@@ -1,7 +1,7 @@
 {
   "name": "karma-worldgen-client",
   "entry": "karma-worldgen-client.dll",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "type": "native",
   "platform": "client",
   "description": "K-worldgen：Windows LL 主世界地形与结构生成"

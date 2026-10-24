@@ -21,7 +21,7 @@ Push-Location $build
 try {
     xmake f -P $PSScriptRoot -o $build -m release -a x64 -y
     if ($LASTEXITCODE) { throw 'Test configuration failed' }
-    xmake build -P $PSScriptRoot
+    xmake build -P $PSScriptRoot -j 2
     if ($LASTEXITCODE) { throw 'Test compilation failed' }
 } finally { Pop-Location }
 $bin = Join-Path $build 'windows/x64/release'
@@ -30,6 +30,9 @@ $cases = @(
     @{Name='structure_height'; Args=@()},
     @{Name='vegetation_columns'; Args=@()},
     @{Name='mountain_height'; Args=@()},
+    @{Name='regional_plan_concurrency'; Args=@()},
+    @{Name='runtime_stability'; Args=@((Join-Path $output 'runtime-stability'))},
+    @{Name='snow_loading'; Args=@((Join-Path $output 'inputs/positive.json'),(Join-Path $output 'snow-loading.json'))},
     @{Name='sea_level'; Args=@((Join-Path $output 'inputs/positive.json'),(Join-Path $output 'sea-level.json'))},
     @{Name='raised_terrain'; Args=@((Join-Path $output 'inputs/positive.json'),(Join-Path $output 'raised-terrain-seed5.json'))},
     @{Name='test_teleport_policy'; Args=@()},

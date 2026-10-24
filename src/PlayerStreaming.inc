@@ -85,7 +85,7 @@ void updatePlayerStreaming(Level& level){
      if(done)++viewGapResolved;
      if(done||seconds-patch.started>=20||std::max(std::abs(patch.x-cx),std::abs(patch.z-cz))>radius)patch.view.reset();
     }
-    if(!patch.view)if(auto gap=s.visible.next(seconds,cx,cz)){
+    if(!patch.view&&terrain_runtime::allowSupplementalLoading(ready,waitingCalculators.load(),nearPending))if(auto gap=s.visible.next(seconds,cx,cz)){
      patch.x=gap->x;patch.z=gap->z;patch.started=seconds;gap->attempted=seconds;
      patch.view=std::make_unique<ChunkViewSource>(dim->getChunkSource(),ChunkSource::LoadMode::Deferred);
      // BDS decoration/light dependencies need the full eight-chunk halo,
@@ -109,7 +109,7 @@ void updatePlayerStreaming(Level& level){
    default:break;
   }
   if(!unboundedWorld){ax=std::clamp(ax,-Half,Half-1);az=std::clamp(az,-Half,Half-1);}
-  if(motion.allowAhead&&std::max(std::abs(ax-cx),std::abs(az-cz))>=3){
+  if(terrain_runtime::allowSupplementalLoading(ready,waitingCalculators.load(),nearPending)&&motion.allowAhead&&std::max(std::abs(ax-cx),std::abs(az-cz))>=3){
    if(!s.ahead||std::max(std::abs(ax-s.ax),std::abs(az-s.az))>=2){move(s.ahead,ax,az);s.ax=ax;s.az=az;}
   }else s.ahead.reset();
   return true;
