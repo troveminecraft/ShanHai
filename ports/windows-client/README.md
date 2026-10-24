@@ -28,4 +28,4 @@ ZIP 包含完整种子生成运行依赖，无需另装 Python 或 Node.js。不
 本包不适用于 BDS、Android、Java 版或其他 Minecraft 构建。原版结构模板从本机游戏读取，包内不包含游戏本体。
 
 下载与反馈：https://github.com/troveminecraft/ShanHai
-第三方运行库的许可随包保留。项目自身尚未授予额外的开源许可。
+第三方运行库的许可随包保留。项目原创代码采用 MIT 协议，全文见随包 LICENSE；第三方组件及派生资源保留各自许可。
