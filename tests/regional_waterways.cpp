@@ -1,5 +1,5 @@
 #undef NDEBUG
-#include "native/Field.h"
+#include "NativeRuntime.h"
 #include "WorldGenerationMode.h"
 #include <cassert>
 #include <fstream>
@@ -7,6 +7,8 @@
 using namespace nativegen;
 using namespace nativegen::regional;
 int main(int argc,char**argv){std::string stage="geometry";try{
+ for(int revision=193;revision<=199;++revision)assert(NativeRuntime::supports("karma-terrain-2."+std::to_string(revision)+".0-native-agent-a"));
+ assert(!NativeRuntime::supports("karma-terrain-2.200.0-native-agent-a"));
  // A grid right angle must have continuous tangents and interpolate the join.
  auto curve=riverCurve({{0,0},{64,0},{64,64},{128,64}});
  int joins=0;double maxTurn=0;
@@ -62,6 +64,10 @@ int main(int argc,char**argv){std::string stage="geometry";try{
  auto profile=J{{"boundsMode","infinite"}};assert(terrain_runtime::WorldGenerationMode::read(profile,data).unbounded);
  assert(terrain_runtime::WorldGenerationMode::read(profile,old).unbounded);
  data["regionalGeneration"]["algorithm"]="regional-drainage-v3";
+ assert(terrain_runtime::WorldGenerationMode::read(profile,data).unbounded);
+ auto unsupported=data;unsupported["regionalGeneration"]["algorithm"]="regional-drainage-v4";
+ bool rejected=false;try{terrain_runtime::WorldGenerationMode::read(profile,unsupported);}catch(std::runtime_error const&){rejected=true;}assert(rejected);
+
  Field current(data),previous(old);J reports=J::array();size_t newSources=0,oldSources=0,wetSamples=0;
  for(auto[gx,gz]:{std::pair{0,0},{-1,0},{0,-1},{-1,-1}}){
   stage="region "+std::to_string(gx)+","+std::to_string(gz);

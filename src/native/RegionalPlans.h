@@ -1,5 +1,6 @@
 #pragma once
 #include "Noise.h"
+#include "../RegionalAlgorithms.h"
 #include "DrainageCurves.h"
 #include <filesystem>
 #include <fstream>
@@ -11,7 +12,7 @@
 namespace nativegen::regional {
 inline constexpr int Core=2048,Halo=512,Pitch=64,Count=(Core+Halo*2)/Pitch+1;
 inline constexpr char Algorithm[]="regional-drainage-v1";
-inline bool supportedAlgorithm(std::string const&name){return name==Algorithm||name=="regional-drainage-v2"||name=="regional-drainage-v3";}
+inline bool supportedAlgorithm(std::string const&name){return terrain_runtime::supportedRegionalAlgorithm(name);}
 inline uint64_t digest(std::string const&s){uint64_t h=1469598103934665603ULL;for(unsigned char c:s){h^=c;h*=1099511628211ULL;}return h;}
 inline std::string identity(J const&data){
  J key{{"algorithm",data.at("regionalGeneration").value("algorithm",std::string(Algorithm))},{"seed",data.at("seedManifest").at("terrainSeed")},
