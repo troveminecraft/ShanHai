@@ -7,8 +7,8 @@
 using namespace nativegen;
 using namespace nativegen::regional;
 int main(int argc,char**argv){std::string stage="geometry";try{
- for(int revision=193;revision<=199;++revision)assert(NativeRuntime::supports("karma-terrain-2."+std::to_string(revision)+".0-native-agent-a"));
- assert(!NativeRuntime::supports("karma-terrain-2.200.0-native-agent-a"));
+ for(int revision=193;revision<=200;++revision)assert(NativeRuntime::supports("karma-terrain-2."+std::to_string(revision)+".0-native-agent-a"));
+ assert(!NativeRuntime::supports("karma-terrain-2.201.0-native-agent-a"));
  // A grid right angle must have continuous tangents and interpolate the join.
  auto curve=riverCurve({{0,0},{64,0},{64,64},{128,64}});
  int joins=0;double maxTurn=0;
@@ -57,6 +57,7 @@ int main(int argc,char**argv){std::string stage="geometry";try{
   if(i){double d=length(meander[i].p-meander[i-1].p);assert(d<=6.00001);total+=d;}}
  assert(deviation>4&&total>195&&anchors==4);
  check(drainage(0,0,7,slope,true,31,319,true));
+ check(drainage(0,0,7,slope,true,31,319,true,true));
 
  if(argc!=3)throw std::runtime_error("expected recipe and report path");
  J data;std::ifstream(argv[1])>>data;auto old=data;old["regionalGeneration"]["algorithm"]="regional-drainage-v1";
@@ -68,6 +69,7 @@ int main(int argc,char**argv){std::string stage="geometry";try{
  auto unsupported=data;unsupported["regionalGeneration"]["algorithm"]="regional-drainage-v4";
  bool rejected=false;try{terrain_runtime::WorldGenerationMode::read(profile,unsupported);}catch(std::runtime_error const&){rejected=true;}assert(rejected);
 
+ data["config"]["riverBankSurvey"]=1;
  Field current(data),previous(old);J reports=J::array();size_t newSources=0,oldSources=0,wetSamples=0;
  for(auto[gx,gz]:{std::pair{0,0},{-1,0},{0,-1},{-1,-1}}){
   stage="region "+std::to_string(gx)+","+std::to_string(gz);

@@ -35,7 +35,7 @@ struct TerrainRevisionTest {
   return {{"water",water},{"clusters",clusters},{"triples",triples},{"lava",lava},{"examples",examples}};
  }
  static J mesas(J data){
-  data["config"].update(J{{"badlandsRegions",2},{"seaLevel",40},{"maxY",511},{"generatedMaxYExclusive",512},{"mountainPeakY",480}});
+  data["config"].update(J{{"badlandsRegions",3},{"seaLevel",40},{"maxY",511},{"generatedMaxYExclusive",512},{"mountainPeakY",480}});
   data["regionalGeneration"]["algorithm"]="regional-drainage-v3";
   Field field(data);auto old=data;old["config"]["badlandsRegions"]=1;Field before(old);
   int count=0,cliffs=0,dry=0,borders=0;double gain=0;J regions=J::array();

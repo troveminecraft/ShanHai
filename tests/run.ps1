@@ -1,5 +1,6 @@
 param([Parameter(Mandatory=$true)][string]$BuildDirectory,
-      [Parameter(Mandatory=$true)][string]$OutputDirectory)
+      [Parameter(Mandatory=$true)][string]$OutputDirectory,
+      [string]$FeedbackRecipe)
 $ErrorActionPreference = 'Stop'
 $build = [IO.Path]::GetFullPath($BuildDirectory)
 $output = [IO.Path]::GetFullPath($OutputDirectory)
@@ -51,6 +52,9 @@ foreach ($seed in @('positive','negative','wide')) {
     $cases += @{Name='badlands_regions'; Args=@((Join-Path $output "inputs/$seed.json"),(Join-Path $output "badlands-$seed.json"))}
     $cases += @{Name='completed_biomes'; Args=@((Join-Path $output "inputs/$seed.json"),(Join-Path $output "biomes-$seed.json"))}
     $cases += @{Name='regional_waterways'; Args=@((Join-Path $output "inputs/$seed.json"),(Join-Path $output "waterways-$seed.json"))}
+}
+if ($FeedbackRecipe) {
+    $cases += @{Name='terrain_boundaries'; Args=@([IO.Path]::GetFullPath($FeedbackRecipe),(Join-Path $output 'coordinate-regressions.json'))}
 }
 foreach ($case in $cases) {
     $arguments = $case.Args
