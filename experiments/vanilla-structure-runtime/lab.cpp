@@ -666,6 +666,7 @@ class Mod {
             initializeEntityLedger();
         }
         structureStageFailed = false;
+        hooks.add<OwnedStructureCollection>("OwnedStructureCollection");
         hooks.add<SurfaceMapProbe>("SurfaceMapProbe");
         hooks.add<ModernGround>("ModernGround");
         hooks.add<VillageBuilderDepth>("VillageBuilderDepth");
@@ -1784,6 +1785,7 @@ class Mod {
         DecorationTask::unhook();
         StructurePrefill::unhook();
         SurfaceMapProbe::unhook();
+        OwnedStructureCollection::unhook();
         VillageBuilderDepth::unhook();
         VillageBuilderBudget::unhook();
         SmallWrite::unhook();

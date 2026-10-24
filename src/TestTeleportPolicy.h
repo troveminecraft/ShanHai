@@ -36,16 +36,16 @@ inline std::optional<Destination> destination(int id, int biomeCount) {
 }
 struct Update { int id; char const* name; char const* content; };
 inline constexpr Update updates[]{
-    {115, "恶地", "扩大为连续区域，外围以沙漠过渡，仅与沙漠或海洋接壤"},
-    {129, "风蚀恶地", "纳入大型恶地区域，保留侵蚀柱与彩色陶瓦"},
-    {130, "恶地高原", "扩大高原区域，修复探索时结构高度校验导致的退出"},
-    {131, "疏林恶地高原", "保留稀疏林冠与大型恶地区域的过渡"},
-    {102, "海洋", "与恶地接壤的海岸及近岸海床改用红沙"}
+    {115, "恶地", "提高陶瓦高原海拔，增加阶地、陡坡和悬崖"},
+    {130, "恶地高原", "更高的连续高原；外围保留沙漠过渡和红沙海岸"},
+    {111, "沙漠", "与恶地共同增加干湿缓冲，避免紧邻丛林、沼泽等湿润群系"},
+    {116, "河流", "共线河段加入贝塞尔弯曲，保留支流汇流点"},
+    {108, "平原", "水坑水面与坑底升高一格，部分形成两至三个连片水坑"}
 };
 inline std::string joinMessage() {
-    std::string result = "§9[山&海] 最近地形更新（0.1.8，待游戏内验收）";
+    std::string result = "§9[山&海] 最近地形更新（0.1.9，待游戏内验收）";
     for (auto const& u : updates)
         result += "\n§9[" + std::to_string(u.id) + "] " + u.name + "：" + u.content;
-    return result + "\n§9/karma 查看全部群系/结构；/karma tp <序号> <模式>（1 创造 / 0 观察者）；/karma back 返回。§r";
+    return result + "\n§9/karma 查看全部群系/结构；/karma tp <序号> [模式]（1 创造 / 0 观察者；省略保持当前模式）。§r";
 }
 }

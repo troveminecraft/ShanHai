@@ -1,3 +1,4 @@
+#include <thread>
 #include "rules/StructureLifecycle.h"
 #include "rules/StructureStore.h"
 #include "rules/FrozenTemplates.h"
@@ -277,6 +278,18 @@ int main(int argc, char **argv) {
         check(retired.enqueue(retirementLedger, 1, clip, "village", {1, 2}, 42) &&
                   retired.enqueue(retirementLedger, 2, clip, "village", {3, 4}, 42),
               "retirement setup failed");
+        check(retired.pending.front().family=="village" && retired.pending.front().anchor.x==1 && retired.pending.front().anchor.z==2,
+              "deferred metadata depends on a native handle");
+        StructureCacheOwnership<int> ownership;ownership.insert(1);
+        check(!ownership.permitNativeCollection(1) && ownership.permitNativeCollection(2), "foreign/owned GC routing");
+        ownership.collect(1,[&]{
+            check(ownership.permitNativeCollection(1),"managed GC blocked");
+            bool workerPermitted=true;std::thread worker([&]{workerPermitted=ownership.permitNativeCollection(1);});worker.join();
+            check(!workerPermitted,"managed GC authorization leaked to a native worker");
+        });
+        try {ownership.collect(1,[]{throw std::runtime_error("test");});}catch(std::runtime_error const&){}
+        check(!ownership.permitNativeCollection(1),"GC authorization leaked after exception");
+        report["deferredMetadataIndependentOfHandleAndGcOwnership"] = true;
         retired.discardRetiredHandles([](int handle) { return handle == 2; });
         check(retired.pending.size() == 1 && retired.queued.size() == 1 && retired.pending.front().start == 2,
               "retired native handle survived in a pending job");

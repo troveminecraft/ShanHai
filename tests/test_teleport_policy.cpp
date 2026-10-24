@@ -33,6 +33,7 @@ int main() {
     assert(ids.size() == 76);
     for (int i : {INT_MIN, -1, 0, 46, 100, 132, INT_MAX}) assert(!destination(i, 31));
     auto message = joinMessage();
+    assert(message.find("back")==std::string::npos && message.find("[模式]")!=std::string::npos);
     assert(message.starts_with("§9"));
     for (size_t i = message.find('\n'); i != std::string::npos; i = message.find('\n', i + 1))
         assert(message.compare(i + 1, std::string("§9").size(), "§9") == 0);

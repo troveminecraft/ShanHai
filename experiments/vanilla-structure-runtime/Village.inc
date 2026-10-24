@@ -312,6 +312,11 @@ VillagePlan &villagePlan(Dimension &d, ChunkPos cp, uint seed) {
     villagePopulationPlans.push_back(key);
     auto &record = registeredVillage(d);
     std::unique_lock lock(*record.mCacheMutex);
+    if (record.mCachedStructures->contains(cp)) {
+        villageSpawns.erase(result.start);
+        result.start = nullptr;
+        throw std::runtime_error("Native structure cache owner collision");
+    }
     record.mCachedStructures->emplace(cp, std::move(start));
     return result;
 }

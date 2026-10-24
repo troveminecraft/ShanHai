@@ -49,11 +49,19 @@ int main(int argc,char**argv){std::string stage="geometry";try{
   }
  };
  check(graph);
+ auto meander=riverCurve({{0,0},{64,0},{128,0},{192,0}}, {},true,123);
+ double deviation=0,total=0;int anchors=0;
+ for(size_t i=0;i<meander.size();++i){deviation=std::max(deviation,std::abs(meander[i].p.z));if(meander[i].node>=0){++anchors;assert(meander[i].p.z==0);}
+  if(i){double d=length(meander[i].p-meander[i-1].p);assert(d<=6.00001);total+=d;}}
+ assert(deviation>4&&total>195&&anchors==4);
+ check(drainage(0,0,7,slope,true,31,319,true));
+
  if(argc!=3)throw std::runtime_error("expected recipe and report path");
  J data;std::ifstream(argv[1])>>data;auto old=data;old["regionalGeneration"]["algorithm"]="regional-drainage-v1";
  assert(identity(data)!=identity(old));
  auto profile=J{{"boundsMode","infinite"}};assert(terrain_runtime::WorldGenerationMode::read(profile,data).unbounded);
  assert(terrain_runtime::WorldGenerationMode::read(profile,old).unbounded);
+ data["regionalGeneration"]["algorithm"]="regional-drainage-v3";
  Field current(data),previous(old);J reports=J::array();size_t newSources=0,oldSources=0,wetSamples=0;
  for(auto[gx,gz]:{std::pair{0,0},{-1,0},{0,-1},{-1,-1}}){
   stage="region "+std::to_string(gx)+","+std::to_string(gz);

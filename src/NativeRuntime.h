@@ -6,7 +6,7 @@
 class NativeRuntime {
  std::unique_ptr<nativegen::Engine> engine;
 public:
- static constexpr char KernelVersion[]="karma-terrain-2.198.0-native-agent-a";
+ static constexpr char KernelVersion[]="karma-terrain-2.199.0-native-agent-a";
  static bool supports(std::string_view version){return version==KernelVersion||version=="karma-terrain-2.197.0-native-agent-a"||version=="karma-terrain-2.196.0-native-agent-a"||version=="karma-terrain-2.195.0-native-agent-a"||version=="karma-terrain-2.194.0-native-agent-a"||version=="karma-terrain-2.193.0-native-agent-a";}
  std::atomic_uint restarts=0;
  void start(nativegen::J const&data){engine=std::make_unique<nativegen::Engine>(data);}

@@ -1,5 +1,6 @@
 #pragma once
 #include "StructurePlan.h"
+#include "StructureCacheOwnership.h"
 #include <deque>
 #include <optional>
 #include <set>
@@ -53,6 +54,8 @@ template <class Handle, class Clip = StructureBox> struct StructureEntityJob {
     Clip clip;
     std::string key;
     uint32_t seed;
+    std::string family;
+    ChunkPosition anchor;
 };
 // Handle is opaque (a native start pointer on either platform). Only the game
 // adapter's ready/spawn calls may dereference it. Claimed jobs never replay.
@@ -68,7 +71,7 @@ template <class Handle, class Clip = StructureBox> class StructureEntityQueue {
             {{clip.min.x, clip.min.y, clip.min.z}, {clip.max.x, clip.max.y, clip.max.z}}, villageHasActors);
         if (!key || !queued.insert(*key).second)
             return false;
-        pending.push_back({handle, clip, std::move(*key), seed});
+        pending.push_back({handle, clip, std::move(*key), seed, std::string(family), anchor});
         return true;
     }
     template <class Ready, class Persist>

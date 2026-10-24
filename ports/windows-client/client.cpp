@@ -328,6 +328,7 @@ class Mod {
         hooks.add<terrain::GenerateVoid>("terrain::GenerateVoid");
         hooks.add<terrain::ObserveLoad>("terrain::ObserveLoad");
         hooks.add<terrain::StreamPriority>("terrain::StreamPriority");
+        hooks.add<lab::OwnedStructureCollection>("lab::OwnedStructureCollection");
         hooks.add<lab::SurfaceMapProbe>("lab::SurfaceMapProbe");
         hooks.add<lab::ModernGround>("lab::ModernGround");
         hooks.add<lab::VillageBuilderDepth>("lab::VillageBuilderDepth");

@@ -17,7 +17,7 @@ struct RiverCurvePoint {RiverPoint p;int node=-1;};
 // node's position and water level. Shared node tangents remove grid corners;
 // short handles limit sideways departure from the surveyed valley corridor.
 inline std::vector<RiverCurvePoint> riverCurve(std::vector<RiverPoint> const&nodes,
-                                              RiverPoint outletDirection={}){
+                                              RiverPoint outletDirection={},bool meanders=false,uint32_t seed=0){
  std::vector<RiverCurvePoint> result;if(nodes.size()<2)return result;
  std::vector<RiverPoint> tangent(nodes.size());
  for(size_t i=0;i<nodes.size();++i){
@@ -32,6 +32,25 @@ inline std::vector<RiverCurvePoint> riverCurve(std::vector<RiverPoint> const&nod
   // The derivative lies in the convex hull of the three control edges * 3.
   // Bound each chord (not just total arc length) to six blocks, including
   // the faster middle of a curve, without per-column spline evaluation.
+  auto append=[&](RiverPoint A,RiverPoint B,RiverPoint C,RiverPoint D,int node){
+   int steps=std::max(1,int(std::ceil(3*std::max({length(B-A),length(C-B),length(D-C)})/6.)));
+   for(int k=1;k<=steps;++k)result.push_back({bezier(A,B,C,D,double(k)/steps),k==steps?node:-1});
+  };
+  auto heading=direction(d-a);
+  double aligned=std::min(heading.x*direction(tangent[i]).x+heading.z*direction(tangent[i]).z,
+                          heading.x*direction(tangent[i+1]).x+heading.z*direction(tangent[i+1]).z);
+  if(meanders&&aligned>.92){
+   // Coherent world-space sign and bounded lateral excursion; no new random
+   // source order or altered confluence anchors.
+   double phase=double(seed%65521)*.013;
+   double wave=std::sin((a.x+d.x)/710.+(a.z+d.z)/930.+phase);
+   double amplitude=std::min(10.,length(d-a)*.14)*(.65+.35*std::abs(wave))*(wave<0?-1:1);
+   auto mid=(a+d)*.5+RiverPoint{-heading.z,heading.x}*amplitude;
+   auto midTangent=heading*(length(d-a)*.14);
+   append(a,a+tangent[i]*.5,mid-midTangent,mid,-1);
+   append(mid,mid+midTangent,d-tangent[i+1]*.5,d,int(i+1));
+   continue;
+  }
   int steps=std::max(1,int(std::ceil(3*std::max({length(b-a),length(c-b),length(d-c)})/6.)));
   for(int k=1;k<=steps;++k)result.push_back({bezier(a,b,c,d,double(k)/steps),k==steps?int(i+1):-1});
  }
@@ -42,7 +61,7 @@ struct RiverAnchor {double water=0,radius=0;RiverPoint downstream{};};
 template<class Point,class Sample,class GroundArray,class ParentArray,class FlowArray,class DistanceArray,class SinkArray>
 J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,GroundArray const&ground,
                  ParentArray const&parent,FlowArray const&flow,DistanceArray const&distance,
-                 SinkArray const&sink,Point point,Sample sample,int seaLevel=31,int maxSurfaceY=319){
+                 SinkArray const&sink,Point point,Sample sample,int seaLevel=31,int maxSurfaceY=319,bool meanders=false){
  auto eligible=[](auto const&s){return s.stone<=.001&&s.volcanic<=0;};
  std::vector<int> sources;
  for(int i:order){auto[x,z]=point(i);auto const&s=ground[i];
@@ -68,7 +87,7 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
   bool main=!tributary&&distance[source]>1200&&flow[source]>=12;
   double width=main?8.:ground[source].height>=105?1.8:2.6;
   std::vector<RiverPoint> nodes;for(int i:path){auto[x,z]=point(i);nodes.push_back({double(x),double(z)});}
-  auto curve=riverCurve(nodes,tributary?network.at(end).downstream:RiverPoint{});
+  auto curve=riverCurve(nodes,tributary?network.at(end).downstream:RiverPoint{},meanders,seed);
   std::vector<double> run(curve.size()),water(curve.size()),radius(curve.size());bool bad=false;
   for(size_t i=0;i<curve.size();++i){
    if(i)run[i]=run[i-1]+length(curve[i].p-curve[i-1].p);

@@ -1,5 +1,19 @@
 // Opt-in province recipe. Old worlds keep the 0.1.5 surface selector unchanged.
-bool regionalBadlands=C.value("badlandsRegions",0)==1;
+bool regionalBadlands=C.value("badlandsRegions",0)>=1;
+bool raisedBadlands=C.value("badlandsRegions",0)==2;
+std::unique_ptr<J> provinceSamplingData;
+std::unique_ptr<Field> provinceSamplingField;
+Surface provinceSample(int x,int z){
+ if(!raisedBadlands)return compute(x,z,false);
+ // Independent pre-uplift survey, identical in the live field and drainage
+ // sampler. It cannot recurse into the province currently being constructed.
+ if(!provinceSamplingField){
+  provinceSamplingData=std::make_unique<J>(data);provinceSamplingData->erase("regionalGeneration");
+  (*provinceSamplingData)["config"]["badlandsRegions"]=1;
+  provinceSamplingField=std::make_unique<Field>(*provinceSamplingData);
+ }
+ return provinceSamplingField->compute(x,z,false);
+}
 struct BadlandsRegion {bool valid=false;int x=0,z=0;double rx=0,rz=0;};
 Cache<uint64_t,BadlandsRegion> badlandsRegions{256};
 Cache<uint64_t,Surface> preBadlandsCache{8192};
@@ -12,12 +26,12 @@ BadlandsRegion badlandsRegion(int gx,int gz){return badlandsRegions.get(key2(gx,
  for(int attempt=0;attempt<3;++attempt){
   int x=gx*4096+1536+int(random(1+attempt*2)*1024);
   int z=gz*4096+1536+int(random(2+attempt*2)*1024);
-  auto center=compute(x,z,false);
+  auto center=provinceSample(x,z);
   if(center.height<seaLevelValue+3||center.height>220||center.T<.45||center.H>.72||center.stone>.01||center.volcanic>.01)continue;
   double radius=704+random(8)*256;
   int dry=0,protectedLand=0;
   for(int dz=-2;dz<=2;++dz)for(int dx=-2;dx<=2;++dx){
-   auto s=compute(x+int(dx*radius/2),z+int(dz*radius/2),false);
+   auto s=provinceSample(x+int(dx*radius/2),z+int(dz*radius/2));
    dry+=s.height>=seaLevelValue;
    protectedLand+=s.stone>.01||s.volcanic>.01||s.T<.22;
   }
@@ -31,6 +45,28 @@ double badlandsDistance(int x,int z){
  if(!region.valid)return INFINITY;
  double d=(std::hypot((x-region.x)/region.rx,(z-region.z)/region.rz)-1)*std::min(region.rx,region.rz);
  return d+48*mesaNoise.at(x/240.+91,z/240.-53)+16*mesaNoise.at(x/80.,z/80.);
+}
+double badlandsHeight(double x,double z,double height){
+ if(!raisedBadlands||height<=seaLevelValue+2)return height;
+ double d=badlandsDistance(roundJS(x),roundJS(z));if(d>=0)return height;
+ auto const&g=C.at("giantForest");
+ double forest=smooth(num(g,"outerRadius")+96,num(g,"outerRadius")+352,std::hypot(x-32768-num(g,"centerX"),z-32768-num(g,"centerZ")));
+ double shelf=-d+42*mesaNoise.at(x/160.+11,z/160.-9),rise=32;
+ // Short bevels between broad shelves expose real terracotta cliff faces.
+ for(int tier=1;tier<=4;++tier)rise+=22*smooth(tier*100.-4,tier*100.+4,shelf);
+ return std::min(double(generatedMaxYExclusive-32),height+rise*smooth(0.,36.,-d)*smooth(seaLevelValue+2.,seaLevelValue+26.,height)*forest);
+}
+double dryHabitatWeight(int x,int z){
+ if(!raisedBadlands)return 0;
+ // A broad savanna collar separates humid habitats from both arid systems.
+ return std::max(1-smooth(128.,448.,badlandsDistance(x,z)),smooth(.015,.18,desertWeight(x,z)));
+}
+void dryHabitatSurface(Surface&s,int x,int z){
+ double w=dryHabitatWeight(x,z);if(w<=0||s.mushroomZone||badlandsOcean(s))return;
+ s.H=std::min(s.H,mix(w,.58,.35));
+ if(w>=.25&&(s.biome==9||s.biome==10||s.biome==13||s.biome==23)){
+  s.biome=12;s.T=std::max(.66,s.T);s.H=.35;s.treeK=3;s.treeD=std::min(s.treeD,.0015);s.soilSand=std::min(.4,s.soilSand);
+ }
 }
 static bool badlandsOcean(Surface const&s){
  return s.height<s.seaLevel&&s.water==s.seaLevel&&!s.lake&&

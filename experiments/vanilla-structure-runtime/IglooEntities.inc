@@ -71,7 +71,7 @@ void tickStructureEntities(Level &level) {
             [&](NativeEntityJob const &job) {
                 auto cp = ChunkPos{chunk(job.clip.min.x), chunk(job.clip.min.z)};
                 if (job.key.starts_with("igloo:")) {
-                    auto it = automaticBlueprints.find({int(job.start->chunkX), int(job.start->chunkZ)});
+                    auto it = automaticBlueprints.find({job.anchor.x, job.anchor.z});
                     if (it == automaticBlueprints.end() || !it->second.igloo || !it->second.igloo->program)
                         return false;
                     auto &blocks = d->getBlockSourceFromMainChunkSource();
@@ -90,7 +90,7 @@ void tickStructureEntities(Level &level) {
                     return true;
                 }
                 if (job.key.starts_with("village:")) {
-                    auto it = villages.find({int(job.start->chunkX), int(job.start->chunkZ)});
+                    auto it = villages.find({job.anchor.x, job.anchor.z});
                     if (it != villages.end() && it->second.sharedLayout) {
                         auto &blocks = d->getBlockSourceFromMainChunkSource();
                         auto prepared = worldgen_rules::prepareVillagePopulation(

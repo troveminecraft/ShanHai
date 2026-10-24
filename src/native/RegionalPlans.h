@@ -11,7 +11,7 @@
 namespace nativegen::regional {
 inline constexpr int Core=2048,Halo=512,Pitch=64,Count=(Core+Halo*2)/Pitch+1;
 inline constexpr char Algorithm[]="regional-drainage-v1";
-inline bool supportedAlgorithm(std::string const&name){return name==Algorithm||name=="regional-drainage-v2";}
+inline bool supportedAlgorithm(std::string const&name){return name==Algorithm||name=="regional-drainage-v2"||name=="regional-drainage-v3";}
 inline uint64_t digest(std::string const&s){uint64_t h=1469598103934665603ULL;for(unsigned char c:s){h^=c;h*=1099511628211ULL;}return h;}
 inline std::string identity(J const&data){
  J key{{"algorithm",data.at("regionalGeneration").value("algorithm",std::string(Algorithm))},{"seed",data.at("seedManifest").at("terrainSeed")},
@@ -51,7 +51,7 @@ template<class F> std::shared_ptr<J const> get(std::string const&id,char const*k
  if(residentOrder.size()>384){plans.erase(residentOrder.front());residentOrder.pop_front();}return result;
 }
 struct Ground{int height;double humidity,temperature,stone,volcanic;};
-template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool curved=false,int seaLevel=31,int maxSurfaceY=319){
+template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool curved=false,int seaLevel=31,int maxSurfaceY=319,bool meanders=false){
  constexpr int N=Count,Total=N*N;
  int originX=gx*Core-Halo,originZ=gz*Core-Halo;
  std::array<Ground,Total> ground;
@@ -100,7 +100,7 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
  }
  std::array<int,Total> flow;flow.fill(1);for(auto i=order.rbegin();i!=order.rend();++i)if(parent[*i]>=0)flow[parent[*i]]+=flow[*i];
  if(curved){
-  auto result=curvedDrainage(gx,gz,seed,order,ground,parent,flow,distance,sink,point,sample,seaLevel,maxSurfaceY);
+  auto result=curvedDrainage(gx,gz,seed,order,ground,parent,flow,distance,sink,point,sample,seaLevel,maxSurfaceY,meanders);
   result["region"]={gx,gz};result["lakes"]=lakes;result["samples"]=Total;return result;
  }
  std::vector<int> sources;

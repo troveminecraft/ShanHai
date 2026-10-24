@@ -1,6 +1,13 @@
 // World-space candidates, screened once; no per-voxel noise or neighbour chunks.
- struct SmallPool {int x=0,z=0,level=0,shoreCount=0;double radius=0,phase=0;bool lava=false,valid=false;std::array<std::array<int,2>,4> shore{};};
- static double poolDistance(SmallPool const&p,int x,int z){double dx=x-p.x,dz=z-p.z,a=std::atan2(dz,dx);return std::hypot(dx,dz)/(p.radius*(1+.12*std::sin(3*a+p.phase)));}
+ struct SmallPool {int x=0,z=0,level=0,shoreCount=0;double radius=0,phase=0;bool lava=false,valid=false;int count=1;std::array<std::array<double,3>,2> lobes{};std::array<std::array<int,2>,4> shore{};};
+ static double singlePoolDistance(SmallPool const&p,int x,int z){double dx=x-p.x,dz=z-p.z,a=std::atan2(dz,dx);return std::hypot(dx,dz)/(p.radius*(1+.12*std::sin(3*a+p.phase)));}
+ static double poolDistance(SmallPool const&p,int x,int z){
+  double q=singlePoolDistance(p,x,z);
+  for(int i=0;i<p.count-1;++i){SmallPool l;l.x=int(p.lobes[i][0]);l.z=int(p.lobes[i][1]);l.radius=p.lobes[i][2];l.phase=p.phase;
+   q=std::min(q,singlePoolDistance(l,x,z));}
+  return q;
+ }
+ bool clusteredPools=C.value("smallPoolsVersion",0)==2;
  bool evaluatingSmallPool=false;
  Cache<uint64_t,SmallPool> smallPools{256};
  SmallPool smallPool(int gx,int gz){return smallPools.get(key2(gx,gz),[&]{SmallPool p;
@@ -30,13 +37,36 @@
    }
    if(!p.shoreCount)return p;
   }
+  if(clusteredPools&&!p.lava){
+   ++p.level;p.shoreCount=0;
+   auto sealed=[&](SmallPool const&test){
+    int reach=28;
+    for(int z=test.z-reach;z<=test.z+reach;++z)for(int x=test.x-reach;x<=test.x+reach;++x){
+     if(poolDistance(test,x,z)>1.35)continue;
+     if(x<=gx*160+1||x>=(gx+1)*160-2||z<=gz*160+1||z>=(gz+1)*160-2)return false;
+     auto t=surface(x,z,false);
+     if(t.kind||t.lake||t.river||t.iceHabitat>.01||t.stone>.01||t.volcanic>.01||t.giant>.01||t.water>=t.height||t.lava>=t.height||t.height<test.level||t.height>test.level+3)return false;
+    }return true;
+   };
+   if(!sealed(p))return p;
+   int wanted=r(8)<.45?(r(9)<.34?3:2):1;
+   auto cluster=p;double angle=r(10)*6.283185307179586;
+   double lastX=p.x,lastZ=p.z,lastRadius=p.radius;
+   for(int i=0;i<wanted-1;++i){
+    double radius=3+r(11+i)*3,step=(lastRadius+radius)*.70;
+    lastX=roundJS(lastX+std::cos(angle)*step);lastZ=roundJS(lastZ+std::sin(angle)*step);
+    cluster.lobes[i]={lastX,lastZ,radius};lastRadius=radius;angle+=(r(13+i)-.5)*.8;
+   }
+   cluster.count=wanted;
+   if(wanted>1&&sealed(cluster))p=cluster;
+  }
   p.valid=true;return p;});}
  void smallSurfacePool(Surface&s,int x,int z){
   if(evaluatingSmallPool||s.kind||s.lake||s.river||s.iceHabitat>.01||s.volcanic>.01||s.stone>.01||s.giant>.01||s.water>=s.height||s.lava>=s.height)return;
   int gx=int(std::floor(x/160.)),gz=int(std::floor(z/160.));
   int px=gx*160+24+int(hash01(gx,gz,seedHash(terrainSeed,9101))*112),pz=gz*160+24+int(hash01(gx,gz,seedHash(terrainSeed,9102))*112);
-  if(std::abs(x-px)>9||std::abs(z-pz)>9)return;
-  auto p=smallPool(gx,gz);if(!p.valid||s.height<=p.level||std::abs(s.height-p.level)>4)return;
+  if(std::abs(x-px)>(clusteredPools?28:9)||std::abs(z-pz)>(clusteredPools?28:9))return;
+  auto p=smallPool(gx,gz);if(!p.valid||(clusteredPools&&!p.lava?s.height<p.level:s.height<=p.level)||std::abs(s.height-p.level)>4)return;
   for(int i=0;i<p.shoreCount;++i)if(p.shore[i][0]==x&&p.shore[i][1]==z){s.height=p.level;s.treeD=0;s.giant=0;s.rockCap=0;return;}
   double q=poolDistance(p,x,z);if(q>=1)return;
   int depth=q<.5?2:1;s.height=std::min(s.height,p.level-depth);s.treeD=0;s.giant=0;s.kind=1;s.surf=p.lava?0:5;

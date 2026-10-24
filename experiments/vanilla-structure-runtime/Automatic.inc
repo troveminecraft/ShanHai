@@ -275,7 +275,7 @@ class TerrainScatteredFeature final : public RandomScatteredLargeFeature {
         return false;
     }
 };
-std::set<StructureFeature *> ownedNativeFeatures;
+worldgen_rules::StructureCacheOwnership<StructureFeature *> ownedNativeFeatures;
 TerrainScatteredFeature *scatteredFeatureRecord = nullptr;
 TerrainScatteredFeature &registeredFeature(Dimension &dim) {
     auto *registry = &*dim.getWorldGenerator()->mStructureFeatureRegistry;
@@ -435,6 +435,10 @@ AutoBlueprint &autoBlueprint(Dimension &dim, ChunkPos candidate, uint seed) {
     }
     auto &featureRecord = registeredFeature(dim);
     std::unique_lock lock(*featureRecord.mCacheMutex);
+    if (featureRecord.mCachedStructures->contains(candidate)) {
+        plan.start = nullptr;
+        throw std::runtime_error("Native structure cache owner collision");
+    }
     featureRecord.mCachedStructures->emplace(candidate, std::move(start));
     return plan;
 }

@@ -47,6 +47,7 @@ $cases = @(
 )
 foreach ($seed in @('positive','negative','wide')) {
     $cases += @{Name='kernel_determinism'; Args=@((Join-Path $output "inputs/$seed.json"))}
+    $cases += @{Name='terrain_revision'; Args=@((Join-Path $output "inputs/$seed.json"),(Join-Path $output "revision-$seed.json"))}
     $cases += @{Name='badlands_regions'; Args=@((Join-Path $output "inputs/$seed.json"),(Join-Path $output "badlands-$seed.json"))}
     $cases += @{Name='completed_biomes'; Args=@((Join-Path $output "inputs/$seed.json"),(Join-Path $output "biomes-$seed.json"))}
     $cases += @{Name='regional_waterways'; Args=@((Join-Path $output "inputs/$seed.json"),(Join-Path $output "waterways-$seed.json"))}

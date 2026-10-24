@@ -11,10 +11,11 @@ def height_settings(data):
 
 def finish_recipe(data):
     height_settings(data)
-    data["config"]["badlandsRegions"]=1
-    data['regionalGeneration']=dict(algorithm='regional-drainage-v2',coreBlocks=2048,haloBlocks=512,
+    data["config"]["badlandsRegions"]=2
+    data["config"]["smallPoolsVersion"]=2
+    data['regionalGeneration']=dict(algorithm='regional-drainage-v3',coreBlocks=2048,haloBlocks=512,
                                     samplePitch=64,worldBounds=None,boundsMode='infinite',persistentPlans=True)
-    data['rivers']=dict(algorithm='regional-drainage-v2',cutBanks=10,naturalBankSlope=1,sectionProfiles=1,
+    data['rivers']=dict(algorithm='regional-drainage-v3',cutBanks=10,naturalBankSlope=1,sectionProfiles=1,
                         treeSubstrates=True,mainstems=[],segments=[],routes=[])
     data['seedManifest'].update(ready=True,riversReady=True,generationMode='regional-on-demand',
                                 completeSeedBake=False)

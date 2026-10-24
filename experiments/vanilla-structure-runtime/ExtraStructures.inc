@@ -878,6 +878,10 @@ ExtraPlan &extraPlan(Dimension &d, int type, ChunkPos cp) {
     }
     auto &record = registeredExtra(d, type);
     std::unique_lock lock(*record.mCacheMutex);
+    if (record.mCachedStructures->contains(cp)) {
+        r.start = nullptr;
+        throw std::runtime_error("Native structure cache owner collision");
+    }
     record.mCachedStructures->emplace(cp, std::move(start));
     return r;
 }

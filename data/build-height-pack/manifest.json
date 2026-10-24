@@ -4,8 +4,8 @@
     "name": "山&海：主世界高度",
     "description": "山&海主世界 Y=-64..511；生成由山&海原生模组接管。",
     "uuid": "734125c0-ae21-4c1f-86ab-9568a521ebc0",
-    "version": [0, 1, 8],
+    "version": [0, 1, 9],
     "min_engine_version": [1, 26, 20]
   },
-  "modules": [{"type": "data", "uuid": "b95db476-f827-465a-9f58-9c33e011f1e2", "version": [0, 1, 8]}]
+  "modules": [{"type": "data", "uuid": "b95db476-f827-465a-9f58-9c33e011f1e2", "version": [0, 1, 9]}]
 }

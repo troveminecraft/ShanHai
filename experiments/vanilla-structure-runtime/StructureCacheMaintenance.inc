@@ -1,3 +1,9 @@
+// Suppress independent retirement of adapter-owned starts. The bounded
+// collector below holds stageMutex and prunes adapter references atomically.
+LL_TYPE_INSTANCE_HOOK(OwnedStructureCollection,ll::memory::HookPriority::Normal,StructureFeature,
+                     &StructureFeature::garbageCollectBlueprints,void,buffer_span<ChunkPos> active,uint border) {
+    if (ownedNativeFeatures.permitNativeCollection(this)) origin(active,border);
+}
 // Follow Bedrock's active-chunk lifetime instead of retaining every blueprint
 // ever visited. The native feature performs the lifetime decision; afterwards
 // remove all adapter references to starts it retired.
@@ -52,17 +58,8 @@ void collectStructureCaches(Level &level) {
         for (auto const &job : nativeEntityJobs) {
             if (deferred.contains(job.key))
                 continue;
-            std::string family = std::string(job.start->getStructureName());
-            if (job.key.starts_with("village:"))
-                family = "village";
-            else if (job.key.starts_with("igloo:"))
-                family = "igloo";
-            else
-                for (auto const &spec : extraSpecs)
-                    if (job.key.starts_with(std::string(extraNames[spec.type]) + ":"))
-                        family = extraNames[spec.type];
-            deferred[job.key] = {{"family", family},
-                                 {"anchor", {int(job.start->chunkX), int(job.start->chunkZ)}},
+            deferred[job.key] = {{"family", job.family},
+                                 {"anchor", {job.anchor.x, job.anchor.z}},
                                  {"clip", boxJson(job.clip)},
                                  {"seed", job.seed}};
             changed = true;
@@ -70,7 +67,7 @@ void collectStructureCaches(Level &level) {
         if (changed)
             persistEntityLedger();
         std::vector<StructureStart *> records;
-        for (auto *feature : ownedNativeFeatures) {
+        for (auto *feature : ownedNativeFeatures.snapshot()) {
             std::unique_lock cacheLock(*feature->mCacheMutex);
             for (auto const &[cp, start] : *feature->mCachedStructures)
                 records.push_back(start.get());
@@ -117,8 +114,8 @@ void collectStructureCaches(Level &level) {
         activeChunks.mBegin = keep.empty() ? &empty : keep.data();
         activeChunks.mEnd = activeChunks.mBegin + keep.size();
         std::set<StructureStart *> live;
-        for (auto *feature : ownedNativeFeatures) {
-            feature->garbageCollectBlueprints(activeChunks, 16);
+        for (auto *feature : ownedNativeFeatures.snapshot()) {
+            ownedNativeFeatures.collect(feature, [&] { feature->garbageCollectBlueprints(activeChunks, 16); });
             std::unique_lock cacheLock(*feature->mCacheMutex);
             for (auto const &[cp, start] : *feature->mCachedStructures)
                 live.insert(start.get());

@@ -20,6 +20,9 @@ def prepare(output):
   data['config'].pop('generatedMaxYExclusive',None)
   data['config'].pop('mountainPeakY',None)
   data['config'].pop('badlandsRegions',None)
+  data['config'].pop('smallPoolsVersion',None)
+  data['regionalGeneration']['algorithm']='regional-drainage-v2'
+  data['rivers']['algorithm']='regional-drainage-v2'
   path.write_text(json.dumps(data,separators=(',',':')),'utf-8')
 if __name__=='__main__':
  parser=argparse.ArgumentParser();parser.add_argument('--output',required=True,type=Path)

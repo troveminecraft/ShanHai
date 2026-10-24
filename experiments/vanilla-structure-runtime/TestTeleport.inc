@@ -69,9 +69,7 @@ struct StructureTestTeleport {
  std::unique_ptr<nativegen::Field> terrain;
  std::unique_ptr<TerrainVillageFeature> delegate;
  std::string identity,error;
- struct Return {Vec3 position;DimensionType dimension;GameType mode;};
- std::map<std::string,Return> returns;
- ll::event::ListenerPtr join,leave;
+ ll::event::ListenerPtr join;
  int count()const{int n=0;for(auto const&s:spots)n+=int(s.size());return n;}
  bool full(int group)const{return spots[group].size()>=size_t(structure_test::Groups[group].quota);}
  bool done(int type)const{
@@ -132,7 +130,7 @@ struct StructureTestTeleport {
   }catch(std::exception const&e){ll::mod::NativeMod::current()->getLogger().warn("Rebuilding test teleport catalog: {}",e.what());}
  }
  void list(TestTeleportListOutput&out)const{
-  out.success("测试传送 {}/{}：/karma tp <序号> <模式>（1 创造 / 0 观察者）；/karma back 返回原位置和模式。",count(),structure_test::expected());
+  out.success("测试传送 {}/{}：/karma tp <序号> [模式]（1 创造 / 0 观察者；省略保持当前模式）。",count(),structure_test::expected());
   if(!error.empty())out.success("坐标准备中断：{}",error);
   else if(!complete)out.success("坐标在空服时分批准备；已收录的编号保持不变。当前已检查 {} 个候选。",visited);
   for(size_t g=0;g<spots.size();++g){auto const&group=structure_test::Groups[g];
@@ -150,7 +148,6 @@ struct StructureTestTeleport {
    else out.success("[{}] {}：{}",101+i,testBiomes[i].name,biomesDone()?"搜索范围内未找到":"搜索中");
   }
  }
- void restore(Player&p){auto it=returns.find(p.getRealName());if(it==returns.end())return;auto r=it->second;p.teleport(r.position,r.dimension);p.setPlayerGameType(r.mode);returns.erase(it);}
 } structureTest;
 
 // The catalog borrows the adapter's pure planning entry points under its usual
@@ -231,14 +228,15 @@ void registerStructureTest(J const&config){
   auto*a=o.getEntity();TestTeleportListOutput list{a&&a->isPlayer()?static_cast<Player*>(a):nullptr,out};
   structureTest.listBiomes(list);structureTest.list(list);list.finish();
  });
- cmd.runtimeOverload().text("tp").required("index",ll::command::ParamKind::Int).required("mode",ll::command::ParamKind::Int).execute([](CommandOrigin const&o,CommandOutput&out,ll::command::RuntimeCommand const&c){
+ cmd.runtimeOverload().text("tp").required("index",ll::command::ParamKind::Int).optional("mode",ll::command::ParamKind::Int).execute([](CommandOrigin const&o,CommandOutput&out,ll::command::RuntimeCommand const&c){
   auto*a=o.getEntity();
   // Direct player messages remain visible when sendcommandfeedback is disabled.
   auto fail=[&](std::string const&message){if(a&&a->isPlayer())static_cast<Player*>(a)->sendMessage("§c"+message+"§r");out.error(message);};
   int id=std::get<int>(*c["index"].as_ptr());
-  auto mode=test_teleport::mode(std::get<int>(*c["mode"].as_ptr()));
-  if(!mode){fail("模式只能为 1（创造）或 0（观察者）。用法：/karma tp <序号> <模式>");return;}
-  if(!a||!a->isPlayer()){fail("请在游戏内使用 /karma tp <序号> <模式>");return;}
+  auto requested=c["mode"].as_ptr();
+  auto mode=requested?test_teleport::mode(std::get<int>(*requested)):std::nullopt;
+  if(requested&&!mode){fail("模式只能为 1（创造）或 0（观察者）。用法：/karma tp <序号> [模式]");return;}
+  if(!a||!a->isPlayer()){fail("请在游戏内使用 /karma tp <序号> [模式]");return;}
   auto d=test_teleport::destination(id,int(std::size(testBiomes)));
   if(!d){fail("编号无效；输入 /karma 查看全部群系和结构。");return;}
   J const*spot=nullptr;std::string name;
@@ -250,28 +248,20 @@ void registerStructureTest(J const&config){
   }
   if(!spot||!spot->is_object()){fail("该编号的坐标尚未找到；输入 /karma 查看目录和搜索进度。");return;}
   if(!test_teleport::validY(spot->at("y").get<int>(),structureTest.maxYExclusive())){fail("该传送点高度已失效，请等待坐标重新准备。");return;}
-  // Resolve and read the entire target before changing return state or game mode.
+  // Resolve and read the entire target before changing game mode.
   Vec3 target{float(spot->at("x").get<int>())+.5f,float(spot->at("y").get<int>()),float(spot->at("z").get<int>())+.5f};
   auto&p=static_cast<Player&>(*a);
-  structureTest.returns.try_emplace(p.getRealName(),StructureTestTeleport::Return{p.getPosition(),p.getDimensionId(),p.getPlayerGameType()});
-  p.setPlayerGameType(*mode==test_teleport::Mode::Creative?GameType::Creative:GameType::Spectator);
+  if(mode)p.setPlayerGameType(*mode==test_teleport::Mode::Creative?GameType::Creative:GameType::Spectator);
   p.teleport(target,0);
-  p.sendMessage(fmt::format("§9已前往 [{}] {}，{}模式；/karma back 返回原位置和模式。§r",id,name,*mode==test_teleport::Mode::Creative?"创造":"观察者"));out.success();
- });
- cmd.runtimeOverload().text("back").execute([](CommandOrigin const&o,CommandOutput&out,ll::command::RuntimeCommand const&){
-  auto*a=o.getEntity();if(!a||!a->isPlayer()){out.error("请在游戏内使用");return;}auto&p=static_cast<Player&>(*a);
-  if(!structureTest.returns.contains(p.getRealName())){out.error("没有待恢复的测试传送");return;}structureTest.restore(p);p.sendMessage("§9已返回测试前的位置和游戏模式。§r");out.success();
+  p.sendMessage(fmt::format("§9已前往 [{}] {}，{}。§r",id,name,mode?(*mode==test_teleport::Mode::Creative?"创造模式":"观察者模式"):"保持当前模式"));out.success();
  });
  structureTest.join=ll::event::EventBus::getInstance().emplaceListener<ll::event::PlayerJoinEvent>([](auto&e){if(!e.self().isSimulated())e.self().sendMessage(test_teleport::joinMessage());});
- structureTest.leave=ll::event::EventBus::getInstance().emplaceListener<ll::event::PlayerDisconnectEvent>([](auto&e){structureTest.restore(e.self());});
  structureTest.save();StructureTestPump::hook();
- ll::mod::NativeMod::current()->getLogger().info("/karma enabled: full catalog; tp <index> <mode> (1=creative, 0=spectator); blue terrain updates on join");
+ ll::mod::NativeMod::current()->getLogger().info("/karma enabled: full catalog; tp <index> [mode] (1=creative, 0=spectator, omitted=unchanged); blue terrain updates on join");
 }
 void stopStructureTest(){
  structureTest.enabled=false;
  StructureTestPump::unhook();
- if(auto level=ll::service::getLevel())level->forEachPlayer([](Player&p){structureTest.restore(p);return true;});
  if(structureTest.join)ll::event::EventBus::getInstance().removeListener(structureTest.join);
- if(structureTest.leave)ll::event::EventBus::getInstance().removeListener(structureTest.leave);
  structureTest.enabled=false;structureTest.terrain.reset();structureTest.delegate.reset();
 }
