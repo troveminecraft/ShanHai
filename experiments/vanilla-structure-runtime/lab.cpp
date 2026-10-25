@@ -5,7 +5,6 @@
 #include "mc/world/level/block/MultifaceBlock.h"
 // Native structure adapter, bound to the terrain runtime's active world.
 #include "native/Engine.h"
-#include "native/VillageCandidatePlanner.h"
 #include "BdsStructureBinding.h"
 #include "BuildHeight.h"
 #include "rules/StructureRules.h"
@@ -1847,7 +1846,6 @@ class Mod {
         ownedNativeFeatures.clear();
         mansionTemplatesReady = false;
         villageTemplatesReady = false;
-        villageCandidatePlanner.clear();
         field.reset();
         return true;
     }

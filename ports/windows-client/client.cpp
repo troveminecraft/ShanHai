@@ -129,7 +129,6 @@ void clearWorld(Level *level) {
     lab::extraDelegates.clear();
     lab::prefilteredChunks.clear();
     lab::clearPrefillWorkers();
-    lab::villageCandidatePlanner.clear();
     lab::clearPopulationRecovery();
     lab::cityNeighbourCache.clear();
     lab::cityLinks.clear();

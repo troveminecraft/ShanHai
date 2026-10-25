@@ -37,7 +37,6 @@ void memoryAuditProbe(Dimension&d){
 
 struct AuditPlanScope {
  J oldInput;std::unique_ptr<nativegen::Field> oldField;
- J const* oldCandidateRecipe=villageCandidateAuditRecipe;std::string oldCandidateIdentity=villageCandidateAuditIdentity;
  decltype(automaticBlueprints) oldScattered;decltype(villages) oldVillages;
  decltype(cityLinks) oldCityLinks;decltype(cityNeighbourCache) oldCityNeighbours;
  decltype(extraPlans) oldExtras;decltype(extraDelegates) oldDelegates;
@@ -48,11 +47,9 @@ struct AuditPlanScope {
   auto next=std::make_unique<nativegen::Field>(data);villageDelegate=std::make_unique<TerrainVillageFeature>(seed,d.getBiomeRegistry());
   oldInput=std::move(input);input=data;oldField=std::move(field);field=std::move(next);
   oldCityLinks.swap(cityLinks);oldCityNeighbours.swap(cityNeighbourCache);oldScattered.swap(automaticBlueprints);oldVillages.swap(villages);oldExtras.swap(extraPlans);oldDelegates.swap(extraDelegates);oldVegetation.swap(vegetationPairs);
-  villageCandidateAuditRecipe=&data;villageCandidateAuditIdentity="audit:"+std::to_string(nativegen::regional::digest(data.dump()));
   auditPlanningSeed=seed;auditPlanningStarts=&owned;auditVillageDelegate=villageDelegate.get();
  }
  ~AuditPlanScope(){
-  villageCandidateAuditRecipe=oldCandidateRecipe;villageCandidateAuditIdentity=std::move(oldCandidateIdentity);
   cityLinks.clear();cityNeighbourCache.clear();cityLinks.swap(oldCityLinks);cityNeighbourCache.swap(oldCityNeighbours);
   automaticBlueprints.clear();iglooPopulationPlans.clear();villages.clear();extraPlans.clear();extraDelegates.clear();vegetationPairs.clear();owned.clear();
   automaticBlueprints.swap(oldScattered);villages.swap(oldVillages);extraPlans.swap(oldExtras);extraDelegates.swap(oldDelegates);vegetationPairs.swap(oldVegetation);

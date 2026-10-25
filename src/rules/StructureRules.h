@@ -7,7 +7,7 @@
 namespace worldgen_rules {
 inline constexpr std::string_view Revision="llbds-structures-v3";
 // Both maintained adapters execute this policy, including older seed recipes.
-inline constexpr std::string_view StructurePlanRevision="llbds-structures-v4";
+inline constexpr std::string_view StructurePlanRevision="llbds-structures-v3";
 inline constexpr int VillageSpacing=32,VillageSeparation=8,VillageSalt=10387312;
 inline constexpr int VillageSampleRadius=32,VillageSampleStep=32,VillageMaxSlope=10;
 inline constexpr int VillageReach=128,VillagePieceStep=3,VillagePieceMaxOffset=8;

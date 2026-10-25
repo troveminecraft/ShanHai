@@ -20,7 +20,7 @@ double coastalNode(int x,int z){return coastalNodes.get(key2(x,z),[&]{
  double lo=INFINITY,hi=-INFINITY;
  for(auto [dx,dz]:{std::pair{-64,0},std::pair{64,0},std::pair{0,-64},std::pair{0,64}}){
   int sx=x+dx/16,sz=z+dz/16;
-  double h=coastalHeights.get(key2(sx,sz),[&]{double h=uncliff(sx*16.,sz*16.);return h+(elevatedLandscape?raisedLandOffset(h):0);});lo=std::min(lo,h);hi=std::max(hi,h);
+  double h=coastalHeights.get(key2(sx,sz),[&]{return uncliff(sx*16.,sz*16.);});lo=std::min(lo,h);hi=std::max(hi,h);
  }
  return (1-smooth(seaLevelValue-6,seaLevelValue+2,lo))*smooth(90,135,hi)*smooth(.45,1.1,(hi-lo)/128);
 });}
