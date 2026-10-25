@@ -5,7 +5,7 @@ Cache<uint64_t,std::shared_ptr<BirchTree>> birchCache{1024};
 struct BirchStandSite{int x=0,z=0,ground=0,height=0;bool oak=false;double priority=0;};
 Cache<uint64_t,BirchStandSite> birchStandCache{2048};
 static std::array<int,3> birchRotate(int x,int y,int z,int yaw){for(int i=0;i<yaw;i++){int v=x;x=z;z=-v;}return {x,y,z};}
-bool birchHabitat(Surface const&s)const{return s.biome==23&&!s.kind&&!s.lake&&!s.river&&s.giant<.01&&s.stone<.01&&s.barren<.01&&s.height<260&&s.cliffLow==-32768;}
+bool birchHabitat(Surface const&s)const{return s.biome==23&&!s.kind&&!s.lake&&!s.river&&s.giant<.01&&s.stone<.01&&s.barren<.01&&field.ecologyHeight(s)<260&&s.cliffLow==-32768&&field.ecologyTreeWeight(s)>0;}
 BirchStandSite birchStandSite(int gx,int gz){return birchStandCache.get(key2(gx,gz),[&]{
  BirchStandSite a;auto r=[&](int salt){return hash01(gx,gz,terrainSeed^salt);};
  a.x=gx*5+int(r(5101)*5);a.z=gz*5+int(r(5102)*5);a.priority=r(5104);
@@ -13,7 +13,7 @@ BirchStandSite birchStandSite(int gx,int gz){return birchStandCache.get(key2(gx,
  s=field.surface(a.x,a.z);if(s.rock||blocked(a.x,a.z,false))return a;
  if(!treeGroundAllowed(s,a.x,a.z,false))return a;
  double interior=forestInterior(a.x,a.z,3);
- if(r(5103)>clamp(.95+.15*forestNoise.at(a.x/73.,a.z/73.),.82,1.)*(.5+.5*interior))return a;
+ if(r(5103)>clamp(.95+.15*forestNoise.at(a.x/73.,a.z/73.),.82,1.)*(.5+.5*interior)*field.ecologyTreeWeight(s))return a;
  for(auto [dx,dz]:{std::pair{4,0},{-4,0},{0,4},{0,-4}})if(std::abs(field.base(a.x+dx,a.z+dz).height-s.height)>3)return a;
  a.oak=r(5106)<.085*interior*interior;a.ground=s.height;a.height=a.oak?28+int(r(5105)*9):15+int(r(5105)*11*(.5+.5*interior));return a;
 });}

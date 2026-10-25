@@ -1,5 +1,9 @@
 #pragma once
+#include "WorldBounds.h"
 namespace glacier_weather {
+inline constexpr bool sampleChunkAllowed(bool unbounded,int x,int z){
+ return unbounded?terrain_bounds::gameContainsChunk(x,z):terrain_bounds::containsChunk(x,z);
+}
 struct Policy {
  bool snowy=false;
  unsigned dwell=0,cooldown=0,restoreTicks=0,refresh=0;

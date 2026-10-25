@@ -7,8 +7,8 @@
 using namespace nativegen;
 using namespace nativegen::regional;
 int main(int argc,char**argv){std::string stage="geometry";try{
- for(int revision=193;revision<=201;++revision)assert(NativeRuntime::supports("karma-terrain-2."+std::to_string(revision)+".0-native-agent-a"));
- assert(!NativeRuntime::supports("karma-terrain-2.202.0-native-agent-a"));
+ for(int revision=193;revision<=202;++revision)assert(NativeRuntime::supports("karma-terrain-2."+std::to_string(revision)+".0-native-agent-a"));
+ assert(!NativeRuntime::supports("karma-terrain-2.203.0-native-agent-a"));
  // A grid right angle must have continuous tangents and interpolate the join.
  auto curve=riverCurve({{0,0},{64,0},{64,64},{128,64}});
  int joins=0;double maxTurn=0;

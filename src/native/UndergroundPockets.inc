@@ -10,4 +10,19 @@
    for(int dz=-radius-1;dz<=radius+1;++dz)for(int dx=-radius-1;dx<=radius+1;++dx){if(dx*dx+dz*dz>(radius+1)*(radius+1))continue;if(!rock(at(x+dx,y-1,z+dz))||!rock(at(x+dx,y-2,z+dz)))sealed=false;}
    if(!sealed)continue;int level=y-1;for(int dz=-radius;dz<=radius;++dz)for(int dx=-radius;dx<=radius;++dx)if(dx*dx+dz*dz<radius*radius&&at(x+dx,y,z+dz)==0)at(x+dx,level,z+dz)=level<=-52?43:8;break;
   }
+  if(!field.highMountainUndergroundEnabled())return;
+  auto const&s=surfaces[(z-z0)*16+x-x0];
+  double mountain=high_mountain_underground::weight(s);
+  // Reuse ownership, but independently thin the additional upper pool. The
+  // original lower pool and its random stream remain unchanged.
+  if(mountain<=0||r(6)>.36*mountain)return;
+  int top=high_mountain_underground::scanTop(s,true,Height-65,80,14);
+  auto read=[&](int X,int Y,int Z){return at(x0+X,Y,z0+Z);};
+  auto surface=[&](int X,int Z)->Surface const&{return surfaces[Z*16+X];};
+  int X=x-x0,Z=z-z0;
+  for(int y=top;y>=83;--y){
+   if(read(X,y,Z)!=0||!rock(read(X,y-1,Z)))continue;
+   if(!high_mountain_underground::poolFits(X,y,Z,radius,Height-65,read,rock,surface))continue;
+   high_mountain_underground::writePool(X,y,Z,radius,[&](int px,int py,int pz,uint16_t b){at(x0+px,py,z0+pz)=b;});break;
+  }
  }

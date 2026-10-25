@@ -1,6 +1,7 @@
 #pragma once
 #include "StructureFinish.h"
 #include "StructurePlan.h"
+#include "HighMountainUnderground.h"
 #include <optional>
 #include <set>
 
@@ -36,8 +37,8 @@ template<class Boxes> bool smallFeatureFits(StructureBox const&b,Boxes const&occ
 }
 // This bounded scan does not carve a room or connect a tunnel. The native room
 // definition still decides floor/roof/entrances, mob type and chest contents.
-template<class Get,class Solid> std::vector<int> dungeonProbeLevels(ChunkPosition cp,int height,Get name,Solid solid){
- int high=std::min(104,height-16);if(high< -40)return {};
+template<class Get,class Solid> std::vector<int> dungeonProbeLevels(ChunkPosition cp,int height,Get name,Solid solid,bool highMountainUnderground=false,int maxY=319){
+ int high=std::min(highMountainUnderground&&maxY==511?maxY-5:104,height-16);if(high< -40)return {};
  std::set<int> floors;
  for(auto[dx,dz]:{VillageXZ{0,0},{3,0},{-3,0},{0,3},{0,-3}})for(int y=high;y>=-50;--y){StructurePoint p{cp.x*16+8+dx,y,cp.z*16+8+dz};if(name(p)=="minecraft:air"&&solid(StructurePoint{p.x,y-1,p.z}))floors.insert(y);}
  return {floors.begin(),floors.end()};
@@ -58,10 +59,11 @@ inline bool smallFeatureWriteOwned(ChunkPosition owner,StructurePoint p,bool bed
 // One execution order and one random stream for all platforms. Adapters only
 // provide terrain/blocks and invoke the original native feature implementation.
 template<class Random,class Sample,class Get,class Solid,class Boxes,class Place>
-void executeSmallFeatures(ChunkPosition cp,uint32_t seed,Random&rng,Sample sample,Get name,Solid solid,Boxes const&occupied,Place place){
+void executeSmallFeatures(ChunkPosition cp,uint32_t seed,Random&rng,Sample sample,Get name,Solid solid,Boxes const&occupied,Place place,bool highMountainUnderground=false,int maxY=319){
  auto surface=sample(cp.x*16+8,cp.z*16+8);if(!smallFeatureHabitat(surface))return;
  if(wellCandidate(cp,seed))if(auto p=wellPosition(cp,sample);p&&smallFeatureFits(wellBounds(*p),occupied))place("desert_well",*p,rng);
- auto levels=dungeonProbeLevels(cp,surface.height,name,solid);
+ int dungeonTop=high_mountain_underground::scanTop(surface,highMountainUnderground,maxY,104,16);
+ auto levels=dungeonProbeLevels(cp,dungeonTop+16,name,solid,highMountainUnderground&&dungeonTop>104,maxY);
  if(!levels.empty())std::rotate(levels.begin(),levels.begin()+rng.nextInt(int(levels.size())),levels.end());
  unsigned checked=0;
  for(int y:levels){if(checked++>=DungeonProbeLimit)break;StructurePoint p{cp.x*16+8,y,cp.z*16+8};

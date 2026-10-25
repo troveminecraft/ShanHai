@@ -112,7 +112,7 @@ void placeSmallFeatures(Dimension&d,BlockSource&blocks,ChunkPos cp,uint seed,std
  auto name=[&](worldgen_rules::StructurePoint p)->std::string_view{return blocks.getBlock({p.x,p.y,p.z}).getTypeName();};
  auto solid=[&](worldgen_rules::StructurePoint p){return blocks.isSolidBlockingBlock({p.x,p.y,p.z});};
  std::vector<worldgen_rules::StructureBox> reserved;reserved.reserve(occupied.size());for(auto const&b:occupied)reserved.push_back(sharedBox(b));
- worldgen_rules::executeSmallFeatures({cp.x,cp.z},seed,rng,[](int x,int z){return field->surface(x+32768,z+32768);},name,solid,reserved,[&](std::string_view kind,auto p,auto&r){return callSmallFeature(d,blocks,cp,std::string(kind),{p.x,p.y,p.z},r);});
+ worldgen_rules::executeSmallFeatures({cp.x,cp.z},seed,rng,[](int x,int z){return field->surface(x+32768,z+32768);},name,solid,reserved,[&](std::string_view kind,auto p,auto&r){return callSmallFeature(d,blocks,cp,std::string(kind),{p.x,p.y,p.z},r);},field->highMountainUndergroundEnabled(),field->generationHeight()-65);
 
 }
 void findSmallCandidates(Dimension&d,int x,int z){

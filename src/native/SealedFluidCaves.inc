@@ -11,12 +11,19 @@ std::shared_ptr<SealedFluidCave> sealedFluidPlan(int gx,int gz,bool lava){
   int margin=lava?48:32,spread=lava?32:64;
   p->x=gx*128+margin+int(r(1)*spread);p->z=gz*128+margin+int(r(2)*spread);p->fluid=lava?43:8;
   auto s=field.surface(p->x,p->z,false);p->ground=s.height;
-  auto unsuitable=[](Surface const&s){return s.height<34||s.height>180||s.volcanic>.01||s.vent||s.stone>.01||s.iceHabitat>.01||s.scarp>.01||s.cliffLow>-32768;};
+  auto unsuitable=[&](Surface const&s){return s.height<34||
+   (s.height>180&&(!field.highMountainUndergroundEnabled()||high_mountain_underground::weight(s)<=0))||
+   s.volcanic>.01||s.vent||s.stone>.01||s.iceHabitat>.01||s.scarp>.01||s.cliffLow>-32768;};
   if(unsuitable(s)||(!lava&&(s.desert>.15||s.H<.35)))return p;
+  if(s.height>180){
+   // Deep lava remains in the legacy distribution. Sparse mountain water
+   // stays near its local roof, never becoming a regional high aquifer.
+   if(lava||r(0)>.14*high_mountain_underground::weight(s))return p;
+  }
   double rx=lava?24+10*r(3):13+8*r(3),rz=lava?14+7*r(4):6+4*r(4);
   double ry=lava?3.2:3+2*r(5),angle=r(6)*6.283185307,phase=r(7)*6.283185307;
   p->y=lava?-54:s.height-18-int(r(8)*12);if(!lava&&p->y-ry<0)return p;
-  p->reach=int(std::ceil(rx+rz*.24+2));int low=320,high=-64;
+  p->reach=int(std::ceil(rx+rz*.24+2));int low=Height-64,high=-64;
   for(int dz=-p->reach;dz<=p->reach;++dz)for(int dx=-p->reach;dx<=p->reach;++dx){
    double along=dx*std::cos(angle)+dz*std::sin(angle),across=-dx*std::sin(angle)+dz*std::cos(angle);
    double u=along/rx;if(std::abs(u)>=1)continue;
@@ -33,12 +40,9 @@ std::shared_ptr<SealedFluidCave> sealedFluidPlan(int gx,int gz,bool lava){
   if(p->columns.empty())return p;
   int minX=p->x,maxX=p->x,minZ=p->z,maxZ=p->z;
   for(auto const&c:p->columns){minX=std::min(minX,c.x);maxX=std::max(maxX,c.x);minZ=std::min(minZ,c.z);maxZ=std::max(maxZ,c.z);}
-  bool valid=true;
-  for(int z=minZ-2;z<=maxZ+2&&valid;++z)for(int x=minX-2;x<=maxX+2&&valid;++x){
-   auto local=field.surface(x,z,false);
-   if(unsuitable(local)||high>local.height-8||(!lava&&local.height-low>48)){valid=false;break;}
-   for(int y=low-2;y<=high+2;++y)if(field.material(local,x,y,z)!=2){valid=false;break;}
-  }
+  bool valid=high_mountain_underground::sealedRockBoxFits(minX,maxX,minZ,maxZ,low,high,Height-65,lava,
+   [&](int x,int z){return field.surface(x,z,false);},[&](Surface const&local){return !unsuitable(local);},
+   [&](Surface const&local,int x,int y,int z){return field.material(local,x,y,z);});
   if(!valid)p->columns.clear();return p;
  });
 }

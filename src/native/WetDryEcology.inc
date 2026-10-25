@@ -3,7 +3,7 @@ static constexpr uint16_t SwampMud=85,SwampLily=86,SwampReeds=87,DryBush=88,Acac
 struct WetDryTree{int x=0,z=0,g=0,h=0;bool swamp=false;double phase=0,priority=0;};
 Cache<uint64_t,WetDryTree> wetDrySites{1024};
 bool wetDryHabitat(Surface const&s)const{
- return (s.biome==10||s.biome==12)&&!s.kind&&!s.lake&&!s.river&&s.giant<.01&&s.stone<.01&&s.barren<.01&&s.cliffLow==-32768&&s.height>=32&&s.height<180;
+ return (s.biome==10||s.biome==12)&&!s.kind&&!s.lake&&!s.river&&s.giant<.01&&s.stone<.01&&s.barren<.01&&s.cliffLow==-32768&&s.height>=32&&field.ecologyHeight(s)<180&&field.ecologyTreeWeight(s)>0;
 }
 WetDryTree wetDrySite(int gx,int gz){return wetDrySites.get(key2(gx,gz),[&]{
  WetDryTree a;auto r=[&](int salt){return hash01(gx,gz,terrainSeed^salt);};
@@ -11,7 +11,7 @@ WetDryTree wetDrySite(int gx,int gz){return wetDrySites.get(key2(gx,gz),[&]{
  auto s=field.surface(a.x,a.z,false);if(!wetDryHabitat(s))return a;
  a.swamp=s.biome==10;double patch=clamp(.5+forestNoise.at(a.x/93.,a.z/93.),0.,1.);
  double interior=forestInterior(a.x,a.z,a.swamp?5:6);
- double density=(a.swamp?.52+.24*patch:.18+.32*patch)*(.18+.82*smooth(.12,.85,interior));
+ double density=(a.swamp?.52+.24*patch:.18+.32*patch)*(.18+.82*smooth(.12,.85,interior))*field.ecologyTreeWeight(s);
  if(s.desert>0)density*=1-smooth(.05,.4,s.desert)*(1-smooth(.2,.7,s.oasis)*.8);
  if(r(15104)>density||blocked(a.x,a.z,false))return a;
  s=field.surface(a.x,a.z);if(s.rock||s.water>=s.height||s.lava>=s.height)return a;
@@ -94,7 +94,7 @@ void wetDryEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,25
   bool fringe=false;
   if(s.biome==3&&h==field.seaLevel()&&s.water<h&&hash01(X,Z,terrainSeed^15211)<.13)
    for(int d:{8,16})for(auto [dx,dz]:{std::pair{d,0},{-d,0},{0,d},{0,-d}})if(field.surface(X+dx,Z+dz,false).biome==10)fringe=true;
-  bool margin=intensity>0&&!s.kind&&!s.lake&&!s.river&&s.stone<.01&&s.giant<.01&&s.barren<.01&&s.height>=32&&s.height<180&&s.cliffLow==-32768;
+  bool margin=intensity>0&&!s.kind&&!s.lake&&!s.river&&s.stone<.01&&s.giant<.01&&s.barren<.01&&s.height>=32&&field.ecologyHeight(s)<180&&s.cliffLow==-32768&&field.ecologyTreeWeight(s)>0;
   if(!wetDryHabitat(s)&&!water&&!fringe&&!margin)continue;
   auto col=raw.data()+(z*16+x)*Height;double pick=hash01(X,Z,terrainSeed^15211);
   if(water){
@@ -103,7 +103,7 @@ void wetDryEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,25
    if(nearby&&s.water<Height-66&&col[s.water+64]==8&&!col[s.water+65])col[s.water+65]=SwampLily;
    continue;
   }
-  if(s.rock||h>300||s.water>=h||s.lava>=h||(!soil(col[h+64])&&!((swamp||fringe)&&col[h+64]==5))||col[h+65]||blocked(X,Z))continue;
+  if(s.rock||field.ecologyHeight(s)>300||h>Height-69||s.water>=h||s.lava>=h||(!soil(col[h+64])&&!((swamp||fringe)&&col[h+64]==5))||col[h+65]||blocked(X,Z))continue;
   bool nearTrunk=false;for(auto const&t:trees)if(std::hypot(X-t.x,Z-t.z)<2.6){nearTrunk=true;break;}if(nearTrunk)continue;
   double patch=clamp(.5+understoryNoise.at(X/27.,Z/27.),0.,1.);
   if(swamp||fringe){

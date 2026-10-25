@@ -1,6 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$BuildDirectory,
       [Parameter(Mandatory=$true)][string]$OutputDirectory,
-      [string]$FeedbackRecipe)
+      [string]$FeedbackRecipe,
+      [string]$MountainRecipe)
 $ErrorActionPreference = 'Stop'
 $build = [IO.Path]::GetFullPath($BuildDirectory)
 $output = [IO.Path]::GetFullPath($OutputDirectory)
@@ -12,7 +13,7 @@ if ($LASTEXITCODE) { throw 'Palette contract check failed' }
 if ($LASTEXITCODE) { throw 'Kernel fixture preparation failed' }
 Push-Location $output
 try {
-    foreach ($test in @('test_spawn_worker.py','test_process_guard.py')) {
+    foreach ($test in @('test_spawn_worker.py','test_process_guard.py','test_release_versions.py')) {
         & python -B -X utf8 (Join-Path $PSScriptRoot $test)
         if ($LASTEXITCODE) { throw "Python regression failed: $test" }
     }
@@ -26,10 +27,15 @@ try {
 } finally { Pop-Location }
 $bin = Join-Path $build 'windows/x64/release'
 $cases = @(
+    @{Name='raised_caverns'; Args=@()},
+    @{Name='glacier_weather_policy'; Args=@()},
+    @{Name='mega_cave_geometry'; Args=@()},
+    @{Name='shared_small_features'; Args=@((Join-Path $output 'shared-small-features.json'))},
     @{Name='build_height'; Args=@($output)},
     @{Name='structure_height'; Args=@()},
     @{Name='vegetation_columns'; Args=@()},
     @{Name='mountain_height'; Args=@()},
+    @{Name='high_mountain_underground'; Args=@((Join-Path $output 'inputs/positive.json'),(Join-Path $output 'high-mountain-underground.json'))},
     @{Name='regional_plan_concurrency'; Args=@()},
     @{Name='runtime_stability'; Args=@((Join-Path $output 'runtime-stability'))},
     @{Name='snow_loading'; Args=@((Join-Path $output 'inputs/positive.json'),(Join-Path $output 'snow-loading.json'))},
@@ -59,6 +65,9 @@ foreach ($seed in @('positive','negative','wide')) {
 if ($FeedbackRecipe) {
     $cases += @{Name='terrain_boundaries'; Args=@([IO.Path]::GetFullPath($FeedbackRecipe),(Join-Path $output 'coordinate-regressions.json'))}
 }
+if ($MountainRecipe) {
+    $cases += @{Name='mountain_ecology'; Args=@([IO.Path]::GetFullPath($MountainRecipe),(Join-Path $output 'mountain-ecology.json'))}
+}
 foreach ($case in $cases) {
     $arguments = $case.Args
     & (Join-Path $bin ($case.Name+'.exe')) @arguments
@@ -66,5 +75,5 @@ foreach ($case in $cases) {
 }
 $raisedTerrain = Get-Content -LiteralPath (Join-Path $output 'raised-terrain-seed5.json') -Raw | ConvertFrom-Json
 if ($raisedTerrain.lakeSamples -le 0) { throw 'Raised-terrain fixtures did not exercise a real closed lake basin' }
-@{passed=$true; cases=$cases.Name; pythonCases=8; reproducibleSeeds=@('5','-1','9223372036854775807'); gameplayTestPerformed=$false} |
+@{passed=$true; cases=$cases.Name; pythonCases=9; reproducibleSeeds=@('5','-1','9223372036854775807'); gameplayTestPerformed=$false} |
     ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $output 'host-tests.json')

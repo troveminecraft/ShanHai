@@ -23,7 +23,7 @@ void glacierWeatherTick(Level& level){
    auto& region=player.getDimensionBlockSource();
    auto superAt=[&](int X,int Z){
     int cx=int(std::floor(X/16.)),cz=int(std::floor(Z/16.));
-    if(!terrain_bounds::containsChunk(cx,cz)||biomes.size()<=24)return false;
+    if(!glacier_weather::sampleChunkAllowed(unboundedWorld,cx,cz)||biomes.size()<=24)return false;
     auto chunk=region.getChunk(cx,cz);if(!chunk||chunk->getState().load()!=ChunkState::Loaded)return false;
     auto& biome=chunk->getBiome(ChunkBlockPos{BlockPos{X-cx*16,64,Z-cz*16},-64});
     return &biome==biomes[24];

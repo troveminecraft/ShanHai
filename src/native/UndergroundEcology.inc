@@ -15,7 +15,7 @@ KARMA_NOINLINE void undergroundEcology(int x0,int z0,std::vector<uint16_t>&raw,s
  std::array<double,256> rockField{},habitat{};
  for(int z=0;z<16;++z)for(int x=0;x<16;++x){
   int i=z*16+x;auto const&s=surfaces[i];
-  limit[i]=std::min(120,s.height-14);
+  limit[i]=high_mountain_underground::scanTop(s,field.highMountainUndergroundEnabled(),Height-65,120,14);
   // Keep existing volcanic shafts, scarps and their supporting rock intact.
   if(s.volcanic>.01||s.vent||s.scarp>.01||limit[i]<-55){limit[i]=-57;continue;}
   int X=x0+x-32768,Z=z0+z-32768;
@@ -29,8 +29,13 @@ KARMA_NOINLINE void undergroundEcology(int x0,int z0,std::vector<uint16_t>&raw,s
   // Correlated transition patches rather than a single horizontal or climate
   // threshold. One detail sample per column, not per block 3-D Perlin noise.
   double edge=caveBiomesEnabled?geologyNoise.at(X/13.+53,Z/13.-37):0;
+  double upperMountain=field.highMountainUndergroundEnabled()?high_mountain_underground::weight(s):0;
   for(int y=finalTerrainOres?-59:-56;y<=limit[i];++y){
    if(col[y+64]!=2)continue;
+   if(y>120){
+    double grain=hash01(X,Z,seedHash(terrainSeed,4701+uint32_t(y)*17));
+    col[y+64]=high_mountain_underground::upperRock(y,broad,fold,habitat[i],grain,upperMountain);continue;
+   }
    if(caveBiomesEnabled){
     double grain=hash01(X,Z,seedHash(terrainSeed,4601+uint32_t(y)*17));
     double shift=edge*5+(grain-.5)*2;

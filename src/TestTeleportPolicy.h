@@ -47,11 +47,12 @@ inline std::optional<Destination> destination(int id, int biomeCount) {
 }
 struct Update { int id; char const* name; char const* content; };
 inline constexpr Update updates[]{
-    {114, "山地", "覆雪带随抬高后的山峰调整，保留低海拔冰雪群系"},
-    {116, "河流", "减少区域重复规划和线程等待，保留逐格河岸校验"}
+    {114, "山地", "修复高山洞穴在Y319截断，适配树线、地被和高山地下内容"},
+    {106, "雪原", "补充高山植被过渡与覆雪山体绿宝石资格"},
+    {124, "超级冰川", "修复旧世界范围外的专属降雪判断"}
 };
 inline std::string joinMessage() {
-    std::string result = "§9[山&海] 最近地形更新（0.1.11，待游戏内验收）";
+    std::string result = "§9[山&海] 最近地形更新（0.1.12，待游戏内验收）";
     for (auto const& u : updates)
         result += "\n§9[" + std::to_string(u.id) + "] " + u.name + "：" + u.content;
     return result + "\n§9/karma 查看全部群系/结构；/karma tp <序号> [模式]（1 创造 / 0 观察者；省略保持当前模式）。§r";

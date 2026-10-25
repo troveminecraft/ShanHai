@@ -13,7 +13,7 @@ static int jungleKind(uint16_t b){return b==14?0:b==JungleWood?1:b==15?2:b==Jung
 Cache<uint64_t,JungleSite> jungleSites{2048};
 Cache<uint64_t,std::shared_ptr<JungleTree>> jungleShapes{192};
 bool jungleHabitat(Surface const&s)const{
- return s.biome==13&&s.giant<.01&&s.stone<.01&&s.barren<.01&&!s.kind&&!s.lake&&!s.river&&s.cliffLow==-32768&&s.height>33&&s.height<235;
+ return s.biome==13&&s.giant<.01&&s.stone<.01&&s.barren<.01&&!s.kind&&!s.lake&&!s.river&&s.cliffLow==-32768&&s.height>33&&field.ecologyHeight(s)<235&&field.ecologyTreeWeight(s)>0;
 }
 double junglePatch(int x,int z)const{return clamp(.58+.65*forestNoise.at(x/83.,z/83.)+.22*understoryNoise.at(x/29.,z/29.),0.,1.);}
 JungleSite jungleSite(int gx,int gz){return jungleSites.get(key2(gx,gz),[&]{
@@ -24,7 +24,7 @@ JungleSite jungleSite(int gx,int gz){return jungleSites.get(key2(gx,gz),[&]{
  auto s=field.surface(a.x,a.z,false);if(!jungleHabitat(s))return a;
  s=field.surface(a.x,a.z);if(s.rock||blocked(a.x,a.z,false)||r(12104)>.58+.4*junglePatch(a.x,a.z))return a;
  double interior=forestInterior(a.x,a.z,4);
- if(r(12104)>(.58+.4*junglePatch(a.x,a.z))*(.5+.5*interior))return a;
+ if(r(12104)>(.58+.4*junglePatch(a.x,a.z))*(.5+.5*interior)*field.ecologyTreeWeight(s))return a;
  double pick=r(12105);a.layer=pick<.14*interior*interior?2:pick<.68*interior?1:0;
  // Near an ecotone, smaller trees feather the canopy instead of a tall wall.
  a.width=a.layer?3:1;int lo=s.height,hi=s.height;
@@ -38,6 +38,8 @@ JungleSite jungleSite(int gx,int gz){return jungleSites.get(key2(gx,gz),[&]{
  a.h=a.layer==2?46+int(r(12106)*13):a.layer==1?34+int(r(12106)*12):18+int(r(12106)*10);
  a.radius=a.layer==2?5.8+r(12107)*1.1:a.layer==1?4.5+r(12107)*1.2:2.9+r(12107)*1.0;
  if(!a.layer&&r(12111)<.46){a.h=5+int(r(12112)*8);a.radius=2.1+r(12113)*1.0;}
+ // The expanded mountain habitat must still fit a whole emergent crown.
+ if(a.ground+a.h>Height-65)return JungleSite{};
  a.phase=r(12108)*6.283185307;double form=r(12110);
  a.style=!a.layer?4:form<.42?0:form<.70?1:form<.93?2:3;return a;
 });}

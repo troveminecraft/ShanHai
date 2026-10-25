@@ -2,6 +2,7 @@
 // edges without changing biome labels, ground heights or the drainage graph.
 Cache<uint64_t,int> forestEdgeNodes{4096};
 int forestFamily(Surface const&s)const{
+ if(field.ecologyTreeWeight(s)==0)return 0;
  if(coniferHabitat(s))return 1;if(broadleafHabitat(s))return 2;
  if(birchHabitat(s))return 3;if(jungleHabitat(s))return 4;
  if(s.biome==10||s.wetland>.2)return 5;if(s.biome==12)return 6;

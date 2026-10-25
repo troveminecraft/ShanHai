@@ -2,7 +2,7 @@
 void riparianEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>const&surfaces,std::vector<Structure>const&ss){
  for(int z=0;z<16;z++)for(int x=0;x<16;x++){
   auto const&s=surfaces[z*16+x];int h=s.height;
-  if(s.kind||s.water>h||s.lava>h||s.giant>.01||s.stone>.01||s.barren>.01||s.cliffLow!=-32768||s.rock||h>230||s.T<.22||coniferHabitat(s))continue;
+  if(s.kind||s.water>h||s.lava>h||s.giant>.01||s.stone>.01||s.barren>.01||s.cliffLow!=-32768||s.rock||field.ecologyHeight(s)>230||field.ecologyTemperature(s)<.22||coniferHabitat(s))continue;
   int X=x0+x,Z=z0+z;auto col=raw.data()+(z*16+x)*Height;
   if(col[h+64]!=4||col[h+65])continue;
   bool blocked=false;for(auto const&a:ss)if(std::abs(X-a.x)<48&&std::abs(Z-a.z)<48){blocked=true;break;}if(blocked)continue;

@@ -2,8 +2,9 @@
 struct Conifer {int x=0,z=0,h=0,ground=0,shape=0;double radius=0,phase=0,priority=0;};
 Cache<uint64_t,Conifer> coniferCache{2048};
 bool coniferHabitat(Surface const&s)const{
- bool climate=s.biome==6||((s.biome==9||s.biome==14)&&s.T>=.22&&s.T<.42&&s.H>.35);
- return climate&&s.giant<.02&&s.stone<.01&&s.barren<.01&&!s.kind&&!s.lake&&s.cliffLow==-32768&&s.height>38&&s.height<240;
+ double temperature=field.ecologyTemperature(s),height=field.ecologyHeight(s);
+ bool climate=s.biome==6||((s.biome==9||s.biome==14)&&temperature>=.22&&temperature<.42&&s.H>.35);
+ return climate&&s.giant<.02&&s.stone<.01&&s.barren<.01&&!s.kind&&!s.lake&&s.cliffLow==-32768&&s.height>38&&height<240&&field.ecologyTreeWeight(s)>0;
 }
 double coniferPatch(int x,int z)const{return clamp(.5+.8*forestNoise.at(x/91.,z/91.)+.25*understoryNoise.at(x/29.,z/29.),0,1);}
 Conifer coniferCandidate(int gx,int gz){return coniferCache.get(key2(gx,gz),[&]{
@@ -12,7 +13,7 @@ Conifer coniferCandidate(int gx,int gz){return coniferCache.get(key2(gx,gz),[&]{
  auto s=field.surface(a.x,a.z,false);
  if(!coniferHabitat(s)||r(1904)>.10+.85*coniferPatch(a.x,a.z)||blocked(a.x,a.z,false))return a;
  double interior=forestInterior(a.x,a.z,1);
- if(r(1904)>(.10+.85*coniferPatch(a.x,a.z))*(.5+.5*interior)*iceVegetation(s))return a;
+ if(r(1904)>(.10+.85*coniferPatch(a.x,a.z))*(.5+.5*interior)*iceVegetation(s)*field.ecologyTreeWeight(s))return a;
  if(!treeGroundAllowed(s,a.x,a.z,false))return a;
  int lo=s.height,hi=s.height;
  for(int dz=-2;dz<=2;dz++)for(int dx=-2;dx<=2;dx++){

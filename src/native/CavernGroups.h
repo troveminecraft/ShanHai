@@ -4,6 +4,9 @@ namespace nativegen {
 // Finite groups of up to four connected cave systems. Both room and passage
 // geometry are swept through varying curved sections; no per-voxel 3-D noise.
 class CavernGroups {
+public:
+ using Column=std::array<uint64_t,9>;
+private:
  struct P {double x,y,z;};
  struct K {P p;double left,right,roof,depth;};
  struct Span {K a,b;double pad,dx,dz,len,len2;bool room;bool cliff=false,thermal=false;};
@@ -13,16 +16,17 @@ class CavernGroups {
  struct Chasm {P p;double length,width,tall,angle;bool lava,waterfall;};
  struct Group {std::vector<Span> spans;std::vector<Pillar> pillars;std::array<Node,4> nodes;J links=J::array(),attachments=J::array(),lavaBands=J::array();std::array<std::vector<int>,44*44> bins;std::vector<Chasm> chasms;std::vector<Bend> bends;};
  struct Mask {
-  std::array<std::array<uint64_t,6>,256> columns{};
+  std::array<Column,256> columns{};
   std::array<bool,256> thermal{};
   auto& operator[](size_t i){return columns[i];}
  };
  static constexpr int Cell=352,Pitch=704;
  uint32_t seed;Perlin rock;bool megaEnabled=false,designEnabled=false,lavaBandEnabled=false,moreChasms=false;
+ int upperYExclusive=320;
  Cache<uint64_t,std::shared_ptr<Group>> groups{32};
  Cache<uint64_t,std::shared_ptr<Mask>> masks{64};
  std::shared_ptr<Mask> active;int activeX=INT32_MIN,activeZ=INT32_MIN;
- std::array<uint64_t,6> const* activeColumn=nullptr;int columnX=INT32_MIN,columnZ=INT32_MIN;
+ Column const* activeColumn=nullptr;int columnX=INT32_MIN,columnZ=INT32_MIN;
  double rnd(int x,int z,int salt)const{return hash01(x,z,seedHash(seed,7200+salt));}
  static K blend(K a,K b,double t){return {{mix(t,a.p.x,b.p.x),mix(t,a.p.y,b.p.y),mix(t,a.p.z,b.p.z)},mix(t,a.left,b.left),mix(t,a.right,b.right),mix(t,a.roof,b.roof),mix(t,a.depth,b.depth)};}
  void sweep(Group&g,K a,K b,double bend,bool room=false,bool cliff=false,bool thermal=false){
@@ -258,21 +262,21 @@ class CavernGroups {
   }
   return g;
  });}
- static void setRange(std::array<uint64_t,6>&c,int lo,int hi){lo=std::max(-56,lo)+64;hi=std::min(319,hi)+64;if(lo>hi)return;
+ void setRange(Column&c,int lo,int hi)const{lo=std::max(-56,lo)+64;hi=std::min(upperYExclusive-1,hi)+64;if(lo>hi)return;
   for(int w=lo/64;w<=hi/64;++w){int a=w==lo/64?lo%64:0,b=w==hi/64?hi%64:63;c[w]|=(~uint64_t(0)<<a)&(~uint64_t(0)>>(63-b));}}
  template<class Height> KARMA_NOINLINE std::shared_ptr<Mask> raster(int cx,int cz,Height&height){
   auto out=std::make_shared<Mask>();int x0=cx*16,z0=cz*16,gx=int(std::floor(x0/double(Pitch))),gz=int(std::floor(z0/double(Pitch)));auto g=group(gx,gz,height);
   std::vector<Span const*> nearby;for(int id:g->bins[(cz-gz*44)*44+cx-gx*44]){auto const&s=g->spans[id];if(std::max(s.a.p.x,s.b.p.x)+s.pad>=x0&&std::min(s.a.p.x,s.b.p.x)-s.pad<=x0+15&&std::max(s.a.p.z,s.b.p.z)+s.pad>=z0&&std::min(s.a.p.z,s.b.p.z)-s.pad<=z0+15)nearby.push_back(&s);}
   if(nearby.empty())return out;
-  std::array<double,256> wall{},floor{},roof{};std::array<int,256> lo{},hi{};lo.fill(320);hi.fill(-64);
+  std::array<double,256> wall{},floor{},roof{};std::array<int,256> lo{},hi{};lo.fill(upperYExclusive);hi.fill(-64);
   for(int z=0;z<16;++z)for(int x=0;x<16;++x){int i=z*16+x;double X=x+x0,Z=z+z0;
    wall[i]=.15*rock.at(X/21.,Z/21.)+.05*rock.at(X/6.+13,Z/6.-7);
    floor[i]=rock.at(X/23.-31,Z/23.+23);roof[i]=rock.at(X/32.+11,Z/32.-17);
   }
   for(auto ptr:nearby){auto const&s=*ptr;
-   std::array<double,384> cliffSin{},cliffWidth{};
+   std::array<double,576> cliffSin{},cliffWidth{};
    bool flatCliff=s.cliff&&s.a.p.y==s.b.p.y&&s.a.roof==s.b.roof;
-   if(flatCliff)for(int y=std::max(-56,int(s.a.p.y)-3);y<=std::min(319,int(s.a.p.y+s.a.roof)+3);++y){double t=(y-s.a.p.y)/s.a.roof;cliffSin[y+64]=std::sin(t*3.14159265);cliffWidth[y+64]=.70+.30*t;}
+   if(flatCliff)for(int y=std::max(-56,int(s.a.p.y)-3);y<=std::min(upperYExclusive-1,int(s.a.p.y+s.a.roof)+3);++y){double t=(y-s.a.p.y)/s.a.roof;cliffSin[y+64]=std::sin(t*3.14159265);cliffWidth[y+64]=.70+.30*t;}
 
    int l=std::max(x0,int(std::ceil(std::min(s.a.p.x,s.b.p.x)-s.pad))),r=std::min(x0+15,int(std::floor(std::max(s.a.p.x,s.b.p.x)+s.pad)));
    int n=std::max(z0,int(std::ceil(std::min(s.a.p.z,s.b.p.z)-s.pad))),b=std::min(z0+15,int(std::floor(std::max(s.a.p.z,s.b.p.z)+s.pad)));
@@ -289,7 +293,7 @@ class CavernGroups {
     if(s.cliff){
      // The wall drifts with Y and undercuts in the middle; no inserted flat
      // rectangle or isolated rock slab. Column noise roughens connected rock.
-     int low=std::max(-56,int(std::ceil(k.p.y+floor[i]*1.2))),high=std::min(319,int(std::floor(k.p.y+k.roof+roof[i]*2)));
+     int low=std::max(-56,int(std::ceil(k.p.y+floor[i]*1.2))),high=std::min(upperYExclusive-1,int(std::floor(k.p.y+k.roof+roof[i]*2)));
      for(int y=low;y<=high;++y){double tY=(y-k.p.y)/k.roof;
       double shift=radius*.22*(flatCliff?cliffSin[y+64]:std::sin(tY*3.14159265)),width=radius*(flatCliff?cliffWidth[y+64]:(.70+.30*tY))+wall[i];
       double aSide=side-shift,along=rx*s.dx/s.len+rz*s.dz/s.len;
@@ -315,7 +319,7 @@ class CavernGroups {
   }
   for(auto const&p:g->pillars)for(int z=0;z<16;++z)for(int x=0;x<16;++x){int i=z*16+x;if(hi[i]-lo[i]<10)continue;
    double d=std::hypot(x0+x-p.x,z0+z-p.z);if(d>p.r*1.9+1)continue;
-   for(int y=std::max(-55,lo[i]);y<=std::min(319,hi[i]);++y){double t=(y-lo[i])/double(hi[i]-lo[i]);
+   for(int y=std::max(-55,lo[i]);y<=std::min(upperYExclusive-1,hi[i]);++y){double t=(y-lo[i])/double(hi[i]-lo[i]);
     double radius=p.r*(.7+1.1*std::pow(2*t-1,2))+.6*std::sin(t*9+p.phase)+wall[i];
     if(d<radius)(*out)[i][(y+64)/64]&=~(uint64_t(1)<<((y+64)%64));
    }
@@ -323,8 +327,13 @@ class CavernGroups {
   return out;
  }
 public:
- explicit CavernGroups(uint32_t s,bool mega=false,bool design=false,bool lavaBand=false,bool chasms=false):seed(s),rock(seedHash(s,7101)),megaEnabled(mega),designEnabled(design),lavaBandEnabled(lavaBand),moreChasms(chasms){}
- template<class Height> std::array<uint64_t,6> const& column(int x,int z,Height height){
+ // The recipe chooses the active ceiling; old recipes retain their exact
+ // clipping while the fixed-capacity mask also has room for the raised world.
+ explicit CavernGroups(uint32_t s,bool mega=false,bool design=false,bool lavaBand=false,bool chasms=false,int maxYExclusive=320):seed(s),rock(seedHash(s,7101)),megaEnabled(mega),designEnabled(design),lavaBandEnabled(lavaBand),moreChasms(chasms),upperYExclusive(maxYExclusive){
+  if(maxYExclusive!=320&&maxYExclusive!=512)throw std::invalid_argument("Unsupported cavern height");
+ }
+ int maxYExclusive()const{return upperYExclusive;}
+ template<class Height> Column const& column(int x,int z,Height height){
   // The block loop walks Y inside each column. Reuse its bitset pointer rather
   // than recomputing signed chunk division and local indices for every voxel.
   if(x!=columnX||z!=columnZ){int cx=int(std::floor(x/16.)),cz=int(std::floor(z/16.));
@@ -334,7 +343,7 @@ public:
   return *activeColumn;
  }
  bool thermalColumn()const{return active&&active->thermal[(columnZ-activeZ*16)*16+columnX-activeX*16];}
- template<class Height> bool contains(int x,int y,int z,Height height){if(y<-56||y>319)return false;
+ template<class Height> bool contains(int x,int y,int z,Height height){if(y<-56||y>=upperYExclusive)return false;
   return (column(x,z,height)[(y+64)/64]>>((y+64)%64))&1;
  }
  template<class Height> std::vector<std::array<int,3>> waterfallCandidates(int cx,int cz,Height height){

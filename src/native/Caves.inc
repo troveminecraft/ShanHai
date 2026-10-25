@@ -5,7 +5,7 @@
  bool finiteCaveSystems=false;
  bool groupedCaverns=false,deepCaveLava=false;
  bool caveDesign=terrainRevision(data)>=186;
- CavernGroups cavernGroups{terrainSeed,terrainRevision(data)>=176||C.at("cave").value("irregularMegaHalls",false),caveDesign,terrainRevision(data)>=189,terrainRevision(data)>=193};
+ CavernGroups cavernGroups{terrainSeed,terrainRevision(data)>=176||C.at("cave").value("irregularMegaHalls",false),caveDesign,terrainRevision(data)>=189,terrainRevision(data)>=193,C.at("cave").value("raisedCaveHeight",0)==1?generatedMaxYExclusive:320};
  std::unordered_map<uint64_t,int> cavernHeights;
  double cavernHeight(int x,int z){auto i=cavernHeights.find(key2(x,z));if(i!=cavernHeights.end())return i->second;
   // Remote hall controls need the terrain envelope, not every distant region's

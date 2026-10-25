@@ -5,7 +5,7 @@ bool vanillaOres=false;
 bool vanillaOreCondition(int condition,Surface const&s,int i)const{
  bool drip=caveBiomesEnabled&&s.glacier<=.3&&oreHabitat[i]<-.14&&oreRockField[i]>-.3;
  // The same local habitat predicate controls the existing dripstone ecology.
- switch(condition){case 1:return s.biome==14;case 2:return drip;case 3:return !drip;case 4:return (s.biome==15||(s.biome>=26&&s.biome<=28));case 5:return false;default:return true;}
+ switch(condition){case 1:return s.biome==14||(field.highMountainUndergroundEnabled()&&s.biome==5&&high_mountain_underground::weight(s)>0);case 2:return drip;case 3:return !drip;case 4:return (s.biome==15||(s.biome>=26&&s.biome<=28));case 5:return false;default:return true;}
 }
 KARMA_NOINLINE void vanillaOreProfiles(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>const&surfaces){
  int gx0=(x0-32768)/16,gz0=(z0-32768)/16,top=-64;
@@ -13,7 +13,7 @@ KARMA_NOINLINE void vanillaOreProfiles(int x0,int z0,std::vector<uint16_t>&raw,s
  if(top<-60)return;
  std::array<uint8_t,256> eligibility{};uint8_t anyEligibility=0;
  for(int i=0;i<256;++i){auto const&s=surfaces[i];bool drip=vanillaOreCondition(2,s,i);
-  eligibility[i]=uint8_t(1|(s.biome==14?2:0)|(drip?4:8)|((s.biome==15||(s.biome>=26&&s.biome<=28))?16:0));anyEligibility|=eligibility[i];
+  eligibility[i]=uint8_t(1|(vanillaOreCondition(1,s,i)?2:0)|(drip?4:8)|((s.biome==15||(s.biome>=26&&s.biome<=28))?16:0));anyEligibility|=eligibility[i];
  }
  std::array<Surface,324> halo{};std::array<bool,324> known{};
  auto isAir=[&](int x,int y,int z){

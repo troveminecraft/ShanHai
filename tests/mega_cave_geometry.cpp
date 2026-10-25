@@ -11,11 +11,12 @@ int main(){
   auto list=a.inventory(-10000,9999,h);
   for(auto const&g:list)for(auto const&r:g.at("nodes"))if(r.at("mega").get<bool>()){
    ++rooms;int x=int(r.at("x").get<double>()),z=int(r.at("z").get<double>());
-   std::vector<std::array<uint64_t,6>> expected;
+   std::vector<nativegen::CavernGroups::Column> expected;
    for(int d=-128;d<=128;d+=8)expected.push_back(a.column(x+d,z,h));
    int i=int(expected.size())-1;
    for(int d=128;d>=-128;d-=8){auto got=b.column(x+d,z,h);if(got!=expected[i--])throw std::runtime_error("order mismatch");
-    if(got[0]&511ULL)throw std::runtime_error("bedrock cover carved");++columns;}
+    // Y=-56 is the first permitted cave layer; protect -64 through -57.
+    if(got[0]&255ULL)throw std::runtime_error("bedrock cover carved");++columns;}
   }
  }
  if(rooms<10)throw std::runtime_error("missing rare rooms");
