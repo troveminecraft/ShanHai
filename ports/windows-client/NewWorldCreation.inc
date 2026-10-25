@@ -12,6 +12,7 @@
 #include "mc/platform/UUID.h"
 #include "NewWorldFiles.h"
 #include "NewWorldStatus.h"
+#include "PinnedGameImage.h"
 
 namespace client::creation {
 using Facet=OreUI::CreateNewWorldFacet_DEPRECATED;
@@ -27,16 +28,20 @@ template<class T> T& facetField(Facet& f,T Facet::*member){
  return *reinterpret_cast<T*>(reinterpret_cast<std::byte*>(&(f.*member))+0x18);
 }
 bool supportedFacetLayout(){
- // Validate the loaded, pinned game image directly. The SDK symbol resolver
- // can return an indirection rather than the implementation's first bytes.
- auto base=reinterpret_cast<unsigned char const*>(GetModuleHandleW(L"Minecraft.Windows.exe"));
- if(!base)return false;
- auto dos=reinterpret_cast<IMAGE_DOS_HEADER const*>(base);
- if(dos->e_magic!=IMAGE_DOS_SIGNATURE)return false;
- auto nt=reinterpret_cast<IMAGE_NT_HEADERS64 const*>(base+dos->e_lfanew);
- if(nt->Signature!=IMAGE_NT_SIGNATURE||nt->FileHeader.TimeDateStamp!=0x69e8f5a1||nt->OptionalHeader.SizeOfImage!=0xea9e000)return false;
- constexpr unsigned char expected[]={0x41,0x57,0x41,0x56,0x41,0x54,0x56,0x57,0x55,0x53,0x48,0x83,0xec,0x20,0x48,0x89,0xce,0x48,0x8b,0x89,0xf8,0x01,0,0};
- return std::memcmp(base+0x928b910,expected,sizeof(expected))==0;
+ auto base=reinterpret_cast<unsigned char const*>(GetModuleHandleW(nullptr));
+ auto check=image::inspect([&](uint32_t rva,void* out,size_t size){
+  if(!base||uint64_t(rva)+size>0xea9f000)return false;
+  MEMORY_BASIC_INFORMATION page{};auto address=base+rva;
+  if(!VirtualQuery(address,&page,sizeof(page))||page.State!=MEM_COMMIT||
+     (page.Protect&(PAGE_NOACCESS|PAGE_GUARD))||
+     size>size_t(static_cast<unsigned char const*>(page.BaseAddress)+page.RegionSize-address))return false;
+  std::memcpy(out,address,size);return true;
+ });
+ std::ofstream(diagnostics/"game-image.json")<<Json{
+  {"supported",check.supported},{"reason",check.reason},{"timestamp",check.timestamp},
+  {"imageSize",check.imageSize},{"modVersion",shanhai_release::Windows}}.dump(2);
+ if(!check.supported)terrain::log().error("Minecraft image rejected: {} (timestamp=0x{:x}, imageSize=0x{:x})",check.reason,check.timestamp,check.imageSize);
+ return check.supported;
 }
 
 bool supportedSeedParser(){
