@@ -1,8 +1,9 @@
 // Seed-driven, non-overlapping volcanic regions. No configured center coordinates.
 struct VolcanoCone {double x,z,radius,crater,height,depth,vent;};
-struct VolcanoRegion {bool valid=false,mountain=false;VolcanoCone cone{};double inner=0,outer=0,base=0;std::array<float,16> terrain{};};
+struct VolcanoRegion {bool valid=false,mountain=false;VolcanoCone cone{};double inner=0,outer=0,base=0,lavaTop=-32768;int sizeClass=0;std::array<float,16> terrain{};magma::Layers layers{};};
+bool irregularMagma=C.value("volcanoRevision",0)==4;
 bool continuousMagma=C.value("volcanoRevision",0)==3;
-bool volcanicGeology=continuousMagma||C.value("volcanoRevision",0)==2;
+bool volcanicGeology=irregularMagma||continuousMagma||C.value("volcanoRevision",0)==2;
 bool integratedVolcano=terrainRevision(data)>=182;
 bool volcanoEnabled=false;double volcanoGrid=4096,volcanoChance=.7,volcanoMin=425,volcanoMax=505;
 uint32_t volcanicSeed=terrainSeed;
@@ -29,6 +30,11 @@ VolcanoRegion volcanoRegion(int gx,int gz){return volcanoRegions.get(key2(gx,gz)
  v.base=clamp(shaped(x+32768,z+32768,vcont(x+32768,z+32768),false),55,85);
  v.cone={x,z,185+25*rnd(1219),58+16*rnd(1223),160+30*rnd(1229),48+8*rnd(1231),10+3*rnd(1237)};
  if(continuousMagma)v.cone.crater*=1.35;
+ if(irregularMagma){
+  double size=rnd(1259),shape=rnd(1223);
+  v.sizeClass=size<.30?0:size<.95?1:2;
+  v.cone.crater=v.sizeClass==0?18+10*shape:v.sizeClass==1?28+14*shape:45+13*shape;
+ }
  if(integratedVolcano){
   // A cached regional foundation, evaluated before volcanic shaping. Never
   // call base()/surface() here: they would recurse into this region.
@@ -40,8 +46,21 @@ VolcanoRegion volcanoRegion(int gx,int gz){return volcanoRegions.get(key2(gx,gz)
   double center=shaped(x+32768,z+32768,vcont(x+32768,z+32768));
   v.base=clamp(std::max(.4*center+.6*sum/16,peak-100),volcanicGeology?seaLevelValue+16.:35.,(volcanicGeology?470.:292.)-v.cone.height);
  }
+ if(irregularMagma){
+  double lowest=100;
+  for(int i=0;i<128;++i)lowest=std::min(lowest,irregularRim(v.cone,i*6.283185307179586/128));
+  // A single horizontal lava level follows the lowest lip, not an unrelated
+  // deep bowl parameter. Extra clearance covers integer sampling at the rim.
+  v.lavaTop=std::floor(v.base+v.cone.height+lowest-7-3*rnd(1277));
+  v.layers=magma::layers(v.cone.x/177.+v.cone.z/311.);
+ }
  v.mountain=rnd(1249)<.50;v.valid=true;return v;
 });}
+double irregularRim(VolcanoCone const&a,double angle){
+ double phase=a.x/177.+a.z/311.;
+ return 4*std::sin(3*angle+phase)+2.5*std::sin(5*angle-phase*.7)
+  +2*volcanicNoise.at(std::cos(angle)*2.7+a.x/137,std::sin(angle)*2.7+a.z/137);
+}
 double volcanicDistance(VolcanoRegion const&v,double x,double z){
  double r=std::hypot(x-v.cone.x,z-v.cone.z);
  return r+smooth(145.,260.,r)*(56*volcanicNoise.at(x/150.,z/150.)+22*volcanicNoise.at(x/57.+19,z/57.-31));
@@ -57,6 +76,7 @@ J volcanoInventory(int min,int max){
  for(int z=int(std::floor(min/volcanoGrid));z<=int(std::floor(max/volcanoGrid));z++)for(int x=int(std::floor(min/volcanoGrid));x<=int(std::floor(max/volcanoGrid));x++){
   auto v=volcanoRegion(x,z);if(!v.valid)continue;auto a=v.cone;
   rows.push_back({{"x",a.x},{"z",a.z},{"outer",v.outer},{"base",v.base},{"height",a.height},{"crater",a.crater},{"depth",a.depth},{"vent",a.vent},{"rockType",v.mountain?"mountain":"basalt"}});
+  if(irregularMagma){rows.back()["sizeClass"]=v.sizeClass;rows.back()["lavaTop"]=v.lavaTop;}
  }return rows;
 }
 void volcanicRelief(Surface&s,double&height,int wx,int wz){
@@ -81,9 +101,14 @@ void volcanicRelief(Surface&s,double&height,int wx,int wz){
   double direction=volcanicNoise.at(ux*2.7+a.x/137,uz*2.7+a.z/137);
   double radius=a.radius*(1+.085*std::sin(angle*3+a.x*.01)+.07*direction);
   double rim=std::max(28-a.depth,7*std::sin(angle*3+a.z*.013)+5*direction);
+  if(irregularMagma)rim=irregularRim(a,angle);
   double h;
   if(r<crater){
-   if(continuousMagma){
+   if(irregularMagma){
+    double floor=region.lavaTop-volcanoBase-1;
+    double lipStart=.72+.055*std::sin(angle*4+a.x*.017)+.035*direction;
+    h=floor+(a.height+rim-floor)*smooth(crater*lipStart,crater,r);
+   }else if(continuousMagma){
     // Broad lava mouth with a short steep inner rim, connected to the root below.
     double floor=a.height-a.depth+5;
     h=floor+(a.height+rim-floor)*smooth(crater*.86,crater,r);
@@ -144,6 +169,26 @@ void volcanicRelief(Surface&s,double&height,int wx,int wz){
    s.volcanoLava=float(std::floor(volcanoBase+a.height-a.depth+6));s.volcanoVent=float(a.vent);
    s.volcanoPhase=float(a.x/177.+a.z/311.);s.volcanoGrain=float(volcanicNoise.at(x/61.,z/61.));
    s.volcanoHeat=float(1-smooth(20.,volcanoOuter*.70,r));
+   if(irregularMagma){
+    s.volcanoLava=float(region.lavaTop);
+    s.volcanoMagmaTop=r>=crater?float(std::min(region.lavaTop,h-8)):float(region.lavaTop);
+    // The center wanders with depth, and independently phased lobes expand
+    // into the surrounding rock. All levels retain an overlapping hot core.
+    double phase=s.volcanoPhase;
+    double mouth=crater*.80;
+    double root=volcanoOuter*.57*(1+.10*std::sin(2*angle+phase)+.07*std::cos(3*angle-phase*.7));
+    double sin2=std::sin(2*angle+phase),cos2=std::cos(2*angle+phase);
+    double sin5=std::sin(5*angle-phase*.6),cos5=std::cos(5*angle-phase*.6);
+    for(int i=0;i<magma::Knots;++i){
+     double t=double(i)/(magma::Knots-1);auto const&layer=region.layers[i];
+     double px=rx-layer.x,pz=rz-layer.z,dist=std::hypot(px,pz);
+     double radius=mouth+(root-mouth)*layer.growth;
+     double lobes=sin2*layer.cos5+cos2*layer.sin5+.55*(cos5*layer.cos7+sin5*layer.sin7);
+     radius+=layer.amplitude*lobes;
+     radius+=9*t*volcanicNoise.at(px/37.+phase+t*3,pz/37.-t*5);
+     s.volcanoMargins[i]=float(std::max(12.,radius)-dist);
+    }
+   }
    if(continuousMagma){
     double root=volcanoOuter*.72*(.96+.04*std::cos(3*angle+s.volcanoPhase));
     s.volcanoMagmaTop=magma::columnTop(r,crater*.86,root,s.volcanoLava);
@@ -152,7 +197,7 @@ void volcanicRelief(Surface&s,double&height,int wx,int wz){
    }
    s.barren=s.volcanic*s.volcanicDeposit;
   }
-  target=h;lava=r<crater?int(std::floor(volcanoBase+a.height-a.depth+6)):-32768;vent=r<a.vent;
+  target=h;lava=r<crater?int(irregularMagma?region.lavaTop:std::floor(volcanoBase+a.height-a.depth+6)):-32768;vent=r<a.vent;
  }
  height=target;
  if(s.volcanic>.99){s.lava=lava;s.vent=vent;s.cliffLow=s.cliffHigh=-32768;}
@@ -164,7 +209,9 @@ int volcanicMaterial(Surface const&s,int x,int y,int z){
   // Sealed asymmetric magma chamber and a flaring, bent conduit. Both have
   // finite lower bounds; the old constant-radius shaft no longer reaches bedrock.
   double dx=s.volcanoDx,dz=s.volcanoDz,grain=s.volcanoGrain;
-  if(continuousMagma){
+  if(irregularMagma){
+   if(magma::contains(s.volcanoMargins,y,s.volcanoLava,s.volcanoMagmaTop))return 43;
+  }else if(continuousMagma){
    if(y>=magma::Bottom&&y<=s.volcanoMagmaTop)return 43;
   }else if(y<=s.height&&y>-57){
    double u=clamp((s.volcanoLava-y)/(s.volcanoLava+12.),0.,1.);
