@@ -28,6 +28,7 @@ try {
 } finally { Pop-Location }
 $bin = Join-Path $build 'windows/x64/release'
 $cases = @(
+    @{Name='village_candidate_concurrency'; Args=@((Join-Path $output 'inputs/positive.json'),(Join-Path $output 'village-candidate-concurrency.json'))},
     @{Name='surface_volcanic_ecology'; Args=@((Join-Path $output 'inputs/positive.json'),(Join-Path $output 'surface-volcanic-ecology.json'))},
     @{Name='raised_caverns'; Args=@()},
     @{Name='glacier_weather_policy'; Args=@()},

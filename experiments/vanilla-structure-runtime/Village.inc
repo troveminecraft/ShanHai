@@ -114,22 +114,17 @@ struct VillagePlan {
 thread_local VillagePlan const *capturedVillageGround = nullptr;
 void placeVillageDecor(BlockSource &, ChunkPos, VillagePlan &, uint);
 std::map<std::pair<int, int>, VillagePlan> villages;
+nativegen::VillageCandidatePlanner villageCandidatePlanner;
+thread_local J const* villageCandidateAuditRecipe = nullptr;
+thread_local std::string villageCandidateAuditIdentity;
 ChunkPos villageCandidate(int x, int z, uint seed) {
-    struct Slot {
-        int x = 0, z = 0;
-        uint seed = 0;
-        ChunkPos cp;
-        bool valid = false;
-    };
-    thread_local std::array<Slot, 64> cache{};
-    auto &e = cache[(uint(x) * 73856093u ^ uint(z) * 19349663u) & 63u];
-    if (!e.valid || e.x != x || e.z != z || e.seed != seed) {
-        auto cp =
-            worldgen_rules::villageCandidateForTerrain(x, z, seed,
-                [](int X, int Z) { return field->surface(X + 32768, Z + 32768); });
-        e = {x, z, seed, {cp.x, cp.z}, true};
-    }
-    return e.cp;
+    auto path = terrainFolder() / "native/native-input.json";
+    auto identity = villageCandidateAuditRecipe ? villageCandidateAuditIdentity
+        : worldIdentity() + "|" + path.generic_string();
+    auto cp = villageCandidatePlanner.get(identity, seed, x, z, [&] {
+        return villageCandidateAuditRecipe ? *villageCandidateAuditRecipe : entity_store::read(path);
+    });
+    return {cp.x, cp.z};
 }
 int villageStyle(int biome) {
     return worldgen_rules::villageStyle(biome);
