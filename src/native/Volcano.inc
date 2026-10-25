@@ -1,7 +1,8 @@
 // Seed-driven, non-overlapping volcanic regions. No configured center coordinates.
 struct VolcanoCone {double x,z,radius,crater,height,depth,vent;};
 struct VolcanoRegion {bool valid=false,mountain=false;VolcanoCone cone{};double inner=0,outer=0,base=0;std::array<float,16> terrain{};};
-bool volcanicGeology=C.value("volcanoRevision",0)==2;
+bool continuousMagma=C.value("volcanoRevision",0)==3;
+bool volcanicGeology=continuousMagma||C.value("volcanoRevision",0)==2;
 bool integratedVolcano=terrainRevision(data)>=182;
 bool volcanoEnabled=false;double volcanoGrid=4096,volcanoChance=.7,volcanoMin=425,volcanoMax=505;
 uint32_t volcanicSeed=terrainSeed;
@@ -27,6 +28,7 @@ VolcanoRegion volcanoRegion(int gx,int gz){return volcanoRegions.get(key2(gx,gz)
  if(std::hypot(x-num(gf,"centerX"),z-num(gf,"centerZ"))<num(gf,"outerRadius")+v.outer+258)return v;
  v.base=clamp(shaped(x+32768,z+32768,vcont(x+32768,z+32768),false),55,85);
  v.cone={x,z,185+25*rnd(1219),58+16*rnd(1223),160+30*rnd(1229),48+8*rnd(1231),10+3*rnd(1237)};
+ if(continuousMagma)v.cone.crater*=1.35;
  if(integratedVolcano){
   // A cached regional foundation, evaluated before volcanic shaping. Never
   // call base()/surface() here: they would recurse into this region.
@@ -81,8 +83,14 @@ void volcanicRelief(Surface&s,double&height,int wx,int wz){
   double rim=std::max(28-a.depth,7*std::sin(angle*3+a.z*.013)+5*direction);
   double h;
   if(r<crater){
-   h=a.height-a.depth+a.depth*smooth(crater*.45,crater,r);
-   h+=rim*smooth(crater*.72,crater,r);
+   if(continuousMagma){
+    // Broad lava mouth with a short steep inner rim, connected to the root below.
+    double floor=a.height-a.depth+5;
+    h=floor+(a.height+rim-floor)*smooth(crater*.86,crater,r);
+   }else{
+    h=a.height-a.depth+a.depth*smooth(crater*.45,crater,r);
+    h+=rim*smooth(crater*.72,crater,r);
+   }
   }else if(integratedVolcano){
    // Directional runout responds to the actual surrounding ridges. Low
    // valleys retain shorter aprons; high shoulders carry longer spurs.
@@ -136,6 +144,12 @@ void volcanicRelief(Surface&s,double&height,int wx,int wz){
    s.volcanoLava=float(std::floor(volcanoBase+a.height-a.depth+6));s.volcanoVent=float(a.vent);
    s.volcanoPhase=float(a.x/177.+a.z/311.);s.volcanoGrain=float(volcanicNoise.at(x/61.,z/61.));
    s.volcanoHeat=float(1-smooth(20.,volcanoOuter*.70,r));
+   if(continuousMagma){
+    double root=volcanoOuter*.72*(.96+.04*std::cos(3*angle+s.volcanoPhase));
+    s.volcanoMagmaTop=magma::columnTop(r,crater*.86,root,s.volcanoLava);
+    // The expanding root stays enclosed even beneath a low valley or coastline.
+    if(r>=crater)s.volcanoMagmaTop=std::min(s.volcanoMagmaTop,float(h-8));
+   }
    s.barren=s.volcanic*s.volcanicDeposit;
   }
   target=h;lava=r<crater?int(std::floor(volcanoBase+a.height-a.depth+6)):-32768;vent=r<a.vent;
@@ -150,7 +164,9 @@ int volcanicMaterial(Surface const&s,int x,int y,int z){
   // Sealed asymmetric magma chamber and a flaring, bent conduit. Both have
   // finite lower bounds; the old constant-radius shaft no longer reaches bedrock.
   double dx=s.volcanoDx,dz=s.volcanoDz,grain=s.volcanoGrain;
-  if(y<=s.height&&y>-57){
+  if(continuousMagma){
+   if(y>=magma::Bottom&&y<=s.volcanoMagmaTop)return 43;
+  }else if(y<=s.height&&y>-57){
    double u=clamp((s.volcanoLava-y)/(s.volcanoLava+12.),0.,1.);
    double bend=4*u*(1-u),cx=18*bend*std::sin(s.volcanoPhase),cz=14*bend*std::cos(s.volcanoPhase);
    double radius=s.volcanoVent+(28-s.volcanoVent)*smooth(.25,1.,u);
