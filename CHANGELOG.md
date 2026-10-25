@@ -1,3 +1,12 @@
+## 0.1.18 — volcano scale and world creation
+
+- Reduced typical crater radii to 18–42 blocks, with a 5% large category of 45–58 blocks before boundary variation. The previous revision widened every crater.
+- Raised lava to 7–10 blocks below the lowest sampled rim. Bent, asymmetric underground lobes and rock shelves replace the regular funnel profile; the connected magma core, bedrock seal, deepslate and diamond rules remain.
+- Windows creation no longer treats an empty pre-start pack-repository snapshot as a failed world. Pack files and selection are still checked, and the actual Overworld height must match before joining. Actual Windows world creation remains subject to gameplay acceptance.
+- Existing 0.1.17 and earlier supported recipes keep their generation. New volcano rules apply to new worlds. Sea level remains Y64; building remains Y-64..511. BDS and Windows LL share the terrain changes; Android remains archived.
+
+常见火山口缩小，少量保留大型个体；岩浆面靠近最低口缘，地下改为偏转、不对称的膨大与岩壁。Windows 取消原生加载完成前的包仓库误拦截，仍校验文件、选包及进入世界前的实际高度。本版仍待用户游戏内验收。
+
 # 更新记录
 
 ## 0.1.17 — volcano magma body and Windows loading

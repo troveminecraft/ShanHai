@@ -8,7 +8,12 @@ add_includedirs("../src")
 add_defines("NOMINMAX", "UNICODE")
 add_undefines("NDEBUG")
 add_cxflags("/EHsc", "/utf-8", "/fp:precise", "/clang:-ffp-contract=off", "/arch:AVX2")
-for _, name in ipairs({"volcano_magma", "client_image", "landscape_water", "landscape_redo", "regional_plateaus", "raised_caverns", "mountain_ecology", "high_mountain_underground", "glacier_weather_policy", "mega_cave_geometry", "shared_small_features","regional_plan_concurrency", "snow_loading", "runtime_stability", "terrain_boundaries", "terrain_revision", "badlands_regions", "build_height", "structure_height", "vegetation_columns", "mountain_height", "sea_level", "raised_terrain", "test_teleport_policy", "completed_biomes", "regional_waterways", "failure_record", "creation_status", "kernel_determinism", "kernel_bounds", "palette_contract", "structure_stage", "structure_plan_store", "structure_prefill_workers", "hook_transaction", "shared_structure_lifecycle",
+target("new_world_files")
+    set_kind("binary")
+    add_packages("nlohmann_json")
+    add_files("../ports/windows-client/test_new_world_files.cpp")
+target_end()
+for _, name in ipairs({"volcano_natural", "volcano_magma", "client_image", "landscape_water", "landscape_redo", "regional_plateaus", "raised_caverns", "mountain_ecology", "high_mountain_underground", "glacier_weather_policy", "mega_cave_geometry", "shared_small_features","regional_plan_concurrency", "snow_loading", "runtime_stability", "terrain_boundaries", "terrain_revision", "badlands_regions", "build_height", "structure_height", "vegetation_columns", "mountain_height", "sea_level", "raised_terrain", "test_teleport_policy", "completed_biomes", "regional_waterways", "failure_record", "creation_status", "kernel_determinism", "kernel_bounds", "palette_contract", "structure_stage", "structure_plan_store", "structure_prefill_workers", "hook_transaction", "shared_structure_lifecycle",
                       "view_gap_recovery", "bds_structure_binding",
                       "world_scoped_cache"}) do
     target(name)

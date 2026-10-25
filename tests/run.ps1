@@ -29,6 +29,7 @@ try {
 } finally { Pop-Location }
 $bin = Join-Path $build 'windows/x64/release'
 $cases = @(
+    @{Name='new_world_files'; Args=@()},
     @{Name='raised_caverns'; Args=@()},
     @{Name='glacier_weather_policy'; Args=@()},
     @{Name='mega_cave_geometry'; Args=@()},
@@ -78,7 +79,9 @@ if ($LandscapeRecipe) {
 }
 foreach ($case in $cases) {
     $arguments = $case.Args
-    & (Join-Path $bin ($case.Name+'.exe')) @arguments
+    Push-Location $PSScriptRoot
+    try { & (Join-Path $bin ($case.Name+'.exe')) @arguments }
+    finally { Pop-Location }
     if ($LASTEXITCODE) { throw "Failed: $($case.Name)" }
 }
 $raisedTerrain = Get-Content -LiteralPath (Join-Path $output 'raised-terrain-seed5.json') -Raw | ConvertFrom-Json
