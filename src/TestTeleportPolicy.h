@@ -63,10 +63,10 @@ inline constexpr Update updates[]{
     {132, "高原", "衔接抬升后的陆地与各级山地；海面升至Y64"},
     {125, "火山", "收窄裸岩过渡，补充深板岩、地下洞室和变径岩浆通道；中心钻石机会最高增加一倍"},
     {108, "平原", "适宜湿度地表零星苔藓，繁茂洞穴上方可能出现杜鹃"},
-    {7, "平原村庄", "增加候选选址次数，保留地基与道路适配检查"}
+    {7, "平原村庄", "修复村庄选址并发访问共享缓存引发的进服生成崩溃"}
 };
 inline std::string joinMessage() {
-    std::string result = "§9[山&海] 最近地形更新（0.1.14，待游戏内验收）";
+    std::string result = "§9[山&海] 最近地形更新（0.1.15，待游戏内验收）";
     for (auto const& u : updates)
         result += "\n§9[" + std::to_string(u.id) + "] " + u.name + "：" + u.content;
     return result + "\n§9/karma 查看全部群系/结构；/karma tp <序号> [模式]（1 创造 / 0 观察者；省略保持当前模式）。§r";
