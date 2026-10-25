@@ -1,5 +1,26 @@
 # 更新记录
 
+## 0.1.16 — rebuilt from 0.1.13 / 从 0.1.13 重新实现
+
+This is a test release awaiting user gameplay acceptance. Compilation and offline checks do not constitute in-game acceptance.
+
+- Sea level Y64; raised land, continuous foothills and five mountain height bands, with a higher mountain snow belt. Build range remains Y-64..511.
+- Removed the barren outer volcanic ring. Added a curved, flaring conduit, finite underground chambers, deepslate and tuff. Diamond generation gains independent extra attempts towards the centre, capped at twice the normal attempt rate and retaining normal height/host/exposure rules.
+- Sparse surface moss patches and occasional azaleas above actual lush cave columns.
+- Village candidate density 2.56×, with terrain suitability checks and at least 272 blocks between candidate anchors.
+- Teleport recovery watches dependency-stage progress. Busy ticks suspend optional preloading; at most one gap-repair window is active.
+- Default README is English; Chinese documentation remains available.
+
+BDS and Windows LL share these rules. Android remains archived. Existing 0.1.13 and earlier supported recipes retain their terrain; experimental 0.1.14/0.1.15 (kernel 2.204) worlds require their retained matching release and are not silently migrated.
+
+The three reported seed-15 coordinates did not show persisted missing solid blocks in the saved snapshot. Runtime loading remains a hypothesis requiring gameplay confirmation; this release does not claim that coordinate issue is conclusively resolved.
+
+本次基于 0.1.13 重做。海面 Y64、分级山地和高原衔接、雪线、火山地下、苔藓与杜鹃、村庄密度、传送恢复均同步两端。新测试世界使用种子 18，旧世界保留。三处坐标的永久缺块尚未复现，不以离线检查替代游戏内验收。
+
+## 0.1.15 / 0.1.14 (archived experiments / 已撤回的实验方向)
+
+Historical packages and Git tags are retained for rollback. Version 0.1.16 restores the 0.1.13 source baseline before implementing the changes again; these experimental worlds are not automatically converted.
+
 ## 0.1.13（待游戏内验收）
 
 - 新增宽阔缓起伏高原，主要位于 Y180～300，边缘连续缓坡衔接低地与高山；保留海面 Y40、约 Y480 的峰顶和 Y511 建造上限。

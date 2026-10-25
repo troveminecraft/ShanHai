@@ -1,6 +1,7 @@
 // Seed-driven, non-overlapping volcanic regions. No configured center coordinates.
 struct VolcanoCone {double x,z,radius,crater,height,depth,vent;};
 struct VolcanoRegion {bool valid=false,mountain=false;VolcanoCone cone{};double inner=0,outer=0,base=0;std::array<float,16> terrain{};};
+bool volcanicGeology=C.value("volcanoRevision",0)==2;
 bool integratedVolcano=terrainRevision(data)>=182;
 bool volcanoEnabled=false;double volcanoGrid=4096,volcanoChance=.7,volcanoMin=425,volcanoMax=505;
 uint32_t volcanicSeed=terrainSeed;
@@ -35,7 +36,7 @@ VolcanoRegion volcanoRegion(int gx,int gz){return volcanoRegions.get(key2(gx,gz)
    double h=shaped(px,pz,vcont(px,pz));v.terrain[i]=float(h);sum+=h;peak=std::max(peak,h);
   }
   double center=shaped(x+32768,z+32768,vcont(x+32768,z+32768));
-  v.base=clamp(std::max(.4*center+.6*sum/16,peak-100),35,292-v.cone.height);
+  v.base=clamp(std::max(.4*center+.6*sum/16,peak-100),volcanicGeology?seaLevelValue+16.:35.,(volcanicGeology?470.:292.)-v.cone.height);
  }
  v.mountain=rnd(1249)<.50;v.valid=true;return v;
 });}
@@ -65,7 +66,7 @@ void volcanicRelief(Surface&s,double&height,int wx,int wz){
  if(std::hypot(x-region.cone.x,z-region.cone.z)>=volcanoOuter+258)return;
  double d=volcanicDistance(region,x,z);
  s.volcanicMountainRock=region.mountain;
- s.barren=1-smooth(volcanoOuter+48,volcanoOuter+180,d);
+ s.barren=volcanicGeology?0:1-smooth(volcanoOuter+48,volcanoOuter+180,d);
  if(d>=volcanoOuter)return;
  s.volcanic=1-smooth(volcanoInner,volcanoOuter,d);
  double rough=6*volcanicNoise.at(x/57,z/57)+2*volcanicNoise.at(x/17,z/17);
@@ -130,6 +131,13 @@ void volcanicRelief(Surface&s,double&height,int wx,int wz){
   }
   h+=volcanoBase;
   if(integratedVolcano)s.volcanicDeposit=float(std::max(1-smooth(crater+8,crater+60,r),smooth(.5,24.,h-height)));
+  if(volcanicGeology){
+   s.volcanoDx=float(rx);s.volcanoDz=float(rz);s.volcanoBase=float(volcanoBase);
+   s.volcanoLava=float(std::floor(volcanoBase+a.height-a.depth+6));s.volcanoVent=float(a.vent);
+   s.volcanoPhase=float(a.x/177.+a.z/311.);s.volcanoGrain=float(volcanicNoise.at(x/61.,z/61.));
+   s.volcanoHeat=float(1-smooth(20.,volcanoOuter*.70,r));
+   s.barren=s.volcanic*s.volcanicDeposit;
+  }
   target=h;lava=r<crater?int(std::floor(volcanoBase+a.height-a.depth+6)):-32768;vent=r<a.vent;
  }
  height=target;
@@ -138,6 +146,36 @@ void volcanicRelief(Surface&s,double&height,int wx,int wz){
 // Called after bedrock and before generic caves, water or vegetation material.
 int volcanicMaterial(Surface const&s,int x,int y,int z){
  if(s.volcanic<=0)return -1;
+ if(volcanicGeology){
+  // Sealed asymmetric magma chamber and a flaring, bent conduit. Both have
+  // finite lower bounds; the old constant-radius shaft no longer reaches bedrock.
+  double dx=s.volcanoDx,dz=s.volcanoDz,grain=s.volcanoGrain;
+  if(y<=s.height&&y>-57){
+   double u=clamp((s.volcanoLava-y)/(s.volcanoLava+12.),0.,1.);
+   double bend=4*u*(1-u),cx=18*bend*std::sin(s.volcanoPhase),cz=14*bend*std::cos(s.volcanoPhase);
+   double radius=s.volcanoVent+(28-s.volcanoVent)*smooth(.25,1.,u);
+   if(y>=-22&&y<=s.volcanoLava&&(dx-cx)*(dx-cx)+(dz-cz)*(dz-cz)<radius*radius)return 43;
+   double q=(dx-9)*(dx-9)/(68*68)+(dz+7)*(dz+7)/(55*55)+(y+12.)*(y+12.)/(40*40);
+   if(y<=s.height-6&&q<1.+.12*grain)return y<-29?43:0;
+   // A smaller lateral hot chamber adds traversable rock shelves under the cone.
+   double sideY=std::max(22.,double(s.volcanoBase)-50.);
+   double side=(dx-72)*(dx-72)/(39*39)+(dz+34)*(dz+34)/(32*32)+(y-sideY)*(y-sideY)/(22*22);
+   if(y<=s.height-6&&side<1.+.10*grain)return y<sideY-16?43:0;
+  }
+  if(s.lava>-32768&&y<=s.lava&&y>s.height)return 43;
+  if(y>s.height)return -1;
+  double pick=hash01(x,z,volcanicSeed^1207^((y+64)*7919));
+  if(y<s.height-4){
+   if(y<-4+5*grain)return 95;
+   if(std::abs(y-(s.volcanoBase-24+6*grain))<4)return 96;
+   return 2;
+  }
+  double cover=s.volcanic*s.volcanicDeposit;
+  double patch=clamp(.5+1.2*grain,.01,.99);
+  if(cover<patch)return -1; // Retain the actual surrounding soil and vegetation.
+  if(s.volcanicMountainRock)return pick<.74?2:pick<.89?45:42;
+  return pick<.52?45:pick<.86?46:42;
+ }
  if(s.lava>-32768&&y<=s.lava&&(s.vent||y>s.height))return 43;
  if(y>s.height)return -1;
  double pick=hash01(x,z,volcanicSeed^1207^((y+64)*7919));

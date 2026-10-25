@@ -668,8 +668,8 @@ ExtraPlan &extraPlan(Dimension &d, int type, ChunkPos cp) {
     if (type == 0) {
         // Do not let outposts occupy village sites, independent of load order.
         uint seed = structureSeed(d);
-        for (int z = structureCell(cp.z - 20); z <= structureCell(cp.z + 20); ++z)
-            for (int x = structureCell(cp.x - 20); x <= structureCell(cp.x + 20); ++x) {
+        for (int z = villageCell(cp.z - 20); z <= villageCell(cp.z + 20); ++z)
+            for (int x = villageCell(cp.x - 20); x <= villageCell(cp.x + 20); ++x) {
                 auto c = villageCandidate(x, z, seed);
                 if (std::abs(c.x - cp.x) <= 20 && std::abs(c.z - cp.z) <= 20 && villagePlan(d, c, seed).start)
                     return r;
@@ -819,8 +819,8 @@ ExtraPlan &extraPlan(Dimension &d, int type, ChunkPos cp) {
     if (extraSurface(type)) {
         constexpr int reach = worldgen_rules::VillageReach + 28;
         uint seed = structureSeed(d);
-        for (int z = structureCell(chunk(b.min.z - reach)); z <= structureCell(chunk(b.max.z + reach)); ++z)
-            for (int x = structureCell(chunk(b.min.x - reach)); x <= structureCell(chunk(b.max.x + reach));
+        for (int z = villageCell(chunk(b.min.z - reach)); z <= villageCell(chunk(b.max.z + reach)); ++z)
+            for (int x = villageCell(chunk(b.min.x - reach)); x <= villageCell(chunk(b.max.x + reach));
                  ++x) {
                 auto c = villageCandidate(x, z, seed);
                 auto &v = villagePlan(d, c, seed);

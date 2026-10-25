@@ -114,20 +114,23 @@ struct VillagePlan {
 thread_local VillagePlan const *capturedVillageGround = nullptr;
 void placeVillageDecor(BlockSource &, ChunkPos, VillagePlan &, uint);
 std::map<std::pair<int, int>, VillagePlan> villages;
+int villageSpacing(){return auditVillageSpacing?*auditVillageSpacing:liveVillageSpacing.load();}
+int villageCell(int v){return worldgen_rules::spacingCell(v,villageSpacing());}
 ChunkPos villageCandidate(int x, int z, uint seed) {
+    int spacing=villageSpacing(),separation=spacing==20?16:worldgen_rules::VillageSeparation;
     struct Slot {
-        int x = 0, z = 0;
+        int x = 0, z = 0, spacing = 0;
         uint seed = 0;
         ChunkPos cp;
         bool valid = false;
     };
     thread_local std::array<Slot, 64> cache{};
     auto &e = cache[(uint(x) * 73856093u ^ uint(z) * 19349663u) & 63u];
-    if (!e.valid || e.x != x || e.z != z || e.seed != seed) {
+    if (!e.valid || e.x != x || e.z != z || e.seed != seed || e.spacing != spacing) {
         auto cp =
-            worldgen_rules::candidateForCell(x, z, seed, worldgen_rules::VillageSpacing,
-                                             worldgen_rules::VillageSeparation, worldgen_rules::VillageSalt);
-        e = {x, z, seed, {cp.x, cp.z}, true};
+            worldgen_rules::candidateForCell(x, z, seed, spacing,
+                                             separation, worldgen_rules::VillageSalt);
+        e = {x, z, spacing, seed, {cp.x, cp.z}, true};
     }
     return e.cp;
 }
@@ -491,15 +494,15 @@ unsigned reserveVillageTrees(BlockSource &blocks, ChunkPos cp, VillagePlan const
 bool locateVillage(Dimension &d, BlockPos const &from, BlockPos &result, bool fresh) {
     uint seed = structureSeed(d);
     std::vector<std::pair<int64_t, ChunkPos>> candidates;
-    for (int z = structureInfinite() ? structureCell(from.z / 16) - 32
-                                     : structureCell(-terrain_bounds::HalfChunks);
-         z <= (structureInfinite() ? structureCell(from.z / 16) + 32
-                                   : structureCell(terrain_bounds::HalfChunks - 1));
+    for (int z = structureInfinite() ? villageCell(from.z / 16) - 32
+                                     : villageCell(-terrain_bounds::HalfChunks);
+         z <= (structureInfinite() ? villageCell(from.z / 16) + 32
+                                   : villageCell(terrain_bounds::HalfChunks - 1));
          ++z)
-        for (int x = structureInfinite() ? structureCell(from.x / 16) - 32
-                                         : structureCell(-terrain_bounds::HalfChunks);
-             x <= (structureInfinite() ? structureCell(from.x / 16) + 32
-                                       : structureCell(terrain_bounds::HalfChunks - 1));
+        for (int x = structureInfinite() ? villageCell(from.x / 16) - 32
+                                         : villageCell(-terrain_bounds::HalfChunks);
+             x <= (structureInfinite() ? villageCell(from.x / 16) + 32
+                                       : villageCell(terrain_bounds::HalfChunks - 1));
              ++x) {
             auto cp = villageCandidate(x, z, seed);
             int64_t dx = int64_t(cp.x) * 16 - from.x, dz = int64_t(cp.z) * 16 - from.z;

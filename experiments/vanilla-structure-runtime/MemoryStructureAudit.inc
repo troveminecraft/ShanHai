@@ -36,6 +36,7 @@ void memoryAuditProbe(Dimension&d){
 }
 
 struct AuditPlanScope {
+ std::optional<int> oldVillageSpacing=auditVillageSpacing;
  J oldInput;std::unique_ptr<nativegen::Field> oldField;
  decltype(automaticBlueprints) oldScattered;decltype(villages) oldVillages;
  decltype(cityLinks) oldCityLinks;decltype(cityNeighbourCache) oldCityNeighbours;
@@ -45,6 +46,7 @@ struct AuditPlanScope {
  std::unique_ptr<TerrainVillageFeature> villageDelegate;
  AuditPlanScope(Dimension&d,J const&data,uint seed){
   auto next=std::make_unique<nativegen::Field>(data);villageDelegate=std::make_unique<TerrainVillageFeature>(seed,d.getBiomeRegistry());
+  auditVillageSpacing=data.at("config").value("villageSpacing",32)==20?20:32;
   oldInput=std::move(input);input=data;oldField=std::move(field);field=std::move(next);
   oldCityLinks.swap(cityLinks);oldCityNeighbours.swap(cityNeighbourCache);oldScattered.swap(automaticBlueprints);oldVillages.swap(villages);oldExtras.swap(extraPlans);oldDelegates.swap(extraDelegates);oldVegetation.swap(vegetationPairs);
   auditPlanningSeed=seed;auditPlanningStarts=&owned;auditVillageDelegate=villageDelegate.get();
@@ -53,6 +55,7 @@ struct AuditPlanScope {
   cityLinks.clear();cityNeighbourCache.clear();cityLinks.swap(oldCityLinks);cityNeighbourCache.swap(oldCityNeighbours);
   automaticBlueprints.clear();iglooPopulationPlans.clear();villages.clear();extraPlans.clear();extraDelegates.clear();vegetationPairs.clear();owned.clear();
   automaticBlueprints.swap(oldScattered);villages.swap(oldVillages);extraPlans.swap(oldExtras);extraDelegates.swap(oldDelegates);vegetationPairs.swap(oldVegetation);
+  auditVillageSpacing=oldVillageSpacing;
   input=std::move(oldInput);field=std::move(oldField);auditPlanningStarts=nullptr;auditPlanningSeed.reset();auditVillageDelegate=nullptr;adaptHeightMap=false;planningHeights=nullptr;
  }
 };
@@ -208,7 +211,7 @@ AuditInput loadAuditInput(Dimension&d,int index){
 void auditSessionGuard(Dimension&d){bool human=false;d.getLevel().forEachPlayer([&](Player&p){human|=!p.isSimulated();return true;});if(human||interactionAuditActive)throw std::runtime_error("Audit requires empty session");}
 StructureStart* auditPlan(Dimension&d,int type,ChunkPos cp,uint seed){if(type==12)return villagePlan(d,cp,seed).start;if(type==13)return autoBlueprint(d,cp,seed).start;if(type<0||type>11)throw std::runtime_error("Audit family must be 0..13");return extraPlan(d,type,cp).start;}
 void surveyAuditPlans(Dimension&d,int profile,int type,int offset,int count){
- if(count<1||count>64||offset<0||type<0||type>13)throw std::runtime_error("Audit survey batch outside bounds");auditSessionGuard(d);std::lock_guard guard(stageMutex);auto data=loadAuditInput(d,profile);AuditPlanScope scope(d,data.data,data.seed);J rows=J::array();int spacing=type==12||type==13?32:extraSpec(type)->spacing;
+ if(count<1||count>64||offset<0||type<0||type>13)throw std::runtime_error("Audit survey batch outside bounds");auditSessionGuard(d);std::lock_guard guard(stageMutex);auto data=loadAuditInput(d,profile);AuditPlanScope scope(d,data.data,data.seed);J rows=J::array();int spacing=type==12?villageSpacing():type==13?32:extraSpec(type)->spacing;
  int low=spacingCell(-terrain_bounds::HalfChunks,spacing),high=spacingCell(terrain_bounds::HalfChunks-1,spacing),side=high-low+1,total=side*side;
  for(int i=offset;i<std::min(offset+count,total);++i){int x=low+i%side,z=low+i/side;ChunkPos cp=type==12?villageCandidate(x,z,data.seed):type==13?nativeCandidateForCell(x,z,data.seed):extraCandidate(*extraSpec(type),x,z,data.seed);auto*p=auditPlan(d,type,cp,data.seed);if(!p)continue;auto surface=field->surface(cp.x*16+32768,cp.z*16+32768);rows.push_back({{"family",p->getStructureName()},{"anchor",{cp.x*16,cp.z*16}},{"box",boxJson(*p->boundingBox)},{"biome",surface.biome},{"pieces",p->pieces->size()}});}
  std::ofstream(folder/"audit-survey.json")<<J{{"profile",profile},{"type",type},{"worldSeed",data.worldSeed},{"nativeSeed",data.seed},{"offset",offset},{"count",count},{"total",total},{"rows",rows}}.dump(2);

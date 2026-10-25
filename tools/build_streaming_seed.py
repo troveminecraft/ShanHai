@@ -7,7 +7,7 @@ from process_guard import run_checked
 P=Path(__file__).resolve().parents[1]
 
 def height_settings(data):
-    data["config"].update(seaLevel=40,maxY=511,generatedMaxYExclusive=512,mountainPeakY=480)
+    data["config"].update(seaLevel=64,maxY=511,generatedMaxYExclusive=512,mountainPeakY=480)
 
 def finish_recipe(data):
     height_settings(data)
@@ -16,6 +16,7 @@ def finish_recipe(data):
     data["config"]["mountainSnowline"]=1
     data["config"]["mountainEcology"]=1
     data["config"]["regionalPlateaus"]=1
+    data["config"].update(landscapeRevision=2,volcanoRevision=2,surfaceMoss=2,villageSpacing=20)
     data["config"]["cave"].update(raisedCaveHeight=1,highMountainUnderground=1)
     data["config"]["smallPoolsVersion"]=2
     data['regionalGeneration']=dict(algorithm='regional-drainage-v3',coreBlocks=2048,haloBlocks=512,

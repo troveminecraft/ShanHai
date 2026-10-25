@@ -17,6 +17,7 @@ struct Giant {
 struct Structure {int x=0,z=0,type=-1;double e=0;};
 struct SmallTree {int x,z,h,type;double radius,ground;};
 class Engine {
+ friend struct LandscapeRedoTest;
  friend struct EngineBoundaryTest; // Offline regression exercises the production passes.
  std::vector<std::array<int,4>> nativeReservations;
  bool forestDesign=false,sealedFluidsEnabled=false,gradualIceEcotone=false;
@@ -87,6 +88,7 @@ class Engine {
  #include "ForestMushrooms.inc"
  #include "DesertEcology.inc"
  #include "UndergroundEcology.inc"
+ #include "SurfaceFlora.inc"
  #include "UndergroundPockets.inc"
  #include "SealedFluidCaves.inc"
  #include "StoneGrotto.inc"
@@ -202,7 +204,7 @@ public:
   }
   naturalFeatures(x0,z0,put,ss,ts);
   coniferEcology(x0,z0,raw,surfaces,ss,ts);broadleafForest(x0,z0,raw,surfaces);birchForest(x0,z0,raw,surfaces);
-  jungleEcology(x0,z0,raw,surfaces);wetDryEcology(x0,z0,raw,surfaces);forestMushrooms(x0,z0,raw,surfaces);return raw;
+  jungleEcology(x0,z0,raw,surfaces);wetDryEcology(x0,z0,raw,surfaces);forestMushrooms(x0,z0,raw,surfaces);surfaceFlora(x0,z0,raw,surfaces,true);return raw;
  }
  void caveWaterfalls(int x0,int z0,std::vector<uint16_t>&raw){
   if(!forestDesign)return;auto candidates=field.caveFalls((x0-32768)/16,(z0-32768)/16);
@@ -251,6 +253,7 @@ for(auto const&s:ss){if(field.surface(s.x,s.z,false).glacier>.15)continue;int x=
  cutClosedRifts(raw);
  snowCover(x0,z0,raw,surfaces);
  landscapePass(x0,z0,raw,surfaces);
+ surfaceFlora(x0,z0,raw,surfaces);
  lavaFlows(x0,z0,raw,surfaces);
  if(finalTerrainOres){cleanupSnowSupports(raw,surfaces);if(oreProfilesEnabled&&undergroundEcologyEnabled){if(vanillaOres)vanillaOreProfiles(x0,z0,raw,surfaces);else oreProfiles(x0,z0,raw,surfaces,oreRockField,oreHabitat);}}
  featureMs=std::chrono::duration<double,std::milli>(clock()-chunkBegin).count()-surfaceMs-columnMs;

@@ -1,57 +1,41 @@
-<p align="center">
-  <img src="docs/assets/shan-hai.png" alt="山&amp;海" width="720">
-</p>
+<p align="center"><img src="docs/assets/shan-hai.png" alt="ShanHai — Mountains & Seas" width="720"></p>
 
-<p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.1.13"><img src="https://img.shields.io/badge/release-0.1.13-2ea44f" alt="0.1.13"></a>
-  <img src="https://img.shields.io/badge/Minecraft_Bedrock-1.26.20.04-62b47a" alt="Minecraft Bedrock 1.26.20.04">
-  <img src="https://img.shields.io/badge/LeviLamina-26.20.7-00a896" alt="LeviLamina 26.20.7">
-  <img src="https://img.shields.io/badge/Windows-x64-0078d4" alt="Windows x64">
-</p>
+# ShanHai · 山&海
 
-<p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.1.13">下载安装</a> ·
-  <a href="docs/BUILDING.md">从源码构建</a> ·
-  <a href="https://github.com/troveminecraft/ShanHai/issues">反馈问题</a>
-</p>
+English · [简体中文](README.zh-CN.md)
 
-# 山&海
+[Download 0.1.16](https://github.com/troveminecraft/ShanHai/releases/tag/v0.1.16) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
 
-翻过山脊，沿着河流往下走，看看下一片森林和海岸是什么样子。
+ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows, powered by LeviLamina. Follow rivers through mountain ranges, rolling highlands, forests, deserts and coastlines; explore caves, glaciers and volcanic terrain. Vanilla structures are placed according to the surrounding landscape.
 
-**山&海**是 Minecraft 基岩版的主世界生成模组，运行于 Windows 客户端的 LeviLamina。山地、水系、森林和地下洞穴共同构成新的地貌，原版结构也会参与生成。
+## Requirements
 
-## 在这里可以遇见什么
+- Minecraft for Windows **1.26.20.04**.
+- LeviLamina **26.20.7**, client edition.
+- Windows x64 and an AVX2-capable CPU.
 
-- 山脉、峡谷与火山，以及连接山地、平原和海岸的河流、湖泊。
-- 森林、湿地、沙漠和冰川；超级冰川中还有冰锥与深裂谷。
-- 曲折的地下通道、洞室，以及地下水和深层岩浆区域。
-- 村庄、沉船、神殿、古城等原版结构，按地形规则选择位置。
+## Install
 
-种子可以自行填写。创建世界时先准备附近区域，之后随探索继续生成，不设固定的测试地图边界。
+1. Download [ShanHai-Windows-0.1.16.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.1.16/ShanHai-Windows-0.1.16.zip).
+2. Save and fully close Minecraft. Import the ZIP into the matching instance through LeviLauncher’s mod manager.
+3. Enable the mod and create a new **normal** world with your chosen seed. Do not select a flat world.
 
-## 安装
+Use the release ZIP, rather than GitHub’s automatically generated source archive. Python and Node.js runtime dependencies are included; copying only the DLL is insufficient. The internal mod ID remains `karma-worldgen-client` for configuration and save compatibility.
 
-需要 **Minecraft for Windows 1.26.20.04**、**LeviLamina 26.20.7 客户端版**和支持 AVX2 的 Windows x64 电脑。可通过 LeviLauncher 管理游戏实例和模组。
+## Version 0.1.16
 
-1. 下载 [ShanHai-Windows-0.1.13.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.1.13/ShanHai-Windows-0.1.13.zip)。
-2. 完全退出 Minecraft，在 LeviLauncher 对应实例的模组管理中导入 ZIP。
-3. 确认模组已启用，启动游戏，创建一个普通新世界；不要选择超平坦。
+This version rebuilds the requested changes from the **0.1.13 source baseline**. New worlds use sea level **Y64**, raised land, smoother foothills, mountain height bands and a higher snow belt. The build range is **Y-64 through Y511**. Keep the world’s bundled height behavior pack enabled.
 
-请下载 Releases 中的安装包，GitHub 自动生成的 **Source code** 是源码。安装包已带齐运行依赖，无需另装 Python 或 Node.js，也不要只复制 DLL。
+Volcanoes gain finite underground chambers, a curved and flaring conduit, deepslate and a centre-weighted diamond bonus. Surface moss and azaleas above lush caves add vegetation; village candidates are more frequent. Loading recovery distinguishes progressing dependencies from stalled generation.
 
-模组的内部目录与标识仍为 `karma-worldgen-client`，用于保持存档和配置兼容。它是“山&海”的同一个模组。
+**This is a test release awaiting gameplay acceptance.** Offline generation tests and successful builds do not establish in-game correctness. Please report the version, world seed, coordinates, screenshots and reproduction steps when you encounter an issue.
 
-本次更新见 [更新记录](CHANGELOG.md)，生成和存档机制见 [说明](docs/RUNTIME.md)。
+Back up worlds before updating. Already generated chunks are not rewritten. Supported 0.1.13 and earlier recipes retain their original terrain. Experimental 0.1.14/0.1.15 worlds using kernel 2.204 must use their retained matching version; this release does not silently migrate them. Keep the mod enabled when continuing a mod-generated world.
 
-## 使用前
+This download is for the listed Windows client environment. BDS has a separate package; Android is archived, and Java Edition is not supported.
 
-**0.1.13 是公开测试版本。** 结构与复杂坡地的衔接仍可能出现异常，欢迎带上种子、坐标和截图反馈。建议备份存档，并用新世界体验；已经生成的原版区块不会自动变成新地形。
+## Source and license
 
-继续游玩模组世界时，请保持模组启用。这个安装包仅用于上面列出的 Windows 客户端环境，不适用于 BDS、Android 或 Java 版。
+This repository contains the shared terrain and structure rules, Windows adapter and build tools. See [BUILDING.md](docs/BUILDING.md) and [runtime documentation](docs/RUNTIME.md).
 
-## 源码
-
-本仓库包含 0.1.13 的地形内核、结构生成、Windows 接口和构建脚本。种子生成需要用到 Python 与 JavaScript，它们也是模组的一部分。构建方法见 [BUILDING.md](docs/BUILDING.md)。
-
-第三方组件及许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。项目原创代码采用 [MIT 协议](LICENSE)；第三方组件及派生资源保留各自许可。安装包不包含 Minecraft 游戏本体或原版结构资源，结构模板从本机游戏读取。
+Original project code is licensed under [MIT](LICENSE). Third-party components and derived resources retain their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Minecraft itself and vanilla structure assets are not redistributed; templates are read from the local game installation.

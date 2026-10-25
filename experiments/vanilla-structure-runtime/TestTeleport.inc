@@ -111,7 +111,7 @@ struct StructureTestTeleport {
   if(field->unbounded())searchRadius=std::clamp(config.value("testSearchRadius",20000)/20000,1,5)*20000;
   for(auto&s:spots)s=J::array();
   biomeCells=structure_test::expandingCells(16,searchRadius);
-  for(int t=0;t<14;++t){if(t==7)continue;int spacing=t>=12?32:extraSpec(t)->spacing;cells[t]=structure_test::expandingCells(spacing,searchRadius);}
+  for(int t=0;t<14;++t){if(t==7)continue;int spacing=t==12?villageSpacing():t==13?32:extraSpec(t)->spacing;cells[t]=structure_test::expandingCells(spacing,searchRadius);}
   auto path=folder/"test-teleports.json";
   if(std::filesystem::exists(path))try{
    auto j=entity_store::read(path);

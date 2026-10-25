@@ -52,6 +52,12 @@ int main(int argc,char**argv){try{
  recovery.begin(20);check(recovery.poll(20,true)==Action::None&&recovery.poll(20.3,false)==Action::None&&recovery.poll(20.8,true)==Action::None,"Readiness loss restarts settling");
  check(recovery.poll(21.3,true)==Action::Resend,"Readiness restored");
  recovery.begin(30);check(recovery.poll(60,false)==Action::Timeout&&!recovery.active,"Bounded timeout leaves normal streaming intact");
+ Recovery progressing;progressing.begin(0);
+ for(int t=1;t<=25;++t)check(progressing.poll(t,false,uint64_t(t/3))==Action::None,"Progressing dependencies must not be rebound");
+ Recovery stalled;stalled.begin(0);check(stalled.poll(1,false,123)==Action::None,"Observe initial dependency state");
+ check(stalled.poll(9,false,123,true)==Action::None,"Busy ticks defer extra load");
+ check(stalled.poll(10,false,123)==Action::Rebind,"An unchanged dependency halo still recovers");
+ check(!terrain_runtime::allowSupplementalLoading(true,0,0,true),"Main-thread pressure suppresses optional windows");
  terrain_runtime::NearChunkWatchdog watch;
  check(!watch.poll(0,0,0,false,false)&&!watch.poll(0,0,3.9,false,false),"Watchdog grace period");
  check(watch.poll(0,0,4,false,false)&&!watch.poll(0,0,80,false,false),"One watchdog attempt per location");

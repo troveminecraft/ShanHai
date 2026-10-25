@@ -192,6 +192,8 @@ std::string const &worldIdentity() {
 }
 #endif
 J input, report;
+std::atomic_int liveVillageSpacing{32};
+thread_local std::optional<int> auditVillageSpacing;
 std::unique_ptr<nativegen::Field> field;
 bool structureIncluded(std::string_view name) {
     return worldgen_rules::publicStructureIncluded(name);
@@ -271,6 +273,8 @@ void initialize() {
         rules["revision"] = worldgen_rules::StructurePlanRevision;
         rules["villageSizeClasses"] = true;
         field = std::make_unique<nativegen::Field>(input);
+        liveVillageSpacing.store(input.at("config").value("villageSpacing",32)==20?20:32);
+        rules["villageSpacing"] = liveVillageSpacing.load();
         std::ofstream(folder / "effective-structure-rules.json")
             << J{{"world", activeWorld}, {"savedRevision", previous}, {"effective", rules}}.dump(2);
     }
@@ -1351,10 +1355,10 @@ class Mod {
                     auto &d = dimension(o);
                     uint seed = d.getLevel().getLevelData().getSeed().to32BitRandomSeed();
                     J rows = J::array();
-                    for (int z = structureCell(-terrain_bounds::HalfChunks);
-                         z <= structureCell(terrain_bounds::HalfChunks - 1); ++z)
-                        for (int x = structureCell(-terrain_bounds::HalfChunks);
-                             x <= structureCell(terrain_bounds::HalfChunks - 1); ++x) {
+                    for (int z = villageCell(-terrain_bounds::HalfChunks);
+                         z <= villageCell(terrain_bounds::HalfChunks - 1); ++z)
+                        for (int x = villageCell(-terrain_bounds::HalfChunks);
+                             x <= villageCell(terrain_bounds::HalfChunks - 1); ++x) {
                             auto cp = villageCandidate(x, z, seed);
                             auto &p = villagePlan(d, cp, seed);
                             if (p.start)

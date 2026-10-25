@@ -13,7 +13,8 @@ struct PlayerStream {
  int cx=100000,cz=100000,ax=100000,az=100000;
  std::unique_ptr<ChunkViewSource> here,ahead;
  struct Patch {int x=0,z=0;double started=0;std::unique_ptr<ChunkViewSource> view;};
- std::array<Patch,2> patches;
+ std::array<Patch,1> patches;
+ uint64_t progress=0;double nextProgressScan=0;
  terrain_runtime::ViewGapRecovery visible;
  int viewRadius=0;double nextViewScan=0,nextGapResend=0;bool gapResendPending=false;
 };
@@ -52,6 +53,9 @@ void updatePlayerStreaming(Level& level){
  streamingPolicy.store(&dim->getChunkBuildOrderPolicy());
  auto next=std::make_shared<std::vector<StreamFocus>>();std::unordered_set<std::string> seen;
  auto now=Clock::now();double seconds=std::chrono::duration<double>(now.time_since_epoch()).count();unsigned views=0;bool needsLaunch=false;
+ static double previous=0,busyUntil=0;
+ if(previous&&seconds-previous>.5)busyUntil=seconds+2.;
+ previous=seconds;bool tickBusy=seconds<busyUntil;
  level.forEachPlayer([&](Player& player){
   if(static_cast<int>(player.getDimensionId())!=0)return true;
   auto name=player.getRealName();seen.insert(name);auto& s=playerStreams[name];auto p=player.getFeetPos();
@@ -70,10 +74,19 @@ void updatePlayerStreaming(Level& level){
   };
   if(!s.here||cx!=s.cx||cz!=s.cz){s.arrival.readySince=-1;move(s.here,cx,cz);s.cx=cx;s.cz=cz;}
   bool ready=arrivalReady(*s.here,cx,cz);needsLaunch|=!ready;
+  // Track the entire dependency halo, not just the final central state. A
+  // stationary TerrainGenerated chunk may be waiting on progressing neighbours.
+  if(!ready&&seconds>=s.nextProgressScan){
+   s.nextProgressScan=seconds+1.;uint64_t signature=1469598103934665603ULL;
+   for(int z=cz-8;z<=cz+8;++z)for(int x=cx-8;x<=cx+8;++x){
+    auto c=s.here->getExistingChunk({x,z});
+    signature=(signature^uint64_t(c?int(c->getState().load())+1:0))*1099511628211ULL;
+   }s.progress=signature;
+  }
   // Scan the client view once/second, then request at most two small patches.
   // Readiness always comes from BDS; never mark unfinished chunks as Loaded.
-  if(seconds>=s.nextViewScan){
-   s.nextViewScan=seconds+1.;s.viewRadius=std::clamp(int(player.getChunkRadius())-2,2,32);
+  if(ready&&!tickBusy&&seconds>=s.nextViewScan){
+   s.nextViewScan=seconds+2.;s.viewRadius=std::clamp(int(player.getChunkRadius())-2,2,32);
    int radius=s.viewRadius;s.visible.begin();
    for(int dz=-radius;dz<=radius;++dz)for(int dx=-radius;dx<=radius;++dx){
     if(dx*dx+dz*dz>radius*radius)continue;int x=cx+dx,z=cz+dz;if(!validChunk(x,z))continue;
@@ -85,7 +98,7 @@ void updatePlayerStreaming(Level& level){
      if(done)++viewGapResolved;
      if(done||seconds-patch.started>=20||std::max(std::abs(patch.x-cx),std::abs(patch.z-cz))>radius)patch.view.reset();
     }
-    if(!patch.view&&terrain_runtime::allowSupplementalLoading(ready,waitingCalculators.load(),nearPending))if(auto gap=s.visible.next(seconds,cx,cz)){
+    if(!patch.view&&terrain_runtime::allowSupplementalLoading(ready,waitingCalculators.load(),nearPending,tickBusy))if(auto gap=s.visible.next(seconds,cx,cz)){
      patch.x=gap->x;patch.z=gap->z;patch.started=seconds;gap->attempted=seconds;
      patch.view=std::make_unique<ChunkViewSource>(dim->getChunkSource(),ChunkSource::LoadMode::Deferred);
      // BDS decoration/light dependencies need the full eight-chunk halo,
@@ -102,14 +115,14 @@ void updatePlayerStreaming(Level& level){
    log().warn("[就近加载] {} ({},{}) 停留后近邻仍未就绪，启动一次有界恢复",name,cx,cz);
   }
   using Action=terrain_runtime::ArrivalRecovery::Action;
-  switch(s.arrival.poll(seconds,ready)){
-   case Action::Rebind:{std::unique_ptr<ChunkViewSource> renewed;move(renewed,cx,cz);s.here=std::move(renewed);++arrivalRebinds;log().warn("[传送加载] {} ({},{}) 近邻未就绪，重新请求依赖范围（仅一次）",name,cx,cz);break;}
+  switch(s.arrival.poll(seconds,ready,s.progress,tickBusy)){
+   case Action::Rebind:{std::unique_ptr<ChunkViewSource> renewed;move(renewed,cx,cz);s.here=std::move(renewed);++arrivalRebinds;log().warn("[传送加载] {} ({},{}) 近邻依赖连续 8 秒无阶段进展，重新请求依赖范围（仅一次）",name,cx,cz);break;}
    case Action::Resend:player.resendAllChunks();++arrivalResends;log().info("[传送加载] {} ({},{}) 近邻已就绪，已请求重发玩家区块",name,cx,cz);break;
    case Action::Timeout:++arrivalTimeouts;log().warn("[传送加载] {} ({},{}) 30 秒仍未就绪；保留正常加载，停止自动重试",name,cx,cz);break;
    default:break;
   }
   if(!unboundedWorld){ax=std::clamp(ax,-Half,Half-1);az=std::clamp(az,-Half,Half-1);}
-  if(terrain_runtime::allowSupplementalLoading(ready,waitingCalculators.load(),nearPending)&&motion.allowAhead&&std::max(std::abs(ax-cx),std::abs(az-cz))>=3){
+  if(terrain_runtime::allowSupplementalLoading(ready,waitingCalculators.load(),nearPending,tickBusy)&&!s.patches[0].view&&motion.allowAhead&&std::max(std::abs(ax-cx),std::abs(az-cz))>=3){
    if(!s.ahead||std::max(std::abs(ax-s.ax),std::abs(az-s.az))>=2){move(s.ahead,ax,az);s.ax=ax;s.az=az;}
   }else s.ahead.reset();
   return true;

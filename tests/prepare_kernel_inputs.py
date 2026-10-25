@@ -24,6 +24,7 @@ def prepare(output):
   data['config'].pop('riverBankSurvey',None)
   data['config'].pop('mountainEcology',None)
   data['config'].pop('regionalPlateaus',None)
+  for key in ('landscapeRevision','volcanoRevision','surfaceMoss','villageSpacing'):data['config'].pop(key,None)
   data['config']['cave'].pop('raisedCaveHeight',None)
   data['config']['cave'].pop('highMountainUnderground',None)
   data['regionalGeneration']['algorithm']='regional-drainage-v2'

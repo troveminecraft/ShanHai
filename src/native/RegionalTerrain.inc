@@ -23,6 +23,25 @@ PlateauNode plateauSample(double wx,double wz){
  auto blend=[&](double A,double B,double C,double D){return (1-u)*(1-v)*A+u*(1-v)*B+(1-u)*v*C+u*v*D;};
  return {blend(a.ground,b.ground,c.ground,d.ground),blend(a.target,b.target,c.target,d.target)};
 }
+// The uplift is evaluated on a 192-block lattice before interpolation.
+// This preserves broad foothills instead of multiplying every small ridge's
+// derivative by the 480-height profile. Peak targets vary over kilometres.
+struct MountainNode {double ground,target;};
+Cache<uint64_t,MountainNode> mountainNodes{8192};
+MountainNode mountainNode(int gx,int gz){return mountainNodes.get(key2(gx,gz),[&]{
+ double x=gx*192.,z=gz*192.,h=regionalHeight(x+32768,z+32768,vcont(x+32768,z+32768));
+ int peak=roundJS(340+140*smooth(-.28,.12,regionalNoise.at(x/2200.+91,z/2200.-57)));
+ return MountainNode{h,raisedMountainHeight(h,peak)};
+});}
+double tieredMountainHeight(double wx,double wz,double height){
+ double x=(wx-32768)/192.,z=(wz-32768)/192.;int gx=int(std::floor(x)),gz=int(std::floor(z));
+ double u=smooth(0,1,x-gx),v=smooth(0,1,z-gz);
+ auto a=mountainNode(gx,gz),b=mountainNode(gx+1,gz),c=mountainNode(gx,gz+1),d=mountainNode(gx+1,gz+1);
+ auto blend=[&](double A,double B,double C,double D){return(1-u)*(1-v)*A+u*(1-v)*B+(1-u)*v*C+u*v*D;};
+ double ground=blend(a.ground,b.ground,c.ground,d.ground),target=blend(a.target,b.target,c.target,d.target);
+ double result=mix(smooth(64.,112.,height),height,target+.65*(height-ground));
+ return result>456?456+16*std::tanh((result-456)/16):result;
+}
 struct ProtectedTerrain {double x,z,radius;};
 std::array<ProtectedTerrain,2> regionalProtected{};
 void loadRegionalTerrain(){
@@ -103,6 +122,6 @@ void finalTerrainClimate(Surface&s,int wx,int wz,double temperatureNoise,double 
   s.upland=regionalPlateauWeight(q.lowland,q.selector)*(1-q.protect)*smooth(150,185,s.height)*(1-smooth(290,330,s.height));
   s.mount*=1-.75*s.upland;s.plateau*=1-s.upland;
  }
- s.basin=1-smooth(26,46,s.height);
- s.T=(1-s.stone)*clamp(.62+temperatureNoise*.45-std::max(0.,s.height-48.)*.004,0,1)+s.stone*.67;
+ s.basin=1-smooth(26,46,landscapeAltitude(s.height));
+ s.T=(1-s.stone)*clamp(.62+temperatureNoise*.45-std::max(0.,landscapeAltitude(s.height)-48.)*.004,0,1)+s.stone*.67;
 }

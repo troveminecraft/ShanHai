@@ -557,8 +557,8 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
                     nearby.emplace(c.x, c.z);
             }
         std::vector<ChunkPos> nearbyVillages;
-        for (int z = structureCell(cp->z - 10); z <= structureCell(cp->z + 10); ++z)
-            for (int x = structureCell(cp->x - 10); x <= structureCell(cp->x + 10); ++x) {
+        for (int z = villageCell(cp->z - 10); z <= villageCell(cp->z + 10); ++z)
+            for (int x = villageCell(cp->x - 10); x <= villageCell(cp->x + 10); ++x) {
                 auto c = villageCandidate(x, z, seed);
                 if (std::abs(c.x - cp->x) <= 10 && std::abs(c.z - cp->z) <= 10)
                     nearbyVillages.push_back(c);

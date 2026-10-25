@@ -11,6 +11,7 @@ KARMA_NOINLINE void vanillaOreProfiles(int x0,int z0,std::vector<uint16_t>&raw,s
  int gx0=(x0-32768)/16,gz0=(z0-32768)/16,top=-64;
  for(int i=0;i<256;++i){auto col=raw.data()+i*Height;for(int y=std::min(Height-65,surfaces[i].height);y>top;--y)if(col[y+64]==2||col[y+64]==95){top=y;break;}}
  if(top<-60)return;
+ bool volcanicBonus=false;for(auto const&s:surfaces)volcanicBonus|=s.volcanoHeat>0;
  std::array<uint8_t,256> eligibility{};uint8_t anyEligibility=0;
  for(int i=0;i<256;++i){auto const&s=surfaces[i];bool drip=vanillaOreCondition(2,s,i);
   eligibility[i]=uint8_t(1|(vanillaOreCondition(1,s,i)?2:0)|(drip?4:8)|((s.biome==15||(s.biome>=26&&s.biome<=28))?16:0));anyEligibility|=eligibility[i];
@@ -30,7 +31,8 @@ KARMA_NOINLINE void vanillaOreProfiles(int x0,int z0,std::vector<uint16_t>&raw,s
    if(!(anyEligibility&(1<<b.condition)))continue;
    // scatter_chance gates this entire batch, before its iterations.
    if(hash01(gx,gz,seedHash(terrainSeed,salt))>=b.chance)continue;
-   for(int attempt=0;attempt<b.attempts;++attempt){
+   int attempts=b.attempts*((volcanicBonus&&b.type==6)?2:1);
+   for(int attempt=0;attempt<attempts;++attempt){
     auto r=[&](int k){return hash01(gx,gz,seedHash(terrainSeed,salt+1+attempt*257+k));};
     // Bedrock scatter extents are inclusive. Do not discard a candidate
     // outside world height and redistribute it into an in-range layer.
@@ -42,6 +44,7 @@ KARMA_NOINLINE void vanillaOreProfiles(int x0,int z0,std::vector<uint16_t>&raw,s
     int xl=std::max(0,cluster.xlo),xh=std::min(15,cluster.xhi),zl=std::max(0,cluster.zlo),zh=std::min(15,cluster.zhi),yl=std::max(-60,cluster.ylo),yh=std::min(top,cluster.yhi);
     if(xl>xh||zl>zh||yl>yh)continue;
     for(int z=zl;z<=zh;++z)for(int x=xl;x<=xh;++x){int i=z*16+x;if(!(eligibility[i]&(1<<b.condition)))continue;
+     if(attempt>=b.attempts&&hash01(x0+x,z0+z,seedHash(terrainSeed,salt+attempt*257+7919))>=surfaces[i].volcanoHeat)continue;
      auto col=raw.data()+i*Height;
      for(int y=yl;y<=yh;++y){auto&block=col[y+64];
       // Exact shipped replace_rules: other custom geological layers are not

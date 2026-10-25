@@ -1,11 +1,12 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 namespace terrain_runtime {
 // Keep the mandatory eight-chunk dependency halo. Delay optional flight and
 // gap-repair windows while the player's central 3x3 is still being built.
-inline bool allowSupplementalLoading(bool nearReady,unsigned waiting,unsigned nearPending){
- return nearReady&&waiting<4&&nearPending<=32;
+inline bool allowSupplementalLoading(bool nearReady,unsigned waiting,unsigned nearPending,bool tickBusy=false){
+ return nearReady&&!tickBusy&&waiting<4&&nearPending<=32;
 }
 struct MotionPlan {double speed=0,aheadX=0,aheadZ=0;bool teleport=false,turned=false,allowAhead=false;};
 struct StreamPlanner {
@@ -41,16 +42,18 @@ struct NearChunkWatchdog {
 // Bounded recovery; readiness is supplied by BDS, never inferred from elapsed time.
 struct ArrivalRecovery {
  enum class Action {None,Rebind,Resend,Timeout};
- bool active=false,rebound=false;double started=0,readySince=-1,nextResend=0;
- void begin(double now){active=true;rebound=false;started=now;readySince=-1;}
- Action poll(double now,bool ready){
+ bool active=false,rebound=false;double started=0,readySince=-1,nextResend=0,lastProgress=0;
+ uint64_t progress=0;
+ void begin(double now){active=true;rebound=false;started=lastProgress=now;readySince=-1;progress=0;}
+ Action poll(double now,bool ready,uint64_t observedProgress=0,bool tickBusy=false){
+  if(observedProgress!=progress){progress=observedProgress;lastProgress=now;}
   if(!active)return Action::None;
   if(ready){
    if(readySince<0)readySince=now;
    if(now-readySince>=.4&&now>=nextResend){active=false;nextResend=now+2;return Action::Resend;}
   }else readySince=-1;
   if(now-started>=30){active=false;return Action::Timeout;}
-  if(!ready&&!rebound&&now-started>=8){rebound=true;return Action::Rebind;}
+  if(!ready&&!rebound&&!tickBusy&&now-lastProgress>=8){rebound=true;return Action::Rebind;}
   return Action::None;
  }
 };

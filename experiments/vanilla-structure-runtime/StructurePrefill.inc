@@ -115,8 +115,8 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
         throw std::runtime_error("Structure generation paused after an earlier error");
     uint seed = dim.getLevel().getLevelData().getSeed().to32BitRandomSeed();
     std::vector<ChunkPos> vc, sc;
-    for (int z = structureCell(cp.z - 10); z <= structureCell(cp.z + 10); ++z)
-        for (int x = structureCell(cp.x - 10); x <= structureCell(cp.x + 10); ++x) {
+    for (int z = villageCell(cp.z - 10); z <= villageCell(cp.z + 10); ++z)
+        for (int x = villageCell(cp.x - 10); x <= villageCell(cp.x + 10); ++x) {
             auto c = villageCandidate(x, z, seed);
             if (std::abs(c.x - cp.x) <= 10 && std::abs(c.z - cp.z) <= 10)
                 vc.push_back(c);

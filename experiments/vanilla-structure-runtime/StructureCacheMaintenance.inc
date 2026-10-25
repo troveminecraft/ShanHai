@@ -216,8 +216,8 @@ void recoverLoadedStructurePlans(Level &level) {
                 if (populationRecoveryQueued.insert(key).second)
                     populationRecovery.push_back(key);
             };
-            for (int z = structureCell(cz - 10); z <= structureCell(cz + 10); ++z)
-                for (int x = structureCell(cx - 10); x <= structureCell(cx + 10); ++x) {
+            for (int z = villageCell(cz - 10); z <= villageCell(cz + 10); ++z)
+                for (int x = villageCell(cx - 10); x <= villageCell(cx + 10); ++x) {
                     auto v = villageCandidate(x, z, seed);
                     if (std::abs(v.x - cx) <= 10 && std::abs(v.z - cz) <= 10)
                         queue(true, v);

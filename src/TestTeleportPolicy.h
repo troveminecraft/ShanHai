@@ -59,11 +59,15 @@ inline std::optional<Destination> destination(int id, int biomeCount) {
 }
 struct Update { int id; char const* name; char const* content; };
 inline constexpr Update updates[]{
-    {132, "高原", "新增宽阔缓起伏中海拔地带，边缘缓坡衔接低地与高山"},
-    {114, "山地", "补全山地外围高原过渡，保留约Y480的山峰"}
+    {101, "海洋", "新世界海平面 Y64，陆地整体抬升"},
+    {114, "山地", "连续山麓、五档海拔和更高覆雪带"},
+    {132, "高原", "保留宽阔缓起伏中间地带"},
+    {125, "火山", "移除外围灰环，弯曲扩底通道、岩浆腔和深板岩；中心钻石最多双倍尝试"},
+    {109, "森林", "地表苔藓；繁茂洞穴上方有概率出现杜鹃"}
+
 };
 inline std::string joinMessage() {
-    std::string result = "§9[山&海] 最近地形更新（0.1.13，待游戏内验收）";
+    std::string result = "§9[山&海] 最近地形更新（0.1.16，待游戏内验收）";
     for (auto const& u : updates)
         result += "\n§9[" + std::to_string(u.id) + "] " + u.name + "：" + u.content;
     return result + "\n§9/karma 查看全部群系/结构；/karma tp <序号> [模式]（1 创造 / 0 观察者；省略保持当前模式）。§r";

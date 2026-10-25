@@ -8,7 +8,7 @@ struct AtlasCatalog {
  void save(){J meta=entity_store::read((terrainFolder()/"terrain.json"));J out{{"world",activeWorld},{"profileSha256",meta.at("sha256")},{"bounds",{-20000,-20000,19999,19999}},{"complete",!active&&error.empty()},{"visited",visited},{"total",total},{"maxBatchMs",maxBatchMs},{"error",error},{"status","terrain-qualified blueprint candidates, not generated blocks"},{"rows",rows}};
   auto temp=folder/"atlas-catalog.tmp";{std::ofstream f(temp);f<<out.dump();if(!f)throw std::runtime_error("Atlas export write failed");}if(!MoveFileExW(temp.c_str(),(folder/"atlas-catalog.json").c_str(),MOVEFILE_REPLACE_EXISTING))throw std::runtime_error("Atlas export replace failed");
  }
- void start(Dimension&d){if(active)throw std::runtime_error("Atlas export already running");type=0;index=visited=total=0;rows=J::array();error.clear();maxBatchMs=0;terrain=std::make_unique<nativegen::Field>(input);delegate=std::make_unique<TerrainVillageFeature>(structureSeed(d),d.getBiomeRegistry());for(int t=0;t<14;++t){if(t==7&&!mansionHabitatAvailable)continue;int s=t>=12?32:extraSpec(t)->spacing;int n=spacingCell(terrain_bounds::HalfChunks-1,s)-spacingCell(-terrain_bounds::HalfChunks,s)+1;total+=n*n;}active=true;save();}
+ void start(Dimension&d){if(active)throw std::runtime_error("Atlas export already running");type=0;index=visited=total=0;rows=J::array();error.clear();maxBatchMs=0;terrain=std::make_unique<nativegen::Field>(input);delegate=std::make_unique<TerrainVillageFeature>(structureSeed(d),d.getBiomeRegistry());for(int t=0;t<14;++t){if(t==7&&!mansionHabitatAvailable)continue;int s=t==12?villageSpacing():t==13?32:extraSpec(t)->spacing;int n=spacingCell(terrain_bounds::HalfChunks-1,s)-spacingCell(-terrain_bounds::HalfChunks,s)+1;total+=n*n;}active=true;save();}
 } atlasCatalog;
 void tickAtlasCatalog(Level&level){
  if(!atlasCatalog.active||interactionAuditActive)return;
@@ -32,7 +32,7 @@ void tickAtlasCatalog(Level&level){
   } context;
   uint seed=structureSeed(*dim);for(int budget=0;budget<64&&atlasCatalog.type<14;++budget){
    int t=atlasCatalog.type;if(t==7&&!mansionHabitatAvailable){++atlasCatalog.type;atlasCatalog.index=0;continue;}
-   int spacing=t>=12?32:extraSpec(t)->spacing,lo=spacingCell(-terrain_bounds::HalfChunks,spacing),hi=spacingCell(terrain_bounds::HalfChunks-1,spacing),side=hi-lo+1;
+   int spacing=t==12?villageSpacing():t==13?32:extraSpec(t)->spacing,lo=spacingCell(-terrain_bounds::HalfChunks,spacing),hi=spacingCell(terrain_bounds::HalfChunks-1,spacing),side=hi-lo+1;
    if(atlasCatalog.index>=side*side){++atlasCatalog.type;atlasCatalog.index=0;continue;}
    int i=atlasCatalog.index++,x=lo+i%side,z=lo+i/side;++atlasCatalog.visited;
    ChunkPos cp=t==12?villageCandidate(x,z,seed):t==13?nativeCandidateForCell(x,z,seed):extraCandidate(*extraSpec(t),x,z,seed);

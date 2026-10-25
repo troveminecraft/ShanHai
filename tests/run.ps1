@@ -2,7 +2,8 @@ param([Parameter(Mandatory=$true)][string]$BuildDirectory,
       [Parameter(Mandatory=$true)][string]$OutputDirectory,
       [string]$FeedbackRecipe,
       [string]$MountainRecipe,
-      [string]$PlateauRecipe)
+      [string]$PlateauRecipe,
+      [string]$LandscapeRecipe)
 $ErrorActionPreference = 'Stop'
 $build = [IO.Path]::GetFullPath($BuildDirectory)
 $output = [IO.Path]::GetFullPath($OutputDirectory)
@@ -71,6 +72,9 @@ if ($MountainRecipe) {
 }
 if ($PlateauRecipe) {
     $cases += @{Name='regional_plateaus'; Args=@([IO.Path]::GetFullPath($PlateauRecipe),(Join-Path $output 'regional-plateaus.json'))}
+}
+if ($LandscapeRecipe) {
+    $cases += @{Name='landscape_redo'; Args=@([IO.Path]::GetFullPath($LandscapeRecipe),(Join-Path $output 'landscape-redo.json'))}
 }
 foreach ($case in $cases) {
     $arguments = $case.Args
