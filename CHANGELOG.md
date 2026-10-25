@@ -1,5 +1,15 @@
 # 更新记录
 
+## 0.1.17 — volcano magma body and Windows loading
+
+- Volcanoes now have a broad lava mouth connected to one continuous magma body that widens towards the world bottom. The bedrock floor and a solid rock seal remain intact.
+- Fixed Windows mod startup rejecting the supported game after LeviLauncher added its loader section. Version, code-section and instruction checks remain active, and diagnostics now state the failing check.
+- New worlds use the revised volcano. Existing supported world recipes, including 0.1.16, keep their original generation. Existing vanilla worlds are not converted.
+
+This is a test release awaiting gameplay acceptance. Sea level remains Y64 and the build range remains Y-64..511.
+
+火山改为从宽阔熔岩口连续向地下扩大的岩浆体，保留基岩封底。修复 Windows LL 因启动器增加加载段而被误判为不兼容、模组未加载的问题。新火山用于新建世界；已有受支持模组存档保留原规则，原版存档不自动转换。游戏内验收待用户完成。
+
 ## 0.1.16 — rebuilt from 0.1.13 / 从 0.1.13 重新实现
 
 This is a test release awaiting user gameplay acceptance. Compilation and offline checks do not constitute in-game acceptance.
