@@ -29,14 +29,15 @@ constexpr TestBiomeGroup testBiomes[]={
  {"super_glacier","超级冰川",-2},{"volcano","火山",-3},
  {"small_stone_forest","小型石峰林",-4},{"giant_forest","巨木森林",-5},
  {"mushroom_island","蘑菇岛",25},{"mesa_bryce","侵蚀恶地",26},
- {"mesa_plateau","恶地高原",27},{"mesa_plateau_stone","繁茂恶地高原",28}
+ {"mesa_plateau","恶地高原",27},{"mesa_plateau_stone","繁茂恶地高原",28},
+ {"rolling_plateau","高原",-6}
 };
 template<class S> bool testBiomeMatches(int i,S const&s){
  int b=testBiomes[i].biome;
  if(b==11)return test_teleport::desertInterior(s);
  if(b>=0)return s.biome==b||(b==15&&s.biome>=26&&s.biome<=28)||(b==7&&s.biome==8)||(b==6&&s.biome==17)||(b==11&&s.biome==16);
  switch(b){case -1:return s.glacier>.5&&s.superGlacier<.1;case -2:return s.superGlacier>.5;
- case -3:return s.volcanic>.5;case -4:return s.stone>.5;case -5:return s.giant>.5;default:return false;}
+ case -3:return s.volcanic>.5;case -4:return s.stone>.5;case -5:return s.giant>.5;case -6:return test_teleport::plateauInterior(s);default:return false;}
 }
 
 struct StructureTestTeleport {
@@ -65,6 +66,7 @@ struct StructureTestTeleport {
   auto y=test_teleport::aboveSurface(std::max({s.height+s.drip,s.water,s.lava}),8,maxYExclusive());
   if(y)for(size_t i=0;i<biomeSpots.size();++i)if(!biomeSpots[i].is_object()&&testBiomeMatches(int(i),s)){
    if(testBiomes[i].biome==11&&!test_teleport::desertDestination(x,z,[&](int X,int Z){return field->surface(X+32768,Z+32768);}))continue;
+   if(testBiomes[i].biome==-6&&!test_teleport::plateauDestination(x,z,[&](int X,int Z){return field->surface(X+32768,Z+32768);}))continue;
    biomeSpots[i]={{"x",x},{"y",*y},{"z",z},{"family",testBiomes[i].key}};
   }
  }

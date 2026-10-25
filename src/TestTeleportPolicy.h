@@ -17,6 +17,18 @@ template<class Sample> bool desertDestination(int x,int z,Sample sample){
         if(!desertInterior(sample(x+dx,z+dz)))return false;
     return true;
 }
+template<class S> bool plateauInterior(S const&s){
+    return s.upland>=.65&&s.height>=180&&s.height<=300&&s.water<s.height&&s.lava<s.height&&
+        !s.lake&&s.river==0&&!s.badlands&&s.iceHabitat<=.01&&s.stone<=.01&&s.volcanic<=.01&&s.giant<=.01;
+}
+template<class Sample> bool plateauDestination(int x,int z,Sample sample){
+    int low=512,high=-64;
+    for(int dz:{-64,0,64})for(int dx:{-64,0,64}){
+        auto s=sample(x+dx,z+dz);if(!plateauInterior(s))return false;
+        low=std::min(low,s.height);high=std::max(high,s.height);
+    }
+    return high-low<=48;
+}
 inline bool validY(int y,int maxYExclusive){
     return (maxYExclusive==320||maxYExclusive==512)&&y>=-58&&y<=maxYExclusive-2;
 }
@@ -47,12 +59,11 @@ inline std::optional<Destination> destination(int id, int biomeCount) {
 }
 struct Update { int id; char const* name; char const* content; };
 inline constexpr Update updates[]{
-    {114, "山地", "修复高山洞穴在Y319截断，适配树线、地被和高山地下内容"},
-    {106, "雪原", "补充高山植被过渡与覆雪山体绿宝石资格"},
-    {124, "超级冰川", "修复旧世界范围外的专属降雪判断"}
+    {132, "高原", "新增宽阔缓起伏中海拔地带，边缘缓坡衔接低地与高山"},
+    {114, "山地", "补全山地外围高原过渡，保留约Y480的山峰"}
 };
 inline std::string joinMessage() {
-    std::string result = "§9[山&海] 最近地形更新（0.1.12，待游戏内验收）";
+    std::string result = "§9[山&海] 最近地形更新（0.1.13，待游戏内验收）";
     for (auto const& u : updates)
         result += "\n§9[" + std::to_string(u.id) + "] " + u.name + "：" + u.content;
     return result + "\n§9/karma 查看全部群系/结构；/karma tp <序号> [模式]（1 创造 / 0 观察者；省略保持当前模式）。§r";

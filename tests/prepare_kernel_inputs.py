@@ -23,6 +23,7 @@ def prepare(output):
   data['config'].pop('smallPoolsVersion',None)
   data['config'].pop('riverBankSurvey',None)
   data['config'].pop('mountainEcology',None)
+  data['config'].pop('regionalPlateaus',None)
   data['config']['cave'].pop('raisedCaveHeight',None)
   data['config']['cave'].pop('highMountainUnderground',None)
   data['regionalGeneration']['algorithm']='regional-drainage-v2'
