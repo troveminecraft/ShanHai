@@ -57,7 +57,7 @@ struct VillageLayoutPlan {
  std::vector<StructurePoint> wallPositions;
  size_t surfaceQueries{};int groundMin=INT_MAX,groundMax=-64;int maxY=319;
 };
-inline bool sharedStructurePlan(std::string_view revision){return revision==StructurePlanRevision;}
+inline bool sharedStructurePlan(std::string_view revision){return revision==StructurePlanRevision||revision=="llbds-structures-v3";}
 // Villages own their streets/aprons as well as individual buildings. Surface
 // structures must reserve their complete footprint before any chunk is written.
 inline bool villageSurfaceConflict(StructureBox const&structure,StructureBox const&village){return structure.intersectsXZ(village,28);}
@@ -81,6 +81,17 @@ template<class Sample> int villageSiteStyle(ChunkPosition anchor,Sample sample){
  auto center=sample(anchor.x*16,anchor.z*16);int style=villageStyle(center.biome),lo=INT_MAX,hi=-64;
  for(int z=-VillageSampleRadius;z<=VillageSampleRadius;z+=VillageSampleStep)for(int x=-VillageSampleRadius;x<=VillageSampleRadius;x+=VillageSampleStep){auto s=sample(anchor.x*16+x,anchor.z*16+z);if(!villageSurfaceAllowed(s,style))return -1;lo=std::min(lo,s.height);hi=std::max(hi,s.height);if(hi-lo>VillageMaxSlope)return -1;}
  return style;
+}
+// Keep one village per spacing cell and all footprint/road checks. Retry a
+// bounded set of deterministic anchors instead of losing the whole cell when
+// its first random position happens to touch a river or a biome boundary.
+template<class Sample> ChunkPosition villageCandidateForTerrain(int x,int z,uint32_t seed,Sample sample){
+ auto first=candidateForCell(x,z,seed,VillageSpacing,VillageSeparation,VillageSalt);
+ for(int attempt=0;attempt<6;++attempt){
+  auto candidate=attempt?candidateForCell(x,z,seed,VillageSpacing,VillageSeparation,VillageSalt+attempt*104729):first;
+  if(villageSiteStyle(candidate,sample)>=0)return candidate;
+ }
+ return first;
 }
 // The sampler is immutable terrain, never the live world's half-built chunks.
 // One cache covers validation, origin fitting, road fitting and oasis planning.

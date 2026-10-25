@@ -238,6 +238,8 @@ int main(int argc, char **argv) {
         check(structureLedgerSeed(legacyRecipe) == 17, "legacy ledger identity changed");
         legacyRecipe["config"]["sharedRules"]["revision"] = "llbds-structures-v3";
         check(structureLedgerSeed(legacyRecipe) == "-1", "new ledger uses truncated world seed");
+        legacyRecipe["config"]["sharedRules"]["revision"] = StructurePlanRevision;
+        check(structureLedgerSeed(legacyRecipe) == "-1", "current ledger must preserve the same seed identity");
         StructureLootAssignment loot{{-1, 62, 1}, "loot_tables/chests/igloo_chest.json", 42};
         check(structureLootMarkerOwned(loot, clip, false) && !structureLootMarkerOwned(loot, clip, true),
               "saved container was reseeded");

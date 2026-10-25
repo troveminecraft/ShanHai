@@ -19,7 +19,7 @@ class WorldPackageTests(unittest.TestCase):
     def tearDown(self):self.temp.cleanup()
     def write_level(self):write_file(self.w/'level.dat',10,'',self.tags)
     def enable_height(self):
-        self.data['config']=dict(generatedMaxYExclusive=512,mountainPeakY=480,seaLevel=40)
+        self.data['config']=dict(generatedMaxYExclusive=512,mountainPeakY=480,seaLevel=64)
         self.save_native_data()
         self.meta.update(maxY=511,buildMaxYExclusive=512,generatedMaxYExclusive=512,buildHeightPack=install_height_pack(self.w))
         self.marker.update(buildMaxYExclusive=512,generatedMaxYExclusive=512)
@@ -85,7 +85,7 @@ class WorldPackageTests(unittest.TestCase):
         self.data['config']=dict(generatedMaxYExclusive=512);self.save_native_data();self.save_metadata()
         with self.assertRaisesRegex(ValueError,'Native recipe height'):check(self.w)
     def test_new_preparation_requires_current_recipe(self):
-        config=dict(generatedMaxYExclusive=512,mountainPeakY=480,seaLevel=40)
+        config=dict(generatedMaxYExclusive=512,mountainPeakY=480,seaLevel=64)
         validate_new_world_recipe(dict(config=config))
         for key in config:
             invalid=config.copy();invalid.pop(key)

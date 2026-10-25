@@ -36,7 +36,7 @@ double wetlandWaterWeight(int x,int z){
   +(1-u)*v*wetlandWaterNode(gx,gz+1)+u*v*wetlandWaterNode(gx+1,gz+1);
 }
 bool wetlandGround(Surface const&s,int x,int z){
- return s.height>=34&&s.height<=82&&s.water<s.height&&!s.lake&&!s.river&&s.stone==0&&s.volcanic==0&&s.barren<.01&&s.coast<.05&&s.cliffLow==-32768&&giantWeight(x,z,s)<.01;
+ return landscapeAltitude(s.height)>=34&&landscapeAltitude(s.height)<=82&&s.water<s.height&&!s.lake&&!s.river&&s.stone==0&&s.volcanic==0&&s.barren<.01&&s.coast<.05&&s.cliffLow==-32768&&giantWeight(x,z,s)<.01;
 }
 WetlandPatch wetlandPatch(int gx,int gz){return wetlandSites.get(key2(gx,gz),[&]{
  WetlandPatch a;if(!C.value("wetlandsEnabled",true))return a;
@@ -65,12 +65,12 @@ void wetlandRelief(Surface&s,int x,int z){
  double weight=(1-smooth(.56,1.,distance))*smooth(a.level+1.,a.level+5.,s.height)*(1-smooth(16.,28.,std::abs(s.height-a.level)));
  // The eligibility cutoff at Y=82 must be reached with zero displacement.
  // New lowland belts expose this boundary inside otherwise valid wetland sites.
- if(regionalEnabled)weight*=smooth(34.,42.,s.height)*(1-smooth(64.,82.,s.height));
+ if(regionalEnabled)weight*=smooth(34.,42.,landscapeAltitude(s.height))*(1-smooth(64.,82.,landscapeAltitude(s.height)));
  if(weight<=0)return;
  if(glacierWetlands){
   // Evaluate glacier suitability before wetland excavation: lowering terrain
   // must not manufacture a new cold wetland inside a pre-existing ice region.
-  auto climate=s;climate.height=std::min(climate.height,72);
+  auto climate=s;climate.height=std::min(climate.height,elevatedLandscape?96:72);
   glacierSkin(climate,x,z);
   weight*=1-smooth(.02,.18,climate.glacier);
   if(weight<=0)return;

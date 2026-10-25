@@ -103,6 +103,6 @@ void finalTerrainClimate(Surface&s,int wx,int wz,double temperatureNoise,double 
   s.upland=regionalPlateauWeight(q.lowland,q.selector)*(1-q.protect)*smooth(150,185,s.height)*(1-smooth(290,330,s.height));
   s.mount*=1-.75*s.upland;s.plateau*=1-s.upland;
  }
- s.basin=1-smooth(26,46,s.height);
- s.T=(1-s.stone)*clamp(.62+temperatureNoise*.45-std::max(0.,s.height-48.)*.004,0,1)+s.stone*.67;
+ s.basin=1-smooth(26,46,landscapeAltitude(s.height));
+ s.T=(1-s.stone)*clamp(.62+temperatureNoise*.45-std::max(0.,s.height-(C.value("landscapeRevision",0)>=1?72.:48.))*.004,0,1)+s.stone*.67;
 }

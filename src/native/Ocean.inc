@@ -10,7 +10,7 @@ KARMA_NOINLINE double seaShoreNode(int gx,int gz){return seaShoreNodes.get(key2(
   if(std::max(std::abs(dx),std::abs(dz))!=ring)continue;
   int distanceSquared=dx*dx+dz*dz;if(distanceSquared>=nearestSquared)continue;
   int X=gx+dx,Z=gz+dz;
-  double h=coastalHeights.get(key2(X,Z),[&]{return uncliff(X*16.,Z*16.);});
+  double h=coastalHeights.get(key2(X,Z),[&]{double h=uncliff(X*16.,Z*16.);return h+(elevatedLandscape?raisedLandOffset(h):0);});
   if(h>=seaLevelValue||h<seaLevelValue-16)continue;
   auto a=base(X*16,Z*16);
   if(a.water==seaLevelValue&&a.height<seaLevelValue&&a.height>=seaLevelValue-16&&!a.lake&&!a.river&&a.riverBankWater==-32768&&a.stone==0&&a.volcanic==0){nearestSquared=distanceSquared;if(!nearestSquared)return 1.;}
@@ -110,7 +110,7 @@ void loadOcean(){
 OceanNode oceanNode(int gx,int gz){return oceanNodes.get(key2(gx,gz),[&]{
  std::array<double,8> wet{};int i=0;
  for(auto [dx,dz]:{std::pair{-1,0},std::pair{1,0},std::pair{0,-1},std::pair{0,1},std::pair{-1,-1},std::pair{1,-1},std::pair{-1,1},std::pair{1,1}}){
-  double offshore=1-smooth(seaLevelValue-6,seaLevelValue+7,vcont(gx*128.+dx*192,gz*128.+dz*192));
+  double offshore=1-smooth(seaLevelValue-6,seaLevelValue+7,vcont(gx*128.+dx*192,gz*128.+dz*192)+(elevatedLandscape?24.:0.));
   wet[i++]=offshore;
  }
  double sum=0;for(double w:wet)sum+=w;

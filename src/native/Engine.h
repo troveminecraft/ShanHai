@@ -87,6 +87,7 @@ class Engine {
  #include "ForestMushrooms.inc"
  #include "DesertEcology.inc"
  #include "UndergroundEcology.inc"
+ #include "SurfaceMoss.inc"
  #include "UndergroundPockets.inc"
  #include "SealedFluidCaves.inc"
  #include "StoneGrotto.inc"
@@ -251,6 +252,7 @@ for(auto const&s:ss){if(field.surface(s.x,s.z,false).glacier>.15)continue;int x=
  cutClosedRifts(raw);
  snowCover(x0,z0,raw,surfaces);
  landscapePass(x0,z0,raw,surfaces);
+ surfaceMoss(x0,z0,raw,surfaces);
  lavaFlows(x0,z0,raw,surfaces);
  if(finalTerrainOres){cleanupSnowSupports(raw,surfaces);if(oreProfilesEnabled&&undergroundEcologyEnabled){if(vanillaOres)vanillaOreProfiles(x0,z0,raw,surfaces);else oreProfiles(x0,z0,raw,surfaces,oreRockField,oreHabitat);}}
  featureMs=std::chrono::duration<double,std::milli>(clock()-chunkBegin).count()-surfaceMs-columnMs;

@@ -125,8 +125,8 @@ ChunkPos villageCandidate(int x, int z, uint seed) {
     auto &e = cache[(uint(x) * 73856093u ^ uint(z) * 19349663u) & 63u];
     if (!e.valid || e.x != x || e.z != z || e.seed != seed) {
         auto cp =
-            worldgen_rules::candidateForCell(x, z, seed, worldgen_rules::VillageSpacing,
-                                             worldgen_rules::VillageSeparation, worldgen_rules::VillageSalt);
+            worldgen_rules::villageCandidateForTerrain(x, z, seed,
+                [](int X, int Z) { return field->surface(X + 32768, Z + 32768); });
         e = {x, z, seed, {cp.x, cp.z}, true};
     }
     return e.cp;

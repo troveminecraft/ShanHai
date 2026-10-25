@@ -4,6 +4,8 @@
 #include "Noise.h"
 #include "MountainHeight.h"
 #include "PlateauProfile.h"
+#include "ElevationProfile.h"
+#include "VolcanoGeology.h"
 #include "EcologyClimate.h"
 #include "CaveNetwork.h"
 #include "FiniteCaves.h"
@@ -11,7 +13,7 @@
 #include "RegionalPlans.h"
 namespace nativegen {
 inline double num(J const&j,char const*k){return j.at(k).get<double>();}
-struct Surface {double upland=0;double ecologyT=-1;int seaLevel=31;bool mushroom=false,mushroomZone=false;int badlands=0;bool badlandsDesert=false,redSandCoast=false;int16_t seaCutLow=-32768,seaCutHigh=-32768;float seaBank=0,volcanicDeposit=1;double glacier=0,superGlacier=0,iceHabitat=0;int iceGround=-1;int iceThickness=0;bool iceSnow=false;int cavePoolBed=320,caveSealFloor=320;int aridType=0,aridTop=-1;double sandCover=1,desert=0,desertSand=0,desertCrest=0,desertPatch=0,oasis=0;int fluvialType=0,fluvialTop=-1;double riverShore=0,riverSlope=0,riverSection=0;int riverBedMaterial=-1;int riverBankWater=-32768;double riverBankEdge=INFINITY;bool riverDeposit=false,scarpWarped=false;int scarpCaveCeiling=319;int riverCutLow=-32768,riverCutHigh=-32768,riverCutWater=-32768;double riverOuter=0,scarp=0;int preRiverHeight=0,height=0,water=-32768,cliffLow=-32768,cliffHigh=-32768,drip=0,biome=0,kind=0,surf=0,treeK=1,rock=0,lake=0,aquifer=-1,lava=-32768;bool vent=false,lakeFrozen=false,volcanicMountainRock=false;double wetland=0,wetlandMoisture=0;int wetlandLevel=-32768;double mainRiver=0,riverBar=0,riverJunction=0,riverBankCut=0,river=0,soilSand=0,volcanicHot=0,estuary=0,volcanic=0,barren=0,ocean=0,coast=0,raw=0,T=0,H=0,ridge=0,e=0,continuous=0,mount=0,plateau=0,basin=0,stone=0,pillar=0,giant=0,treeD=0,rockCap=0;};
+struct Surface {float volcanoDeep=-4,volcanoPatch=0,volcanoRock=0;float volcanoDx=0,volcanoDz=0,volcanoVent=0,volcanoCrater=0,volcanoRadius=0,volcanoHeat=0;int volcanoLavaTop=-32768,thermalCaveLow=-32768,thermalCaveHigh=-32768;double upland=0;double ecologyT=-1;int seaLevel=31;bool mushroom=false,mushroomZone=false;int badlands=0;bool badlandsDesert=false,redSandCoast=false;int16_t seaCutLow=-32768,seaCutHigh=-32768;float seaBank=0,volcanicDeposit=1;double glacier=0,superGlacier=0,iceHabitat=0;int iceGround=-1;int iceThickness=0;bool iceSnow=false;int cavePoolBed=320,caveSealFloor=320;int aridType=0,aridTop=-1;double sandCover=1,desert=0,desertSand=0,desertCrest=0,desertPatch=0,oasis=0;int fluvialType=0,fluvialTop=-1;double riverShore=0,riverSlope=0,riverSection=0;int riverBedMaterial=-1;int riverBankWater=-32768;double riverBankEdge=INFINITY;bool riverDeposit=false,scarpWarped=false;int scarpCaveCeiling=319;int riverCutLow=-32768,riverCutHigh=-32768,riverCutWater=-32768;double riverOuter=0,scarp=0;int preRiverHeight=0,height=0,water=-32768,cliffLow=-32768,cliffHigh=-32768,drip=0,biome=0,kind=0,surf=0,treeK=1,rock=0,lake=0,aquifer=-1,lava=-32768;bool vent=false,lakeFrozen=false,volcanicMountainRock=false;double wetland=0,wetlandMoisture=0;int wetlandLevel=-32768;double mainRiver=0,riverBar=0,riverJunction=0,riverBankCut=0,river=0,soilSand=0,volcanicHot=0,estuary=0,volcanic=0,barren=0,ocean=0,coast=0,raw=0,T=0,H=0,ridge=0,e=0,continuous=0,mount=0,plateau=0,basin=0,stone=0,pillar=0,giant=0,treeD=0,rockCap=0;};
 struct ReliefNode{double v,relief,pos,corr;};
 struct Cliff{bool valid=false;double x=0,z=0,h=0,slope=0,nx=0,nz=0,crest=0;};
 class Field {
@@ -35,6 +37,7 @@ class Field {
  struct Pillar{double x,z,r,phase,outer,h;};std::vector<Pillar> pillars;std::unordered_map<uint64_t,std::vector<size_t>> pillarBins;
  #include "Caves.inc"
  #include "RegionalTerrain.inc"
+ #include "ElevationRegions.inc"
  #include "Deserts.inc"
  #include "Landform.inc"
  #include "SmallStoneForests.inc"
@@ -66,7 +69,7 @@ class Field {
   auto const&g=C.at("giantForest");
   double distance=std::hypot(x-32768-num(g,"centerX"),z-32768-num(g,"centerZ"));
   double weight=smooth(num(g,"outerRadius")+64,num(g,"outerRadius")+320,distance);
-  result=mix(weight,result,raisedMountainHeight(result,mountainPeakY));
+  result=mix(weight,result,elevatedLandscape?tieredMountainHeight(x,z,result):raisedMountainHeight(result,mountainPeakY));
  }
  return applyRegional?badlandsHeight(x,z,result):result;
  }
@@ -111,6 +114,7 @@ class Field {
   v+=clamp(shift,-num(c,"maxShift"),num(c,"maxShift"));
  }
 
+ if(elevatedLandscape)v+=raisedLandOffset(v);
  s.coast=s.stone>0?0:coastWeight(wx,wz,v);
  v+=s.coast*24*smooth(seaLevelValue-2,seaLevelValue+14,v)*(1-smooth(seaLevelValue+21,seaLevelValue+65,v));
  oceanRelief(s,v,wx,wz);
@@ -179,8 +183,8 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
  J inspectVolcanoes(int min=terrain_bounds::MinBlock,int max=terrain_bounds::MaxBlock){return volcanoInventory(min,max);}
  explicit Field(J const&d,bool cullLocalPlans=true):data(d),C(d.at("config")),terrainSeed(C.at("seed").get<uint32_t>()),graph(d,true),caves(d,false),low(seedHash(terrainSeed,201)),high(seedHash(terrainSeed,211)),secondary(seedHash(terrainSeed,237)),warpX(seedHash(terrainSeed,238)),warpZ(seedHash(terrainSeed,239)),stoneNoise(seedHash(terrainSeed,308)),giantNoise(seedHash(terrainSeed,503)),matNoise(seedHash(terrainSeed,221)),rockNoise(seedHash(terrainSeed,222)),treeNoise(seedHash(terrainSeed,223)),biomeNoise(seedHash(terrainSeed,224)){
  localPlanningCulling=cullLocalPlans;
-  if(raisedEcology&&mountainPeakY>240)for(int y=-64;y<512;++y)ecologyAltitudes[y+64]=mountainClimateHeight(y,mountainPeakY);
- if(seaLevelValue<0||seaLevelValue>63)throw std::runtime_error("Sea level outside supported range");
+  if(raisedEcology&&mountainPeakY>240)for(int y=-64;y<512;++y)ecologyAltitudes[y+64]=mountainClimateHeight(elevatedLandscape?raisedClimateAltitude(y):y,mountainPeakY);
+ if(seaLevelValue<0||seaLevelValue>64)throw std::runtime_error("Sea level outside supported range");
  if(generatedMaxYExclusive!=320&&generatedMaxYExclusive!=512)throw std::runtime_error("Unsupported generated height");
  if(mountainPeakY!=0&&(mountainPeakY!=480||generatedMaxYExclusive!=512))throw std::runtime_error("Raised mountains require the 512-height profile");
  if(!d.contains("seedManifest")||d.at("seedManifest").at("runtimeSeed")!=terrainSeed)
@@ -203,7 +207,7 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
   if(!raisedSnowline||!regionalEnabled||!mountainPeakY||s.height<=96||s.stone>0||s.volcanic>0)return s.T;
   double scale=num(C.at("epic"),"horizontalScale");
   double noise=temp((x-32768)*scale,0,(z-32768)*scale);
-  return clamp(.62+noise*.45-std::max(0.,mountainClimateHeight(s.height,mountainPeakY)-48.)*.004,0,1);
+  return clamp(.62+noise*.45-std::max(0.,mountainClimateHeight(elevatedLandscape?raisedClimateAltitude(s.height):s.height,mountainPeakY)-48.)*.004,0,1);
  }
  std::array<double,3> regionalClimate(int x,int z){
   constexpr double pitch=64.;int gx=int(std::floor(x/pitch)),gz=int(std::floor(z/pitch));
@@ -258,7 +262,7 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
  if(matchedRiverBanks&&s.riverBankWater>seaLevelValue&&std::isfinite(s.riverBankEdge))
   s.rockCap*=1-(1-smooth(110.,165.,s.height))*(1-smooth(2.,6.,s.riverBankEdge));
  if(s.lake){s.surf=5;if(s.lake==1){s.treeD=0;s.giant=0;s.biome=s.lakeFrozen?19:18;}}
- if(s.volcanic>0){s.treeD*=1-s.volcanic;if(s.volcanic>.35){s.treeD=0;s.giant=0;s.biome=20;s.kind=4;}}
+ if(s.volcanic>0){s.treeD*=1-s.volcanic;if(s.volcanic>(revisedVolcano?.72:.35)){s.treeD=0;s.giant=0;s.biome=20;s.kind=4;}}
  // Open-water strength controls ocean ecology, not whether a submerged inlet
  // has a seabed. Otherwise narrow sea-level channels retain underwater grass.
  if((s.ocean>0||(coastalBeds&&s.stone<=.01&&s.volcanic==0))&&s.water==seaLevelValue&&s.height<seaLevelValue&&!s.lake){s.treeD=0;s.giant=0;s.kind=3;s.surf=6;s.biome=oceanBiome(s,x,z);}
