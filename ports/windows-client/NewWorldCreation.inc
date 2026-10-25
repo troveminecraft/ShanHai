@@ -330,16 +330,22 @@ LL_TYPE_INSTANCE_HOOK(CreateServer,ll::memory::HookPriority::Normal,WorldCreatio
   // startLocalServerAsync constructs its world pack stack and dimensions.
   // Re-merge here because the copy stage may have replaced the selection file.
   auto uuid=installPreparedHeightPack(root,j->path/"prepared");
+  bool visibleInRepository=false;
   if(!uuid.empty()){
    auto& repository=*mResourcePackRepository;
    repository.addWorldResourcePacks(Core::Path(root));
    repository.refreshPacks();
-   if(!repository.getResourcePackByUUID(mce::UUID::fromString(uuid)))
-    throw std::runtime_error("Height behavior pack was not registered before local server startup");
+   // This is a repository snapshot, not completion of the native world-pack
+   // load. In 26.20 it can still be empty here for a newly attached pack.
+   // Let native startup build the selected world stack. WorldOpen checks the
+   // resulting dimension bounds and rejects it before joining if they differ.
+   visibleInRepository=repository.getResourcePackByUUID(mce::UUID::fromString(uuid))!=nullptr;
   }
-  j->trace("height_pack_registered_before_server");
+  j->trace("height_pack_prepared_before_server");
   std::ofstream(diagnostics/"new-world-height-pack.json")<<Json{{"world",root.string()},
-   {"packUuid",uuid},{"repositoryRegistered",!uuid.empty()},{"stage","before-local-server"},
+   {"packUuid",uuid},{"filesAndSelectionVerified",!uuid.empty()},
+   {"visibleInRepositorySnapshot",visibleInRepository},{"nativePackLoadPending",true},
+   {"version",shanhai_release::Windows},{"stage","before-local-server"},
    {"runtimeHeightVerified",false}}.dump(2);
  }catch(std::exception const&e){
   j->fail(std::string("主世界高度包接入失败：")+e.what());return false;
