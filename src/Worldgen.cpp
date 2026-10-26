@@ -575,7 +575,9 @@ bool Mod::enable(){
 bool Mod::disable(){
  if(ll::getGamingStatus()==ll::GamingStatus::Running||ll::getGamingStatus()==ll::GamingStatus::Starting){log().error("按需地形生成器不能在运行中禁用，请正常停服后更新");return false;}
  if(testJoin)ll::event::EventBus::getInstance().removeListener(testJoin);if(testLeave)ll::event::EventBus::getInstance().removeListener(testLeave);
- requested=false;if(tickListener)ll::event::EventBus::getInstance().removeListener(tickListener);glacierWeatherPlayers.clear();playerStreams.clear();streamingPolicy=nullptr;StreamPriority::unhook();view.reset();ObserveLoad::unhook();GenerateVoid::unhook();Generate::unhook();worldSession->close();active=false;return true;
+ requested=false;if(tickListener)ll::event::EventBus::getInstance().removeListener(tickListener);
+ worldSession->close(); // Drain admitted callbacks before releasing native view state.
+ active=false;glacierWeatherPlayers.clear();playerStreams.clear();streamingPolicy=nullptr;StreamPriority::unhook();view.reset();ObserveLoad::unhook();GenerateVoid::unhook();Generate::unhook();return true;
 }
 #ifdef KARMA_CLIENT
 #include "WindowsTerrainHost.inc"
