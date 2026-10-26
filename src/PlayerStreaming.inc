@@ -83,7 +83,7 @@ void updatePlayerStreaming(Level& level){
     signature=(signature^uint64_t(c?int(c->getState().load())+1:0))*1099511628211ULL;
    }s.progress=signature;
   }
-  // Scan the client view once/second, then request at most two small patches.
+  // Scan the client view every two seconds; retain one dependency patch/player.
   // Readiness always comes from BDS; never mark unfinished chunks as Loaded.
   if(ready&&!tickBusy&&seconds>=s.nextViewScan){
    s.nextViewScan=seconds+2.;s.viewRadius=std::clamp(int(player.getChunkRadius())-2,2,32);
@@ -99,7 +99,7 @@ void updatePlayerStreaming(Level& level){
      if(done||seconds-patch.started>=20||std::max(std::abs(patch.x-cx),std::abs(patch.z-cz))>radius)patch.view.reset();
     }
     if(!patch.view&&terrain_runtime::allowSupplementalLoading(ready,worldSession->waitingCalculators.load(),nearPending,tickBusy))if(auto gap=s.visible.next(seconds,cx,cz)){
-     patch.x=gap->x;patch.z=gap->z;patch.started=seconds;gap->attempted=seconds;
+     patch.x=gap->x;patch.z=gap->z;patch.started=seconds;s.visible.requested(*gap,seconds);
      patch.view=std::make_unique<ChunkViewSource>(dim->getChunkSource(),ChunkSource::LoadMode::Deferred);
      // BDS decoration/light dependencies need the full eight-chunk halo,
      // just like the existing arrival view. A radius-four patch can stall.
@@ -125,6 +125,9 @@ void updatePlayerStreaming(Level& level){
   if(terrain_runtime::allowSupplementalLoading(ready,worldSession->waitingCalculators.load(),nearPending,tickBusy)&&!s.patches[0].view&&motion.allowAhead&&std::max(std::abs(ax-cx),std::abs(az-cz))>=3){
    if(!s.ahead||std::max(std::abs(ax-s.ax),std::abs(az-s.az))>=2){move(s.ahead,ax,az);s.ax=ax;s.az=az;}
   }else s.ahead.reset();
+  if(s.patches[0].view&&!next->empty()){
+   auto& f=next->back();f.repair=true;f.repairX=s.patches[0].x;f.repairZ=s.patches[0].z;
+  }
   return true;
  });
  for(auto it=playerStreams.begin();it!=playerStreams.end();)if(!seen.contains(it->first))it=playerStreams.erase(it);else ++it;
