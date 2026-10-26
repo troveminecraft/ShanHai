@@ -85,7 +85,7 @@ class WorldPackageTests(unittest.TestCase):
         self.data['config']=dict(generatedMaxYExclusive=512);self.save_native_data();self.save_metadata()
         with self.assertRaisesRegex(ValueError,'Native recipe height'):check(self.w)
     def test_new_preparation_requires_current_recipe(self):
-        config=dict(generatedMaxYExclusive=512,mountainPeakY=480,seaLevel=100,elevationRevision=1)
+        config=dict(generatedMaxYExclusive=512,mountainPeakY=480,seaLevel=100,elevationRevision=2)
         validate_new_world_recipe(dict(config=config))
         for key in config:
             invalid=config.copy();invalid.pop(key)

@@ -7,7 +7,7 @@ from process_guard import run_checked
 P=Path(__file__).resolve().parents[1]
 
 def height_settings(data):
-    data["config"].update(seaLevel=100,maxY=511,generatedMaxYExclusive=512,mountainPeakY=480,elevationRevision=1,landscapeRevision=3)
+    data["config"].update(seaLevel=100,maxY=511,generatedMaxYExclusive=512,mountainPeakY=480,elevationRevision=2,landscapeRevision=3)
     data["config"]["stoneForest"]["valleyY"]=110
 
 def finish_recipe(data):
@@ -17,9 +17,9 @@ def finish_recipe(data):
     data["config"]["mountainSnowline"]=1
     data["config"]["mountainEcology"]=1
     data["config"]["regionalPlateaus"]=1
-    data["config"].update(landscapeRevision=3,volcanoRevision=4,surfaceMoss=2,villageSpacing=20)
-    data["config"]["cave"].update(raisedCaveHeight=1,highMountainUnderground=1)
-    data["config"]["smallPoolsVersion"]=2
+    data["config"].update(landscapeRevision=3,volcanoRevision=4,surfaceMoss=2,villageSpacing=16)
+    data["config"]["cave"].update(raisedCaveHeight=1,highMountainUnderground=1,uplandNetworks=1)
+    data["config"]["smallPoolsVersion"]=3
     data['regionalGeneration']=dict(algorithm='regional-drainage-v3',coreBlocks=2048,haloBlocks=512,
                                     samplePitch=64,worldBounds=None,boundsMode='infinite',persistentPlans=True)
     data['rivers']=dict(algorithm='regional-drainage-v3',cutBanks=10,naturalBankSlope=1,sectionProfiles=1,

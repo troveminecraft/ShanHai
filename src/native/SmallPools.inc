@@ -7,17 +7,18 @@
    q=std::min(q,singlePoolDistance(l,x,z));}
   return q;
  }
- bool clusteredPools=C.value("smallPoolsVersion",0)==2;
+ bool clusteredPools=C.value("smallPoolsVersion",0)>=2;
+ bool stoneRimPools=C.value("smallPoolsVersion",0)>=3;
  bool evaluatingSmallPool=false;
  Cache<uint64_t,SmallPool> smallPools{256};
  SmallPool smallPool(int gx,int gz){return smallPools.get(key2(gx,gz),[&]{SmallPool p;
   auto r=[&](int k){return hash01(gx,gz,seedHash(terrainSeed,9100+k));};
   if(r(0)>.22)return p;p.x=gx*160+24+int(r(1)*112);p.z=gz*160+24+int(r(2)*112);p.radius=3+r(3)*4;p.phase=r(4)*6.2831853;
   evaluatingSmallPool=true;struct Reset{bool&v;~Reset(){v=false;}}reset{evaluatingSmallPool};
-  auto c=surface(p.x,p.z,false);if((gradualIceEcotone&&(c.giant>.01||c.lava>=c.height))||c.kind||c.lake||c.river||c.iceHabitat>.01||c.height<38||c.height>160||c.water>=c.height||c.stone>.01||c.volcanic>.01||c.coast>.05)return p;
+  auto c=surface(p.x,p.z,false);if((gradualIceEcotone&&(c.giant>.01||c.lava>=c.height))||c.kind||c.lake||c.river||c.iceHabitat>.01||c.height<(stoneRimPools?60:38)||c.height>(stoneRimPools?320:160)||c.water>=c.height||c.stone>.01||c.volcanic>.01||c.coast>.05)return p;
   int lo=c.height,hi=c.height;for(int i=0;i<12;++i){double a=i*.5235987756;auto t=surface(p.x+int(std::cos(a)*(p.radius+3)),p.z+int(std::sin(a)*(p.radius+3)),false);if((gradualIceEcotone&&(t.giant>.01||t.lava>=t.height))||t.kind||t.lake||t.river||t.iceHabitat>.01||t.water>=t.height||t.stone>.01||t.volcanic>.01)return p;lo=std::min(lo,t.height);hi=std::max(hi,t.height);}if(hi-lo>2)return p;
-  p.level=lo-1;p.lava=c.T>.65&&r(5)<.035;
-  if(gradualIceEcotone&&!p.lava){
+  p.level=lo-1;p.lava=stoneRimPools?r(5)<.12:c.T>.65&&r(5)<.035;
+  if(gradualIceEcotone&&!p.lava&&!stoneRimPools){
    // Pick one connected low shore along the real pool contour, once per pool.
    // The other banks stay intact; never lower an entire rectangular footprint.
    constexpr int N=21;std::array<bool,N*N> wet{},bank{};
@@ -37,7 +38,7 @@
    }
    if(!p.shoreCount)return p;
   }
-  if(clusteredPools&&!p.lava){
+  if(clusteredPools&&(!p.lava||stoneRimPools)){
    ++p.level;p.shoreCount=0;
    auto sealed=[&](SmallPool const&test){
     int reach=28;
@@ -66,9 +67,15 @@
   int gx=int(std::floor(x/160.)),gz=int(std::floor(z/160.));
   int px=gx*160+24+int(hash01(gx,gz,seedHash(terrainSeed,9101))*112),pz=gz*160+24+int(hash01(gx,gz,seedHash(terrainSeed,9102))*112);
   if(std::abs(x-px)>(clusteredPools?28:9)||std::abs(z-pz)>(clusteredPools?28:9))return;
-  auto p=smallPool(gx,gz);if(!p.valid||(clusteredPools&&!p.lava?s.height<p.level:s.height<=p.level)||std::abs(s.height-p.level)>4)return;
+  auto p=smallPool(gx,gz);if(!p.valid||(clusteredPools&&(!p.lava||stoneRimPools)?s.height<p.level:s.height<=p.level)||std::abs(s.height-p.level)>4)return;
   for(int i=0;i<p.shoreCount;++i)if(p.shore[i][0]==x&&p.shore[i][1]==z){s.height=p.level;s.treeD=0;s.giant=0;s.rockCap=0;return;}
-  double q=poolDistance(p,x,z);if(q>=1)return;
+  double q=poolDistance(p,x,z);
+  if(stoneRimPools&&p.lava&&q>=1){
+   bool edge=false;for(auto [dx,dz]:{std::pair{-1,0},{1,0},{0,-1},{0,1}})edge|=poolDistance(p,x+dx,z+dz)<1;
+   if(edge){s.poolRim=true;s.treeD=0;s.giant=0;s.rock=true;s.surf=0;s.soilSand=0;s.iceGround=-1;s.aridType=0;s.fluvialType=0;s.rockCap=1;}
+   return;
+  }
+  if(q>=1)return;
   int depth=q<.5?2:1;s.height=std::min(s.height,p.level-depth);s.treeD=0;s.giant=0;s.kind=1;s.surf=p.lava?0:5;
   if(p.lava)s.lava=p.level;else s.water=p.level;
  }

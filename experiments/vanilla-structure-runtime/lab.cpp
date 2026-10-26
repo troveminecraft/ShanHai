@@ -291,7 +291,7 @@ void initialize() {
         kernelContext = std::make_shared<terrain_kernel::Context>();
         // Private to this host/world; never retain a previous world's directories.
         field = std::make_unique<terrain_kernel::Field>(input, kernelContext);
-        liveVillageSpacing.store(input.at("config").value("villageSpacing",32)==20?20:32);
+        liveVillageSpacing.store(worldgen_rules::configuredVillageSpacing(input.at("config").value("villageSpacing",32)));
         rules["villageSpacing"] = liveVillageSpacing.load();
         std::ofstream(folder / "effective-structure-rules.json")
             << J{{"world", activeWorld}, {"savedRevision", previous}, {"effective", rules}}.dump(2);

@@ -117,7 +117,7 @@ std::map<std::pair<int, int>, VillagePlan> villages;
 int villageSpacing(){return auditVillageSpacing?*auditVillageSpacing:liveVillageSpacing.load();}
 int villageCell(int v){return worldgen_rules::spacingCell(v,villageSpacing());}
 ChunkPos villageCandidate(int x, int z, uint seed) {
-    int spacing=villageSpacing(),separation=spacing==20?16:worldgen_rules::VillageSeparation;
+    int spacing=villageSpacing(),separation=spacing==16?8:spacing==20?16:worldgen_rules::VillageSeparation;
     struct Slot {
         int x = 0, z = 0, spacing = 0;
         uint seed = 0;

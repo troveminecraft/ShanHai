@@ -46,7 +46,7 @@ struct AuditPlanScope {
  std::unique_ptr<TerrainVillageFeature> villageDelegate;
  AuditPlanScope(Dimension&d,J const&data,uint seed){
   auto next=std::make_unique<terrain_kernel::Field>(data);villageDelegate=std::make_unique<TerrainVillageFeature>(seed,d.getBiomeRegistry());
-  auditVillageSpacing=data.at("config").value("villageSpacing",32)==20?20:32;
+  auditVillageSpacing=worldgen_rules::configuredVillageSpacing(data.at("config").value("villageSpacing",32));
   oldInput=std::move(input);input=data;oldField=std::move(field);field=std::move(next);
   oldCityLinks.swap(cityLinks);oldCityNeighbours.swap(cityNeighbourCache);oldScattered.swap(automaticBlueprints);oldVillages.swap(villages);oldExtras.swap(extraPlans);oldDelegates.swap(extraDelegates);oldVegetation.swap(vegetationPairs);
   auditPlanningSeed=seed;auditPlanningStarts=&owned;auditVillageDelegate=villageDelegate.get();

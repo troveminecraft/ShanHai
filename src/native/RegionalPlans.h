@@ -14,7 +14,7 @@
 namespace nativegen::regional {
 inline constexpr int Core=2048,Halo=512,Pitch=64,Count=(Core+Halo*2)/Pitch+1;
 struct Ground{int height;double humidity,temperature,stone,volcanic;bool closedBasin=false;int water=-32768;};
-template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool curved=false,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,bool confinedBanks=false){
+template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool curved=false,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,bool confinedBanks=false,bool refresh=false){
  constexpr int N=Count,Total=N*N;
  int originX=gx*Core-Halo,originZ=gz*Core-Halo;
  std::array<Ground,Total> ground;
@@ -26,16 +26,16 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
  for(int i=0;i<Total;++i)if(eligible(ground[i])){auto const&s=ground[i];if(!s.closedBasin&&s.height<seaLevel)sink[i]=seaLevel;else if(s.closedBasin&&s.water>s.height)sink[i]=s.water;}
  // Closed basins are tested against their actual surrounding terrain. A lake
  // owns a small bounded footprint wholly inside its canonical region.
- size_t lakeLimit=curved?4:3;
+ size_t lakeLimit=refresh?8:curved?4:3;
  for(int z=10;z<N-10&&lakes.size()<lakeLimit;++z)for(int x=10;x<N-10&&lakes.size()<lakeLimit;++x){
   int i=z*N+x;auto const&s=ground[i];auto[X,Z]=point(i);
-  if((!s.closedBasin&&s.height<seaLevel+9)||s.height>maxSurfaceY-84||s.humidity<.40||!eligible(s)||hash01(X,Z,seed^63101)>.35)continue;
-  bool minimum=true;for(int dz=-1;dz<=1;++dz)for(int dx=-1;dx<=1;++dx)if(dx||dz)minimum&=s.height<ground[(z+dz)*N+x+dx].height;
+  if((!s.closedBasin&&s.height<seaLevel+9)||s.height>maxSurfaceY-84||s.humidity<.40||!eligible(s)||hash01(X,Z,seed^63101)>(refresh?.80:.35))continue;
+  bool minimum=true;for(int dz=-1;dz<=1;++dz)for(int dx=-1;dx<=1;++dx)if(dx||dz)minimum&=refresh?s.height<=ground[(z+dz)*N+x+dx].height:s.height<ground[(z+dz)*N+x+dx].height;
   if(!minimum)continue;
   bool overlap=false;for(auto const&lake:lakes){double ax=lake.at("center").at(0),az=lake.at("center").at(1);overlap|=std::hypot(X-ax,Z-az)<192;}if(overlap)continue;
-  constexpr int Side=33,Step=4;std::array<Ground,Side*Side> fine;int rim=maxSurfaceY+1;
+  constexpr int Side=33;int Step=refresh?6:4;std::array<Ground,Side*Side> fine;int rim=maxSurfaceY+1;
   for(int zz=0;zz<Side;++zz)for(int xx=0;xx<Side;++xx){auto q=sample(X+(xx-16)*Step,Z+(zz-16)*Step);fine[zz*Side+xx]=q;if(xx==0||zz==0||xx==Side-1||zz==Side-1)rim=std::min(rim,q.height);}
-  int level=std::min(s.height+4,rim-1);if(level<s.height+2)continue;
+  int level=std::min(s.height+(refresh?7:4),rim-1);if(level<s.height+2)continue;
   std::array<bool,Side*Side> wet{};std::vector<int> queue{16*Side+16};wet[queue[0]]=true;bool open=false;
   for(size_t k=0;k<queue.size();++k){int j=queue[k],xx=j%Side,zz=j/Side;
    if(xx==0||zz==0||xx==Side-1||zz==Side-1||!eligible(fine[j])){open=true;break;}
@@ -44,7 +44,7 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
   if(open||queue.size()<32)continue;
   J rows=J::array();
   for(int zz=0;zz<Side;++zz)for(int xx=0;xx<Side;){if(!wet[zz*Side+xx]){++xx;continue;}int begin=xx;while(xx+1<Side&&wet[zz*Side+xx+1])++xx;
-   for(int dz=0;dz<Step;++dz)rows.push_back({Z+(zz-16)*Step-2+dz,X+(begin-16)*Step-2,X+(xx-16)*Step+1});++xx;
+   for(int dz=0;dz<Step;++dz)rows.push_back({Z+(zz-16)*Step-Step/2+dz,X+(begin-16)*Step-Step/2,X+(xx-16)*Step+(Step-1)/2});++xx;
   }
   lakes.push_back({{"level",level},{"center",{X,Z}},{"rows",rows},{"frozen",s.temperature<.42}});sink[i]=level;
  }

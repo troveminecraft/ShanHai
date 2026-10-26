@@ -22,7 +22,7 @@ private:
  };
  static constexpr int Cell=352,Pitch=704;
  uint32_t seed;Perlin rock;bool megaEnabled=false,designEnabled=false,lavaBandEnabled=false,moreChasms=false;
- int upperYExclusive=320;
+ int upperYExclusive=320;bool uplandNetworks=false;
  Cache<uint64_t,std::shared_ptr<Group>> groups{32};
  Cache<uint64_t,std::shared_ptr<Mask>> masks{64};
  std::shared_ptr<Mask> active;int activeX=INT32_MIN,activeZ=INT32_MIN;
@@ -83,6 +83,34 @@ private:
    double maxY=std::max(-42.,top-r.tall-26),band=rnd(cx,cz,8);
    r.p.y=band<.30?-47.:band<.67?mix(rnd(cx,cz,9),-20.,std::max(-15.,maxY*.45)):maxY;
    if(!r.room)r.p.y=std::max(-38.,std::min(r.p.y,r.terrain-32));
+   // Preserve the old deep network, then add separate galleries inside raised
+   // land. Raising the ceiling alone left most of the new mountain volume solid.
+   if(uplandNetworks)for(int oz:{-80,80})for(int ox:{-80,80}){
+    double localTerrain=height(int(r.p.x+ox),int(r.p.z+oz));if(localTerrain<=170)continue;
+    for(int layer=0;layer<2;++layer){
+     double target=100+(localTerrain-100)*(layer?.72:.40);
+     P hub{r.p.x+ox,target,r.p.z+oz};
+     // A local chamber and three irregular arms remain inside the owner cell.
+     K left{{hub.x-22,hub.y,hub.z},11,14,13,4},right{{hub.x+22,hub.y+3,hub.z},14,10,11,4};
+     sweep(*g,left,right,7);
+     for(int arm=0;arm<3;++arm){
+      double angle=r.angle+arm*2.0943951023931953+layer*.65;
+      std::vector<K> way{branchSection(hub,4.5,false,cx,cz,6300+layer*100+arm*20)};
+      for(int j=1;j<=3;++j){
+       double distance=j*15.,turn=angle+.17*std::sin(j*1.7+r.angle);
+       double X=hub.x+std::cos(turn)*distance,Z=hub.z+std::sin(turn)*distance;
+       double roof=height(int(X),int(Z))-26;
+       if(roof<112)break;
+       P point{X,std::min(roof,target+8*std::sin(j*.9+arm)),Z};
+       way.push_back(branchSection(point,4.2+.8*rnd(cx,cz,6600+arm*7+j),false,cx,cz,6500+layer*100+arm*20+j*4));
+      }
+      if(way.size()>1)curve(*g,way);
+     }
+     // Staggered descent joins the two upper levels and the existing network.
+     P low{layer?hub.x:r.p.x,layer?100+(localTerrain-100)*.40:r.p.y,layer?hub.z:r.p.z};
+     curve(*g,{passage(hub,3.2),passage({mix(.5,hub.x,low.x)+12,(hub.y+low.y)*.5,mix(.5,hub.z,low.z)-12},3.2),passage(low,3.2)});
+    }
+   }
    r.pillars=r.room?(rnd(cx,cz,10)<.45?0:1+int(rnd(cx,cz,11)*3)):0;
    if(r.mega){
     r.pillars=0;
@@ -329,7 +357,7 @@ private:
 public:
  // The recipe chooses the active ceiling; old recipes retain their exact
  // clipping while the fixed-capacity mask also has room for the raised world.
- explicit CavernGroups(uint32_t s,bool mega=false,bool design=false,bool lavaBand=false,bool chasms=false,int maxYExclusive=320):seed(s),rock(seedHash(s,7101)),megaEnabled(mega),designEnabled(design),lavaBandEnabled(lavaBand),moreChasms(chasms),upperYExclusive(maxYExclusive){
+ explicit CavernGroups(uint32_t s,bool mega=false,bool design=false,bool lavaBand=false,bool chasms=false,int maxYExclusive=320,bool uplands=false):seed(s),rock(seedHash(s,7101)),megaEnabled(mega),designEnabled(design),lavaBandEnabled(lavaBand),moreChasms(chasms),upperYExclusive(maxYExclusive),uplandNetworks(uplands){
   if(maxYExclusive!=320&&maxYExclusive!=512)throw std::invalid_argument("Unsupported cavern height");
  }
  int maxYExclusive()const{return upperYExclusive;}

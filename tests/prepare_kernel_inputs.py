@@ -29,6 +29,7 @@ def prepare(output):
   data['config']['stoneForest']['valleyY']=valley
   data['config']['cave'].pop('raisedCaveHeight',None)
   data['config']['cave'].pop('highMountainUnderground',None)
+  data['config']['cave'].pop('uplandNetworks',None)
   data['regionalGeneration']['algorithm']='regional-drainage-v2'
   data['rivers']['algorithm']='regional-drainage-v2'
   path.write_text(json.dumps(data,separators=(',',':')),'utf-8')

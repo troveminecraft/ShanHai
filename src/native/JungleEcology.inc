@@ -38,6 +38,7 @@ JungleSite jungleSite(int gx,int gz){return jungleSites.get(key2(gx,gz),[&]{
  a.h=a.layer==2?46+int(r(12106)*13):a.layer==1?34+int(r(12106)*12):18+int(r(12106)*10);
  a.radius=a.layer==2?5.8+r(12107)*1.1:a.layer==1?4.5+r(12107)*1.2:2.9+r(12107)*1.0;
  if(!a.layer&&r(12111)<.46){a.h=5+int(r(12112)*8);a.radius=2.1+r(12113)*1.0;}
+ if(field.landformRefreshEnabled())a.h+=20+int(r(12114)*11);
  // The expanded mountain habitat must still fit a whole emergent crown.
  if(a.ground+a.h>Height-65)return JungleSite{};
  a.phase=r(12108)*6.283185307;double form=r(12110);
