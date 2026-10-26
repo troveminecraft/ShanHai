@@ -363,7 +363,7 @@ LL_TYPE_INSTANCE_HOOK(CreateFacetClose,ll::memory::HookPriority::Normal,Facet,&F
  origin();
 }
 void enable(){
- modFolder=std::filesystem::absolute(terrain::Mod::getInstance().self.getModDir()).lexically_normal();
+ modFolder=std::filesystem::absolute(terrain::clientMod().getModDir()).lexically_normal();
  auto config=modFolder/"client-config.json";
  if(std::filesystem::exists(config))enabled=terrain::jsonFile(config).value("newWorldsUseKarma",true);
  else std::ofstream(config)<<Json{{"newWorldsUseKarma",true}}.dump(2);

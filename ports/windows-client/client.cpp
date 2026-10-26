@@ -1,7 +1,24 @@
-// One module owns terrain and structures, so their world lifetimes cannot diverge.
-#include "../../src/HookTransaction.h"
-#include "../../src/Worldgen.cpp"
-#include "../../experiments/vanilla-structure-runtime/lab.cpp"
+// One module coordinates two separately compiled host adapters.
+#include <Windows.h>
+#include "WindowsWorldHost.h"
+#include "NativeRuntime.h"
+#include "ReleaseVersions.h"
+#include "ll/api/mod/NativeMod.h"
+#include "ll/api/mod/RegisterHelper.h"
+#include "ll/api/memory/Hook.h"
+#include "ll/api/event/EventBus.h"
+#include "ll/api/event/world/ServerLevelTickEvent.h"
+#include "mc/world/actor/player/Player.h"
+#include "mc/world/level/Level.h"
+#include "mc/world/level/storage/LevelData.h"
+#include "mc/world/level/storage/LevelStorage.h"
+#include "mc/world/level/dimension/Dimension.h"
+#include "mc/deps/nbt/CompoundTag.h"
+#include "mc/deps/nbt/CompoundTagVariant.h"
+#include <array>
+#include <fstream>
+#include <map>
+#include <mutex>
 #include "mc/server/ServerLevel.h"
 #include "mc/world/level/LevelSettings.h"
 #include "mc/deps/core/file/PathBuffer.h"
@@ -49,44 +66,12 @@ void validateStoredGenerator(std::filesystem::path const &root, std::string cons
         throw std::runtime_error("Karma saved world generator setting was changed");
 }
 void writeStatus(Level &level, bool closed = false) {
-    Json status{{"world", terrain::worldName},
-                {"seed", level.getLevelData().getSeed().toUiString()},
-                {"kernel", NativeRuntime::KernelVersion},
-                {"generatedChunks", terrain::generated.load()},
-                {"flatGeneratedChunks", terrain::flatGenerated.load()},
-                {"voidGeneratedChunks", terrain::voidGenerated.load()},
-                {"buildMaxYExclusive", terrain::buildHeight.maxYExclusive},
-                {"generatedMaxYExclusive", terrain::buildHeight.generatedMaxYExclusive},
-                {"terrainErrors", terrain::errors.load()},
-                {"structureCalls", lab::stageCalls.load()},
-                {"structureErrors", lab::stageErrors.load()},
-                {"entityLedgerReady", lab::entityLedgerReady.load()},
-                {"ticks", sessionTicks},
-                {"closed", closed},
-                {"worldPath", terrain::worldPath().string()}};
+    Json status = terrain::clientStatus();
+    status.update(lab::clientStatus());
+    status["seed"] = level.getLevelData().getSeed().toUiString();
+    status["ticks"] = sessionTicks;
+    status["closed"] = closed;
     status["tickErrors"] = tickErrors;
-    status["structurePaused"] = lab::structureStageFailed.load();
-    status["structureLock"] = {{"acquisitions", lab::stageMutex.acquisitions.load()},
-                               {"waitNs", lab::stageMutex.waitNanos.load()},
-                               {"holdNs", lab::stageMutex.holdNanos.load()}};
-    {
-        std::unique_lock lock(lab::stageMutex, std::try_to_lock);
-        if (lock.owns_lock()) {
-            status["structureCaches"] = {{"villages", lab::villages.size()},
-                                         {"scattered", lab::automaticBlueprints.size()},
-                                         {"extras", lab::extraPlans.size()},
-                                         {"retired", lab::structurePlansRetired.load()},
-                                         {"collections", lab::structureCollections.load()},
-                                         {"prefillJobs", lab::prefillJobs.load()},
-                                         {"prefillComputeNs", lab::prefillComputeNanos.load()}};
-        }
-    }
-    status["streaming"] = {
-        {"loadRequests", terrain::loadRequests},   {"ready", terrain::loadReady},
-        {"pending", terrain::pendingLoads.size()}, {"gapRepairs", terrain::viewGapRepairs},
-        {"gapResolved", terrain::viewGapResolved}, {"priorityBoosts", terrain::priorityBoosts.load()}};
-    status["villageTemplatesReady"] = lab::villageTemplatesReady;
-    status["fossilTemplatesReady"] = lab::fossilTemplatesReady;
     status["players"] = Json::array();
     level.forEachPlayer([&](Player &p) {
         auto pos = p.getPosition();
@@ -100,75 +85,8 @@ void clearWorld(Level *level) {
     if (level != current)
         return;
     writeStatus(*level, true);
-    terrain::active = false;
-    lab::automaticStructures = false;
-    lab::smallFeaturesEnabled = false;
-    terrain::unboundedWorld = false;
-    terrain::requested = false;
-    terrain::view.reset();
-    terrain::playerStreams.clear();
-    terrain::glacierWeatherPlayers.clear();
-    terrain::streamingPolicy = nullptr;
-    terrain::streamingFocus.store(std::make_shared<std::vector<terrain::StreamFocus> const>());
-    terrain::streamTicks = 0;
-    terrain::logTicks = 0;
-    terrain::cacheWriter.stop();
-    for (auto &r : terrain::runtimes)
-        r.stop();
-    terrain::memoryCache.clear();
-    terrain::palette.clear();
-    terrain::biomes.clear();
-    terrain::registryOnce = std::make_unique<std::once_flag>();
-    terrain::loadEvents.clear();
-    terrain::pendingLoads.clear();
-    lab::atlasCatalog.active = false;
-    std::lock_guard lock(lab::stageMutex);
-    lab::structurePalette.reset();
-    lab::cityNaturalBlockCache.clear();
-    lab::extraPlans.clear();
-    lab::extraDelegates.clear();
-    lab::prefilteredChunks.clear();
-    lab::clearPrefillWorkers();
-    lab::clearPopulationRecovery();
-    lab::cityNeighbourCache.clear();
-    lab::cityLinks.clear();
-    lab::villages.clear();
-    lab::iglooPopulationPlans.clear();
-    lab::automaticBlueprints.clear();
-    lab::vegetationPairs.clear();
-    lab::pending.reset();
-    lab::pendingIgloo.reset();
-    lab::nativeEntityJobs.clear();
-    lab::queuedEntityKeys.clear();
-    lab::villageSpawns.clear();
-    lab::villagePopulationPlans.clear();
-    lab::scatteredFeatureRecord = nullptr;
-    lab::villageFeatureRecord = nullptr;
-    lab::extraFeatureRecords.clear();
-    if (auto dim = level->getDimension(0).lock()) {
-        auto *generator = dim->getWorldGenerator();
-        if (generator && generator->mStructureFeatureRegistry) {
-            auto &entries = *generator->mStructureFeatureRegistry->mStructureFeatures;
-            std::erase_if(entries, [](auto const &p) { return lab::ownedNativeFeatures.contains(p.get()); });
-        }
-    }
-    lab::ownedNativeFeatures.clear();
-    lab::fossilTemplatesReady = false;
-    lab::frozenFossils.clear();
-    lab::fossilJournalRows.clear();
-    lab::rejectedFossils.clear();
-    lab::rejectedFossilOrder.clear();
-    lab::recentFossilFragments.clear();
-    lab::recentFossilFragmentOrder.clear();
-    lab::nativeSmallDefinitions.clear();
-    lab::completedSmallChunks.clear();
-    lab::recentSmallChunks.clear();
-    lab::recentSmallOrder.clear();
-    lab::mansionTemplatesReady = false;
-    lab::villageTemplatesReady = false;
-    lab::entityLedgerReady = false;
-    lab::entityLedger = Json::object();
-    lab::field.reset();
+    terrain::clientRelease();
+    lab::clientRelease(*level);
     current = nullptr;
     terrain::log().info("Karma client: world state released");
 }
@@ -193,44 +111,14 @@ void bindWorld(Level &level, std::string const &name, LevelSettings const &setti
     terrain::log().info("Karma client: world generator provenance validated; runtime generator={}",
                         int(settings.getGenerator()));
     current = &level;
-    terrain::clientWorldPath = root;
-    terrain::Base = root / "karma";
-    terrain::readData();
-    if (marker.value("buildMaxYExclusive",320) != terrain::buildHeight.maxYExclusive ||
-        marker.value("generatedMaxYExclusive",320) != terrain::buildHeight.generatedMaxYExclusive)
-        throw std::runtime_error("World marker height differs from its immutable terrain profile");
-    if (terrain::nativeData.at("seedManifest").at("terrainSeed").get<std::string>() != seed)
-        throw std::runtime_error("Terrain was baked for a different world seed");
-    // Identity is the actual world directory and seed. Display names may be renamed.
-    terrain::worldName = name;
-    lab::activeWorld = name;
-    lab::clientWorldIdentity = marker.at("worldName").get<std::string>();
-    lab::clientTerrainFolder = terrain::Base;
-    lab::clientWorldFolder = root;
-    lab::folder = terrain::Base / "structures";
-    std::filesystem::create_directories(lab::folder);
-    lab::saveGeneratorHookReport();
-    lab::initialize();
-    {
-        std::lock_guard lock(lab::stageMutex);
-        lab::initializeSmallHistory();
-        lab::initializeFossilJournal();
-        lab::initializeEntityLedger();
-    }
-    current = &level;
-    terrain::active = true;
-    lab::structureStageFailed = false;
-    lab::automaticStructures = true;
-    lab::smallFeaturesEnabled = true;
-    terrain::generated = 0;
-    terrain::errors = 0;
-    terrain::mainThread = GetCurrentThreadId();
+    terrain::clientPrepare(root, name, seed, marker);
+    lab::clientPrepare(root, name, marker.at("worldName").get<std::string>());
+    terrain::clientActivate();
+    lab::clientActivate();
     sessionTicks = 0;
     tickErrors = 0;
-    lab::stageCalls = 0;
-    lab::stageErrors = 0;
     terrain::log().info("Karma client ready: seed={} kernel={} bounds={}", seed, NativeRuntime::KernelVersion,
-                        terrain::unboundedWorld ? "infinite" : "saved world bounds");
+                        "saved terrain profile");
     std::ofstream(diagnostics / "world-session.json") << Json{
         {"world", name},
         {"path", root.string()},
@@ -263,16 +151,15 @@ LL_TYPE_INSTANCE_HOOK(WorldOpen, ll::memory::HookPriority::Normal, ServerLevel, 
             // Repository registration alone does not prove the pack was selected
             // by the native server. Reject a mismatched dimension before joining.
             std::ofstream(diagnostics / "world-height.json") << Json{
-                {"world",terrain::worldName},{"minY",int(range.mMin)},
+                {"world",name},{"minY",int(range.mMin)},
                 {"maxYExclusive",int(range.mMax)},
-                {"generatedMaxYExclusive",terrain::buildHeight.generatedMaxYExclusive},
-                {"nativeDimensionVerified",int(range.mMin)==terrain_runtime::BuildHeight::MinY&&int(range.mMax)==terrain::buildHeight.maxYExclusive},
+                {"generatedMaxYExclusive",terrain::clientHeight().generatedMaxYExclusive},
+                {"nativeDimensionVerified",int(range.mMin)==terrain_runtime::BuildHeight::MinY&&int(range.mMax)==terrain::clientHeight().maxYExclusive},
                 {"playerPlacementTested",false}}.dump(2);
-            terrain::buildHeight.requireDimension(range.mMin,range.mMax);
+            terrain::clientHeight().requireDimension(range.mMin,range.mMax);
             // Finish native template loading on the level thread before chunk jobs can
             // mark decoration complete. Missing templates must not silently omit villages.
-            lab::warmVillageTemplates(*this);
-            lab::warmFossilTemplates(*this);
+            lab::clientWarmTemplates(*this);
             terrain::log().info("Karma client: vanilla village and fossil templates ready");
         } catch (std::exception const &e) {
             terrain::log().error("Karma native templates unavailable: {}", e.what());
@@ -302,14 +189,13 @@ class Mod {
         return m;
     }
     bool load() {
-        auto &m = terrain::Mod::getInstance().self;
+        auto &m = terrain::clientMod();
         diagnostics = m.getModDir() / "diagnostics";
         std::array<wchar_t, 32768> exe{};
         auto n = GetModuleFileNameW(nullptr, exe.data(), DWORD(exe.size()));
         if (!n || n == exe.size())
             return false;
-        lab::clientVanillaFolder =
-            std::filesystem::path(std::wstring(exe.data(), n)).parent_path() / "data/behavior_packs/vanilla";
+        lab::clientVanillaPath(std::filesystem::path(std::wstring(exe.data(), n)).parent_path() / "data/behavior_packs/vanilla");
         std::filesystem::create_directories(diagnostics);
         if (!creation::supportedFacetLayout()) {
             m.getLogger().error(
@@ -321,38 +207,11 @@ class Mod {
     }
     bool enable() {
         terrain_runtime::HookTransaction hooks;
-        terrain::calibrateStreamingPriority();
+
         hooks.add<WorldOpen>("WorldOpen");
         hooks.add<WorldClose>("WorldClose");
-        hooks.add<terrain::Generate>("terrain::Generate");
-        hooks.add<terrain::GenerateVoid>("terrain::GenerateVoid");
-        hooks.add<terrain::ObserveLoad>("terrain::ObserveLoad");
-        hooks.add<terrain::StreamPriority>("terrain::StreamPriority");
-        hooks.add<lab::OwnedStructureCollection>("lab::OwnedStructureCollection");
-        hooks.add<lab::SurfaceMapProbe>("lab::SurfaceMapProbe");
-        hooks.add<lab::ModernGround>("lab::ModernGround");
-        hooks.add<lab::VillageBuilderDepth>("lab::VillageBuilderDepth");
-        hooks.add<lab::VillageBuilderBudget>("lab::VillageBuilderBudget");
-        hooks.add<lab::ShipGround>("lab::ShipGround");
-        hooks.add<lab::ShipGroundLegacy>("lab::ShipGroundLegacy");
-        hooks.add<lab::PortalGround>("lab::PortalGround");
-        hooks.add<lab::RuinGround>("lab::RuinGround");
-        hooks.add<lab::MineSupport>("lab::MineSupport");
-        hooks.add<lab::MineWeb>("lab::MineWeb");
-        hooks.add<lab::SeededStructureRead>("lab::SeededStructureRead");
-        hooks.add<lab::SeededStructureLayer>("lab::SeededStructureLayer");
-        hooks.add<lab::SeededStructureSolid>("lab::SeededStructureSolid");
-        hooks.add<lab::FragmentChunkWrite>("lab::FragmentChunkWrite");
-        hooks.add<lab::FragmentChunkFastWrite>("lab::FragmentChunkFastWrite");
-        hooks.add<lab::StructurePrefill>("lab::StructurePrefill");
-        hooks.add<lab::DecorationTask>("lab::DecorationTask");
-        lab::installStructureGeneratorHooks(hooks);
-        hooks.add<lab::SmallWrite>("lab::SmallWrite");
-        hooks.add<lab::SmallWriteSimple>("lab::SmallWriteSimple");
-        hooks.add<lab::SmallWriteFast>("lab::SmallWriteFast");
-        hooks.add<lab::FossilHeightXZ>("lab::FossilHeightXZ");
-        hooks.add<lab::FossilHeightPos>("lab::FossilHeightPos");
-        hooks.add<lab::FossilCorners>("lab::FossilCorners");
+        terrain::clientHooks(hooks);
+        lab::clientHooks(hooks);
         creation::enable();
         hooks.onRollback([] { creation::disable(); });
         listener =
@@ -361,13 +220,8 @@ class Mod {
                     return;
                 ++sessionTicks;
                 try {
-                    lab::collectStructureCaches(e.level());
-                    lab::recoverLoadedStructurePlans(e.level());
-                    lab::tickIglooEntities(e.level());
-                    lab::tickStructureEntities(e.level());
-                    terrain::updatePlayerStreaming(e.level());
-                    terrain::pollLoads(e.level());
-                    terrain::glacierWeatherTick(e.level());
+                    lab::clientTick(e.level());
+                    terrain::clientTick(e.level());
                 } catch (std::exception const &ex) {
                     if (++tickErrors == 1 || tickErrors % 200 == 0)
                         terrain::log().error("Karma client tick ({} errors): {}", tickErrors, ex.what());
@@ -385,11 +239,8 @@ class Mod {
         ll::event::EventBus::getInstance().removeListener(listener);
         WorldOpen::unhook();
         WorldClose::unhook();
-        terrain::Generate::unhook();
-        terrain::GenerateVoid::unhook();
-        terrain::ObserveLoad::unhook();
-        terrain::StreamPriority::unhook();
-        lab::Mod::getInstance().disable();
+        terrain::clientUnhook();
+        lab::clientUnhook();
         return true;
     }
     bool unload() {

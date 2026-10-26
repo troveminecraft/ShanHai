@@ -1,4 +1,7 @@
 #include <Windows.h>
+#ifdef KARMA_CLIENT
+#include "WindowsWorldHost.h"
+#endif
 #include "NativeRuntime.h"
 #include "PaletteContract.h"
 #include "FailureRecord.h"
@@ -135,7 +138,7 @@ public:
  bool load();bool enable();bool disable();
  bool unload(){return ll::getGamingStatus()!=ll::GamingStatus::Running&&ll::getGamingStatus()!=ll::GamingStatus::Starting;}
 };
-auto& log(){return Mod::getInstance().self.getLogger();}
+ll::io::Logger& log(){return Mod::getInstance().self.getLogger();}
 // Chunk activity diagnostics are WARN+ only, before any console or file sink.
 template <typename... Args>
 void logChunkDiagnostic(ll::io::LogLevel level, fmt::format_string<Args...> message, Args&&... args) {
@@ -552,6 +555,9 @@ bool Mod::disable(){
  if(testJoin)ll::event::EventBus::getInstance().removeListener(testJoin);if(testLeave)ll::event::EventBus::getInstance().removeListener(testLeave);
  requested=false;if(tickListener)ll::event::EventBus::getInstance().removeListener(tickListener);glacierWeatherPlayers.clear();playerStreams.clear();streamingPolicy=nullptr;StreamPriority::unhook();view.reset();ObserveLoad::unhook();GenerateVoid::unhook();Generate::unhook();active=false;cacheWriter.stop();for(auto& runtime:runtimes)runtime.stop();return true;
 }
+#ifdef KARMA_CLIENT
+#include "WindowsTerrainHost.inc"
+#endif
 }
 #ifndef KARMA_CLIENT
 LL_REGISTER_MOD(terrain::Mod,terrain::Mod::getInstance());

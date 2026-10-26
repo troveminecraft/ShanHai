@@ -1,4 +1,7 @@
 #include "rules/StructureReservations.h"
+#ifdef KARMA_CLIENT
+#include "WindowsWorldHost.h"
+#endif
 #include "../../src/rules/VillageDecorExecution.h"
 #include "../../src/rules/FossilExecution.h"
 #include "mc/world/level/block/VanillaStates.h"
@@ -1858,6 +1861,9 @@ class Mod {
         return true;
     }
 };
+#ifdef KARMA_CLIENT
+#include "WindowsStructureHost.inc"
+#endif
 } // namespace lab
 #ifndef KARMA_CLIENT
 LL_REGISTER_MOD(lab::Mod, lab::Mod::getInstance());
