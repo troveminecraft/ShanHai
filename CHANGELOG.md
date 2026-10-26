@@ -1,3 +1,17 @@
+## 0.2.1 — visible chunk recovery and inland landforms
+
+- Recovery scans the player's requested view (up to 64 chunks), instead of stopping at 32. Two disjoint 5×5 repair cores retain eight dependency rings each. Distant repairs no longer count as nearby player backlog and suppress their own follow-up. Repair lifetime is 45 seconds with bounded retries; no incomplete chunk is marked loaded.
+- Basins have wider floors and irregular outlines. Inland basin slopes no longer inherit a sea-level beach ring. The catalogue still uses 133 for a representative basin, not a guarantee that all basins share one size.
+- Entries 134–136 now cut deep, narrow, asymmetric surface canyons. Width and depth vary along curved paths; a surveyed inland canyon may descend below sea level without being treated as ocean.
+- Jungle trees gain 20–30 blocks within the build ceiling. Raised mountain interiors gain two local cave levels, irregular branches and descending connections to the deep network; lowland cave geometry is preserved.
+- Lakes accept quantized local minima and larger closed depressions, with a higher regional cap. Surface lava pools use the same sealed, up-to-three-lobe layout as water pools, at a lower selection probability, with a one-block stone border. Village candidate spacing is 16 chunks instead of 20; footprint safety checks remain in place. Candidate density is not an observed village count.
+
+Windows **0.2.1**, BDS terrain **1.0.48** / structures **1.0.63**, kernel **2.209**. Sea level remains Y100 and building range Y-64..511. New generation uses immutable `elevationRevision=2`, `smallPoolsVersion=3`, and `cave.uplandNetworks=1`; supported older recipes retain their rules. Android remains archived.
+
+This is a **test release awaiting user gameplay acceptance**. Offline generation and startup checks do not establish that every visible gap or network stall has been eliminated. Use the fresh BDS Seed23 world or create a new Windows mod world for the changed terrain.
+
+本版修正可见区块恢复的范围与积压计数，扩大并打散盆地、移除盆缘海滩环，将三档裂谷调整为深窄峡谷。丛林树增加 20–30 格，补充山体上层洞网与连接；增加湖泊和村庄候选机会，岩浆坑复用水坑封闭布局并增加石边。保留旧配方与旧世界，游戏内加载表现和地形观感由用户验收。
+
 ## 0.2.0 — basins, altitude variants and snowy landscapes
 
 - New worlds use sea level **Y100**. Land rises with a continuous profile while the existing peak range and **Y-64..511** building limits remain.
