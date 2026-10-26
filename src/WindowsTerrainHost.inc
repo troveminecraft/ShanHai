@@ -32,6 +32,7 @@ void clientRelease() {
     cacheWriter.stop();
     for (auto &r : runtimes)
         r.stop();
+    kernelContext.reset();
     memoryCache.clear();
     palette.clear();
     biomes.clear();

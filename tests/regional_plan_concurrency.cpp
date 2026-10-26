@@ -7,6 +7,18 @@
 using namespace nativegen;
 using namespace std::chrono_literals;
 int main(){
+ // Identical plan identities in two worlds must not share mutable residency.
+ regional::Store worldA,worldB;
+ {
+  regional::StoreScope scope(worldA);
+  assert(*regional::get("same","water",0,0,[]{return J(11);})==11);
+  {
+   regional::StoreScope nested(worldB);
+   assert(*regional::get("same","water",0,0,[]{return J(22);})==22);
+  }
+  assert(*regional::get("same","water",0,0,[]{return J(99);})==11);
+ }
+ assert(regional::store().plans.empty());
  // A deliberately blocked planner must not block an unrelated cache hit/miss.
  std::promise<void> entered,release;auto gate=release.get_future().share();
  std::atomic_int calls=0;
@@ -24,6 +36,6 @@ int main(){
  failRelease.set_value();assert(failure.get()&&follower.get());
  assert(*regional::get("test","failure",0,0,[]{return J(9);})==9);
  for(int i=0;i<500;++i)regional::get("evict","ice",i,0,[&]{return J(i);});
- assert(regional::plans.size()<=384&&regional::pendingPlans.empty());assert(*a==J({{"ok",1}}));
+ assert(regional::store().plans.size()<=384&&regional::store().pendingPlans.empty());assert(*a==J({{"ok",1}}));
  std::cout<<"single-flight, independent/nested planners, exception retry and bounded residency passed\n";
 }

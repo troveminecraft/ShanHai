@@ -67,6 +67,9 @@ void clientRelease(Level& level) {
     entityLedgerReady = false;
     entityLedger = J::object();
     field.reset();
+    kernelContext.reset();
+    atlasCatalog.terrain.reset();
+    atlasCatalog.delegate.reset();
 }
 void clientWarmTemplates(Level& level) { warmVillageTemplates(level); warmFossilTemplates(level); }
 void clientTick(Level& level) {

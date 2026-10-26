@@ -1,5 +1,6 @@
 #pragma once
 #include "Noise.h"
+#include "RegionalPlanStore.h"
 #include "../RegionalAlgorithms.h"
 #include "DrainageCurves.h"
 #include <filesystem>
@@ -12,67 +13,6 @@
 
 namespace nativegen::regional {
 inline constexpr int Core=2048,Halo=512,Pitch=64,Count=(Core+Halo*2)/Pitch+1;
-inline constexpr char Algorithm[]="regional-drainage-v1";
-inline bool supportedAlgorithm(std::string const&name){return terrain_runtime::supportedRegionalAlgorithm(name);}
-inline uint64_t digest(std::string const&s){uint64_t h=1469598103934665603ULL;for(unsigned char c:s){h^=c;h*=1099511628211ULL;}return h;}
-inline std::string identity(J const&data){
- J key{{"algorithm",data.at("regionalGeneration").value("algorithm",std::string(Algorithm))},{"seed",data.at("seedManifest").at("terrainSeed")},
-       {"config",data.at("config")},{"template",data.at("seedManifest").at("templateSha256")}};
- return std::to_string(digest(key.dump()));
-}
-inline std::recursive_mutex mutex;
-inline std::unordered_map<std::string,std::shared_ptr<J const>> plans;
-inline std::unordered_map<std::string,std::shared_future<std::shared_ptr<J const>>> pendingPlans;
-inline std::deque<std::string> residentOrder;
-inline std::unordered_map<std::string,std::filesystem::path> folders;
-inline void storage(J const&data,std::filesystem::path const&folder){
- if(!data.contains("regionalGeneration"))return;
- std::lock_guard lock(mutex);folders[identity(data)]=folder;
-}
-template<class F> std::shared_ptr<J const> get(std::string const&id,char const*kind,int gx,int gz,F make){
- auto name=std::string(kind)+"-"+std::to_string(gx)+"-"+std::to_string(gz);
- auto key=id+":"+name;
- std::filesystem::path path;
- std::shared_future<std::shared_ptr<J const>> waiting;
- std::promise<std::shared_ptr<J const>> produced;
- {
-  std::lock_guard lock(mutex);
-  if(auto i=plans.find(key);i!=plans.end())return i->second;
-  if(auto i=pendingPlans.find(key);i!=pendingPlans.end())waiting=i->second;
-  else {
-   pendingPlans.emplace(key,produced.get_future().share());
-   if(auto dir=folders.find(id);dir!=folders.end())path=dir->second/id/(name+".json");
-  }
- }
- // Same-region callers share one result. Unrelated regions, and nested desert
- // lookups made by a water planner, never wait while holding the global lock.
- if(waiting.valid())return waiting.get();
- try {
- J value;
- if(!path.empty()&&std::filesystem::exists(path))try{
-  std::ifstream in(path);J saved;in>>saved;
-  if(saved.at("identity")==id&&saved.at("algorithm")==Algorithm&&saved.at("checksum")==std::to_string(digest(saved.at("plan").dump())))value=saved.at("plan");
- }catch(std::exception const&){} // Regenerate an incomplete cache from the same recipe.
- if(value.is_null()){
-  value=make();
-  if(!path.empty())try{
-   std::filesystem::create_directories(path.parent_path());auto pending=path;pending+=".tmp";
-   {std::ofstream out(pending);out<<J{{"identity",id},{"algorithm",Algorithm},{"checksum",std::to_string(digest(value.dump()))},{"plan",value}}.dump();if(!out)throw std::runtime_error("Regional cache write failed");}
-   std::error_code ec;std::filesystem::rename(pending,path,ec);
-   if(ec)std::filesystem::remove(pending,ec); // The deterministic recipe remains usable without disk cache.
-  }catch(std::exception const&){}
- }
- auto result=std::make_shared<J const>(std::move(value));
- {
-  std::lock_guard lock(mutex);plans.emplace(key,result);residentOrder.push_back(key);
-  if(residentOrder.size()>384){plans.erase(residentOrder.front());residentOrder.pop_front();}
-  produced.set_value(result);pendingPlans.erase(key);
- }
- return result;
- }catch(...){
-  std::lock_guard lock(mutex);produced.set_exception(std::current_exception());pendingPlans.erase(key);throw;
- }
-}
 struct Ground{int height;double humidity,temperature,stone,volcanic;};
 template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool curved=false,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,bool confinedBanks=false){
  constexpr int N=Count,Total=N*N;

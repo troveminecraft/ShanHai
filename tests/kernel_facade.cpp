@@ -45,5 +45,19 @@ int main(int argc, char** argv) {
     try { owned->chunk(INT_MAX, INT_MIN); }
     catch (std::out_of_range const&) { rejected = true; }
     assert(rejected);
+    auto firstContext = std::make_shared<terrain_kernel::Context>();
+    auto secondContext = std::make_shared<terrain_kernel::Context>();
+    std::weak_ptr<terrain_kernel::Context> lifetime = firstContext;
+    {
+        terrain_kernel::Generator first(data, {}, false, nullptr, nullptr, firstContext);
+        firstContext.reset();
+        assert(!lifetime.expired());
+        assert(first.chunk(0, 0) == expected);
+        assert(secondContext->statistics().at("residentPlans") == 0);
+        terrain_kernel::Generator second(data, {}, false, nullptr, nullptr, secondContext);
+        assert(second.chunk(0, 0) == expected);
+    }
+    assert(lifetime.expired());
+    assert(secondContext->statistics().at("pendingPlans") == 0);
     std::cout << "kernel facade: recipe/field lifetime, output, vegetation, concurrency and bounds passed\n";
 }

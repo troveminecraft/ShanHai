@@ -199,6 +199,7 @@ J input, report;
 std::atomic_int liveVillageSpacing{32};
 thread_local std::optional<int> auditVillageSpacing;
 std::unique_ptr<terrain_kernel::Field> field;
+terrain_kernel::ContextPtr kernelContext;
 bool structureIncluded(std::string_view name) {
     return worldgen_rules::publicStructureIncluded(name);
 }
@@ -276,7 +277,9 @@ void initialize() {
         rules["source"] = "llbds";
         rules["revision"] = worldgen_rules::StructurePlanRevision;
         rules["villageSizeClasses"] = true;
-        field = std::make_unique<terrain_kernel::Field>(input);
+        kernelContext = std::make_shared<terrain_kernel::Context>();
+        // Private to this host/world; never retain a previous world's directories.
+        field = std::make_unique<terrain_kernel::Field>(input, kernelContext);
         liveVillageSpacing.store(input.at("config").value("villageSpacing",32)==20?20:32);
         rules["villageSpacing"] = liveVillageSpacing.load();
         std::ofstream(folder / "effective-structure-rules.json")

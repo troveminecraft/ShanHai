@@ -31,7 +31,7 @@ int main(int argc,char**argv){
  // including negative/world-region borders and the reported river coordinate.
  std::vector<std::pair<int,int>> chunks{{0,0},{-58,25},{127,127},{128,-1},{-129,-129},{64,64}};
  std::vector<std::vector<uint8_t>> expected;J timings=J::array();
- auto clear=[](){std::lock_guard lock(regional::mutex);regional::plans.clear();regional::residentOrder.clear();};
+ auto clear=[](){std::lock_guard lock(regional::store().mutex);regional::store().plans.clear();regional::store().residentOrder.clear();};
  clear();
  {Field field(data,false);Engine engine(data,{},false,&field);for(auto[x,z]:chunks){auto t=Clock::now();expected.push_back(engine.chunk(x,z));timings.push_back({{"chunk",{x,z}},{"fullOwnersMs",ms(t)}});}}
  clear();

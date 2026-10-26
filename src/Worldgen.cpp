@@ -95,6 +95,7 @@ constexpr unsigned Workers=4;
 #endif
 std::array<NativeRuntime,Workers> runtimes;
 Json nativeData;
+terrain_kernel::ContextPtr kernelContext;
 bool unboundedWorld=false;
 terrain_runtime::WorldGenerationMode generationMode;
 terrain_runtime::BuildHeight buildHeight;
@@ -240,10 +241,11 @@ void readData(){
  buildHeight.requireNativeRecipe(nativeData,metadata);
  generationMode=terrain_runtime::WorldGenerationMode::read(metadata,nativeData);
  unboundedWorld=generationMode.unbounded;
- terrain_kernel::regionalStorage(nativeData,Base/"regional-cache");
+ kernelContext=std::make_shared<terrain_kernel::Context>();
+ kernelContext->storage(nativeData,Base/"regional-cache");
  if(!NativeRuntime::supports(nativeData.at("version").get<std::string>())||nativeData.at("version")!=metadata.at("version")||!nativeData.at("seedManifest").value("ready",false)||!nativeData.at("seedManifest").value("riversReady",false)||nativeData.at("seedManifest").at("terrainSeed")!=metadata.at("terrainSeed"))throw std::runtime_error("Native data identity mismatch");
  std::array<std::future<void>,Workers> starts;
- for(unsigned i=0;i<Workers;i++)starts[i]=std::async(std::launch::async,[i]{runtimes[i].start(nativeData);});
+ for(unsigned i=0;i<Workers;i++)starts[i]=std::async(std::launch::async,[i]{runtimes[i].start(nativeData,kernelContext);});
  for(auto& start:starts)start.get();
  cacheWriter.start();
  log().info("{} 个计算器已就绪，seed={}，内存及磁盘缓存启用",Workers,metadata.at("terrainSeed").get<std::string>());

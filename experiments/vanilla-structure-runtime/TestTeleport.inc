@@ -172,7 +172,7 @@ void tickStructureTest(Level&level){
  try{
   auto dim=level.getOrCreateDimension(0).lock();if(!dim||!villageTemplatesReady)return;
   std::unique_lock guard(stageMutex,std::try_to_lock);if(!guard.owns_lock())return;
-  if(!s.started){s.terrain=std::make_unique<terrain_kernel::Field>(input);s.delegate=std::make_unique<TerrainVillageFeature>(structureSeed(*dim),dim->getBiomeRegistry());s.started=true;}
+  if(!s.started){s.terrain=std::make_unique<terrain_kernel::Field>(input, kernelContext);s.delegate=std::make_unique<TerrainVillageFeature>(structureSeed(*dim),dim->getBiomeRegistry());s.started=true;}
   bool changed=false;
   int oldBiomes=s.biomeCount();
   {
