@@ -481,8 +481,8 @@ VegetationPair &villageVegetationPair(VillagePlan const &plan) {
         }
         VegetationPair pair;
         pair.normal =
-            std::make_unique<nativegen::Engine>(input, std::vector<std::array<int, 4>>{}, true, field.get());
-        pair.reserved = std::make_unique<nativegen::Engine>(input, reservations, true, field.get());
+            std::make_unique<terrain_kernel::Generator>(input, std::vector<std::array<int, 4>>{}, true, field.get());
+        pair.reserved = std::make_unique<terrain_kernel::Generator>(input, reservations, true, field.get());
         it = vegetationPairs.emplace(key, std::move(pair)).first;
     }
     return it->second;

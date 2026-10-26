@@ -6,8 +6,8 @@ unsigned prefillLogRows = 0;
 using ReservationAreas = std::vector<std::array<int, 4>>;
 struct PrefillWorker {
     std::mutex mutex;
-    std::unique_ptr<nativegen::Field> field;
-    std::unique_ptr<nativegen::Engine> normal, reserved;
+    std::unique_ptr<terrain_kernel::Field> field;
+    std::unique_ptr<terrain_kernel::Generator> normal, reserved;
     ReservationAreas areas;
     void clear() {
         reserved.reset();
@@ -17,11 +17,11 @@ struct PrefillWorker {
     }
     void prepare(ReservationAreas const &next) {
         if (!field) {
-            field = std::make_unique<nativegen::Field>(input);
-            normal = std::make_unique<nativegen::Engine>(input, ReservationAreas{}, true, field.get());
+            field = std::make_unique<terrain_kernel::Field>(input);
+            normal = std::make_unique<terrain_kernel::Generator>(input, ReservationAreas{}, true, field.get());
         }
         if (!reserved || areas != next) {
-            reserved = std::make_unique<nativegen::Engine>(input, next, true, field.get());
+            reserved = std::make_unique<terrain_kernel::Generator>(input, next, true, field.get());
             areas = next;
         }
     }

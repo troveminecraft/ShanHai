@@ -37,7 +37,7 @@ void memoryAuditProbe(Dimension&d){
 
 struct AuditPlanScope {
  std::optional<int> oldVillageSpacing=auditVillageSpacing;
- J oldInput;std::unique_ptr<nativegen::Field> oldField;
+ J oldInput;std::unique_ptr<terrain_kernel::Field> oldField;
  decltype(automaticBlueprints) oldScattered;decltype(villages) oldVillages;
  decltype(cityLinks) oldCityLinks;decltype(cityNeighbourCache) oldCityNeighbours;
  decltype(extraPlans) oldExtras;decltype(extraDelegates) oldDelegates;
@@ -45,7 +45,7 @@ struct AuditPlanScope {
  std::vector<std::unique_ptr<StructureStart>> owned;
  std::unique_ptr<TerrainVillageFeature> villageDelegate;
  AuditPlanScope(Dimension&d,J const&data,uint seed){
-  auto next=std::make_unique<nativegen::Field>(data);villageDelegate=std::make_unique<TerrainVillageFeature>(seed,d.getBiomeRegistry());
+  auto next=std::make_unique<terrain_kernel::Field>(data);villageDelegate=std::make_unique<TerrainVillageFeature>(seed,d.getBiomeRegistry());
   auditVillageSpacing=data.at("config").value("villageSpacing",32)==20?20:32;
   oldInput=std::move(input);input=data;oldField=std::move(field);field=std::move(next);
   oldCityLinks.swap(cityLinks);oldCityNeighbours.swap(cityNeighbourCache);oldScattered.swap(automaticBlueprints);oldVillages.swap(villages);oldExtras.swap(extraPlans);oldDelegates.swap(extraDelegates);oldVegetation.swap(vegetationPairs);
@@ -192,7 +192,7 @@ bool placeFrozenTemple(BlockSource&blocks,AutoBlueprint&plan,Random&,BoundingBox
 void memoryTempleAudit(Dimension&d,int order){
  if(order<0||order>2)throw std::runtime_error("Audit order must be 0 forward, 1 reverse, 2 whole");
  bool human=false;d.getLevel().forEachPlayer([&](Player&p){human|=!p.isSimulated();return true;});if(human||interactionAuditActive)throw std::runtime_error("Memory audit requires empty session");std::lock_guard guard(stageMutex);
- J data=input;uint seed=structureSeed(d);AuditPlanScope scope(d,data,seed);auto&plan=autoBlueprint(d,{chunk(-15728),chunk(-15328)},seed);if(!plan.start)throw std::runtime_error("Temple sample rejected");auto box=*plan.start->boundingBox;auto halo=box;halo.min.x-=16;halo.min.z-=16;halo.max.x+=16;halo.max.z+=16;AuditChunkSource source(d,halo);auto tokens=source.access();BlockSource blocks(source,false,true);auto palette=auditPalette();nativegen::Engine engine(input,{},false,field.get());
+ J data=input;uint seed=structureSeed(d);AuditPlanScope scope(d,data,seed);auto&plan=autoBlueprint(d,{chunk(-15728),chunk(-15328)},seed);if(!plan.start)throw std::runtime_error("Temple sample rejected");auto box=*plan.start->boundingBox;auto halo=box;halo.min.x-=16;halo.min.z-=16;halo.max.x+=16;halo.max.z+=16;AuditChunkSource source(d,halo);auto tokens=source.access();BlockSource blocks(source,false,true);auto palette=auditPalette();terrain_kernel::Generator engine(input,{},false,field.get());
  for(int z=chunk(halo.min.z);z<=chunk(halo.max.z);++z)for(int x=chunk(halo.min.x);x<=chunk(halo.max.x);++x)auditFillChunk(*source.getExistingChunk({x,z}),engine.chunk(x,z),palette,nullptr);
  std::vector<ChunkPos> chunks;for(int z=chunk(box.min.z);z<=chunk(box.max.z);++z)for(int x=chunk(box.min.x);x<=chunk(box.max.x);++x)chunks.push_back({x,z});if(order==1)std::reverse(chunks.begin(),chunks.end());
  if(order==2){Random rng(seed,true);plan.start->postProcess(blocks,rng,box);}else for(auto cp:chunks){Random rng(seed,true);StructureFeature::setRandomSeedFor(rng,cp.x,cp.z,14357617,seed);plan.start->postProcess(blocks,rng,{{cp.x*16,-64,cp.z*16},{cp.x*16+15,field->generationHeight()-65,cp.z*16+15}});}
@@ -224,7 +224,7 @@ J readAuditVolume(BlockSource&blocks,BoundingBox box){
 }
 void runMemoryPlanAudit(Dimension&d,int profile,int type,int x,int z,int order){
  if(order<0||order>1)throw std::runtime_error("Memory plan order must be forward/reverse");auditSessionGuard(d);std::lock_guard guard(stageMutex);auto data=loadAuditInput(d,profile);AuditPlanScope scope(d,data.data,data.seed);ChunkPos anchor{chunk(x),chunk(z)};auto*start=auditPlan(d,type,anchor,data.seed);if(!start)throw std::runtime_error("Audit plan rejected actual terrain");auto box=*start->boundingBox;auto halo=box;halo.min.x-=32;halo.min.z-=32;halo.max.x+=32;halo.max.z+=32;
- auto began=std::chrono::steady_clock::now();AuditChunkSource source(d,halo);auto tokens=source.access();BlockSource blocks(source,false,true);auto palette=auditPalette();nativegen::Engine engine(input,{},false,field.get());VegetationPair*reservation=nullptr;
+ auto began=std::chrono::steady_clock::now();AuditChunkSource source(d,halo);auto tokens=source.access();BlockSource blocks(source,false,true);auto palette=auditPalette();terrain_kernel::Generator engine(input,{},false,field.get());VegetationPair*reservation=nullptr;
  if(type==12)reservation=&villageVegetationPair(villages.at({anchor.x,anchor.z}));else if(type<12&&extraSurface(type))reservation=&extraVegetationPair(extraPlans.at({type,anchor.x,anchor.z}));else if(type==13&&start->getStructureName()!="minecraft:desert_pyramid")reservation=&structureVegetationPair(automaticBlueprints.at({anchor.x,anchor.z}));
  for(int zz=chunk(halo.min.z);zz<=chunk(halo.max.z);++zz)for(int xx=chunk(halo.min.x);xx<=chunk(halo.max.x);++xx)auditFillChunk(*source.getExistingChunk({xx,zz}),engine.chunk(xx,zz),palette,reservation);
  std::set<int64_t> originalActors;for(auto*a:d.getLevel().getRuntimeActorList())originalActors.insert(a->getOrCreateUniqueID().rawID);

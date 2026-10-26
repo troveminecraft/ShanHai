@@ -29,6 +29,7 @@ try {
 } finally { Pop-Location }
 $bin = Join-Path $build 'windows/x64/release'
 $cases = @(
+    @{Name='kernel_facade'; Args=@((Join-Path $output 'inputs/positive.json'))},
     @{Name='new_world_files'; Args=@()},
     @{Name='raised_caverns'; Args=@()},
     @{Name='glacier_weather_policy'; Args=@()},

@@ -1,8 +1,11 @@
 set_targetdir(path.absolute(path.join(get_config("builddir") or "build", "$(plat)/$(arch)/$(mode)"), os.projectdir()))
 add_rules("mode.debug", "mode.release")
+set_runtimes("MD")
+includes("src/kernel")
 add_requires("nlohmann_json v3.12.0")
 
 target("native-worldgen-check")
+    add_deps("terrain-kernel")
     set_kind("binary")
     set_languages("c++20")
     set_toolchains("clang-cl")

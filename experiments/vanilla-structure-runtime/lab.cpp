@@ -4,7 +4,8 @@
 #include "mc/world/level/block/VanillaStates.h"
 #include "mc/world/level/block/MultifaceBlock.h"
 // Native structure adapter, bound to the terrain runtime's active world.
-#include "native/Engine.h"
+#include "TerrainKernel.h"
+#include "native/Noise.h"
 #include "BdsStructureBinding.h"
 #include "BuildHeight.h"
 #include "rules/StructureRules.h"
@@ -194,7 +195,7 @@ std::string const &worldIdentity() {
 J input, report;
 std::atomic_int liveVillageSpacing{32};
 thread_local std::optional<int> auditVillageSpacing;
-std::unique_ptr<nativegen::Field> field;
+std::unique_ptr<terrain_kernel::Field> field;
 bool structureIncluded(std::string_view name) {
     return worldgen_rules::publicStructureIncluded(name);
 }
@@ -272,7 +273,7 @@ void initialize() {
         rules["source"] = "llbds";
         rules["revision"] = worldgen_rules::StructurePlanRevision;
         rules["villageSizeClasses"] = true;
-        field = std::make_unique<nativegen::Field>(input);
+        field = std::make_unique<terrain_kernel::Field>(input);
         liveVillageSpacing.store(input.at("config").value("villageSpacing",32)==20?20:32);
         rules["villageSpacing"] = liveVillageSpacing.load();
         std::ofstream(folder / "effective-structure-rules.json")

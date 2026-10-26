@@ -1,0 +1,13 @@
+-- One SDK-free implementation for the BDS adapter, Windows adapter and CLI.
+add_requires("nlohmann_json v3.12.0")
+target("terrain-kernel")
+    set_kind("static")
+    set_languages("c++20")
+    set_toolchains("clang-cl")
+    set_runtimes("MD")
+    add_packages("nlohmann_json", {public = true})
+    add_includedirs("..", {public = true})
+    add_defines("NOMINMAX", "UNICODE")
+    add_cxflags("/EHsc", "/utf-8", "/fp:precise", "/clang:-ffp-contract=off", "/arch:AVX2")
+    add_files("TerrainKernel.cpp")
+target_end()

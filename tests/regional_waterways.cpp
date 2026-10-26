@@ -1,5 +1,6 @@
 #undef NDEBUG
 #include "NativeRuntime.h"
+#include "native/Field.h"
 #include "WorldGenerationMode.h"
 #include <cassert>
 #include <fstream>

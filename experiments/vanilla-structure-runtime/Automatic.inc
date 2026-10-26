@@ -443,7 +443,7 @@ AutoBlueprint &autoBlueprint(Dimension &dim, ChunkPos candidate, uint seed) {
     return plan;
 }
 struct VegetationPair {
-    std::unique_ptr<nativegen::Engine> normal, reserved;
+    std::unique_ptr<terrain_kernel::Generator> normal, reserved;
 };
 std::map<std::pair<int, int>, VegetationPair> vegetationPairs;
 bool plantRepairPreview = false;
@@ -504,8 +504,8 @@ VegetationPair &structureVegetationPair(AutoBlueprint const &plan) {
             vegetationPairs.erase(vegetationPairs.begin());
         VegetationPair pair;
         pair.normal =
-            std::make_unique<nativegen::Engine>(input, std::vector<std::array<int, 4>>{}, true, field.get());
-        pair.reserved = std::make_unique<nativegen::Engine>(
+            std::make_unique<terrain_kernel::Generator>(input, std::vector<std::array<int, 4>>{}, true, field.get());
+        pair.reserved = std::make_unique<terrain_kernel::Generator>(
             input,
             std::vector<std::array<int, 4>>{
                 {b.min.x + 32756, b.min.z + 32756, b.max.x + 32780, b.max.z + 32780}},

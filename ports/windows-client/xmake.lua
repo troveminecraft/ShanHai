@@ -1,6 +1,7 @@
 set_targetdir(path.absolute(path.join(get_config("builddir") or "build", "$(plat)/$(arch)/$(mode)"), os.projectdir()))
 -- A separate SDK build directory: never reconfigure the running BDS project.
 add_rules("mode.debug", "mode.release")
+includes("../../src/kernel")
 add_repositories("levimc-repo https://github.com/LiteLDev/xmake-repo.git")
 add_requires("levilamina 26.20.7", {configs = {target_type = "client"}})
 add_requires("levibuildscript")
@@ -9,6 +10,7 @@ set_languages("c++20")
 set_toolchains("clang-cl")
 
 target("karma-worldgen-client")
+    add_deps("terrain-kernel")
     set_default(false)
     set_kind("shared")
     set_symbols("debug")

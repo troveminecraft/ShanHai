@@ -920,14 +920,14 @@ VegetationPair &extraVegetationPair(ExtraPlan const &p) {
             vegetationPairs.erase(vegetationPairs.begin());
         VegetationPair pair;
         pair.normal =
-            std::make_unique<nativegen::Engine>(input, std::vector<std::array<int, 4>>{}, true, field.get());
+            std::make_unique<terrain_kernel::Generator>(input, std::vector<std::array<int, 4>>{}, true, field.get());
         std::vector<std::array<int, 4>> occupied;
         for (auto const &piece : *p.start->pieces) {
             auto bb = *piece->mBoundingBox;
             if (auto area = worldgen_rules::structurePlantReservation(sharedBox(bb)))
                 occupied.push_back(*area);
         }
-        pair.reserved = std::make_unique<nativegen::Engine>(input, occupied, true, field.get());
+        pair.reserved = std::make_unique<terrain_kernel::Generator>(input, occupied, true, field.get());
         it = vegetationPairs.emplace(key, std::move(pair)).first;
     }
     return it->second;
