@@ -17,7 +17,7 @@ python -m pip install numpy
 - `client/windows/x64/release/karma-worldgen-client.dll`：客户端模组。
 - `kernel/windows/x64/release/native-worldgen-check.exe`：种子生成所需的计算程序。
 - `runtime/`：打包后的种子生成依赖。
-- `ShanHai-Windows-0.1.5.zip`：完整安装包。
+- `ShanHai-Windows-<manifest.version>.zip`：完整安装包。
 
 安装时使用 ZIP，单独的 DLL 缺少运行依赖。主线推送会运行 GitHub Actions，也可手动运行 **Windows LL** 构建工作流；
 构建产物不会自动发布到 Releases。
@@ -26,7 +26,8 @@ python -m pip install numpy
 
 | 目录 | 用途 |
 | --- | --- |
-| `src/native` | 地形、植被、矿石与洞穴内核 |
+| `src/kernel`、`src/TerrainKernel.h` | 独立静态内核库与公开接口，BDS / Windows / CLI 共同使用 |
+| `src/native` | 内核内部的地形、植被、矿石与洞穴实现 |
 | `src/rules` | 结构选址、地基、道路和放置规则 |
 | `src` | 区块生成、缓存、调度和运行时接入 |
 | `experiments/vanilla-structure-runtime` | 编译进客户端的结构运行时，保留原目录以维持包含关系 |
@@ -46,7 +47,7 @@ python -m pip install numpy
 ./tests/run.ps1 -BuildDirectory ../shan-hai-tests -OutputDirectory ../shan-hai-results
 ```
 
-默认入口用仓内模板与 Node.js 重建三个输入（5、-1、有符号 64 位最大种子），运行列边界、调色板、错误上下文、创建进度、植被预留和既有生命周期测试，再比较两个独立计算器以相反顺序生成的区块及缓存重访结果。另运行 8 项 Python 进程与超时测试。
+默认入口用仓内模板与 Node.js 重建三个输入（5、-1、有符号 64 位最大种子），运行列边界、调色板、错误上下文、创建进度、植被预留和既有生命周期测试，再比较两个独立计算器以相反顺序生成的区块及缓存重访结果。另运行 9 项 Python 进程与超时测试。
 
 测试输入是离线内核配方，使用种子默认地标，不能代替实际出生点选择或游戏内结构验收。`host-tests.json` 记录完成的用例；测试中的失败注入只是报错路径验证，不代表自然生成失败率。
 
@@ -60,3 +61,5 @@ python -B ports/windows-client/test_world_package.py
 `build_runtime.py` 会使用打包的 Python 解释器检查运行时导入；
 `package_windows.py` 会逐项核对运行时文件的 SHA-256。
 这些检查不能代替游戏内地形和结构的验收。
+
+内核与世界会话边界、测试范围见 [KERNEL_BOUNDARY.md](KERNEL_BOUNDARY.md)。

@@ -1,3 +1,17 @@
+## 0.1.19 — kernel and world-session foundations
+
+- BDS, Windows LL and the packaged CLI now link the same SDK-free terrain library. The library owns immutable recipes and hides the Engine/Field implementation behind a facade.
+- Windows compiles its entry point, terrain host and structure host separately. World setup, status, hooks and release operations use explicit adapter interfaces.
+- Regional plans and cache-directory bindings belong to a world context. Terrain sessions own calculators, worker queues, chunk caches, the cache writer and latency statistics. Closing drains admitted mod work before releasing these resources; nested admitted callbacks can finish.
+- Added world/recipe lifetime, same-seed context isolation, shutdown/worker-queue/cache-flush tests and a reproducible byte/latency comparison tool. Windows world counters reset on re-entry. Running BDS structure runtimes now refuse hot-disable, matching the terrain runtime.
+- CI uploads the actual manifest-derived package name instead of the obsolete fixed 0.1.5 filename.
+
+Terrain recipe **2.207** is unchanged: this release adds no terrain redesign. The existing native-write locks and fatal protection against persisting unfinished chunks remain. This is the first foundation stage; internal algorithm modules and remaining native structure state still need incremental separation. Offline timing is not a measurement of server-to-client loading, and no loading-speed improvement is claimed.
+
+BDS terrain **1.0.46**, structures **1.0.61**; Windows **0.1.19**. Sea level Y64 and build range Y-64..511 remain. Android stays archived. Builds, offline checks and startup smoke checks do not constitute gameplay acceptance.
+
+本版整理共享内核、Windows 接口边界和世界会话资源，不改地形配方。缓存、计算器与统计按世界隔离，关闭前等待已接收任务完成；保留原生写入锁和防止半成品区块落盘的保护。仍需用户验收进服、探索、退出重进与 Windows 创建世界；完整结构状态拆分和服务器加载性能优化尚未完成。
+
 ## 0.1.18 — volcano scale and world creation
 
 - Reduced typical crater radii to 18–42 blocks, with a 5% large category of 45–58 blocks before boundary variation. The previous revision widened every crater.
