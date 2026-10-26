@@ -533,6 +533,7 @@ LL_TYPE_INSTANCE_HOOK(DecorationTask, ll::memory::HookPriority::Normal, ChunkSou
     origin(owner, view);
 }
 bool runAutomaticStage(Level &level, ChunkViewSource &view) {
+    auto work=structureTasks.enter();
     ++stageCalls;
     StageTimer timer;
     std::optional<std::array<int,2>> failureChunk;
@@ -765,7 +766,8 @@ LL_TYPE_INSTANCE_HOOK(AutoStage, ll::memory::HookPriority::Normal, WorldGenerato
 }
 std::optional<bool> locateNativeStructure(Dimension &d, HashedString type, BlockPos const &from,
                                           BlockPos &result, bool fresh, std::optional<HashedString> tag) {
-    if (structureStageFailed)
+    auto work=structureTasks.tryEnter();
+    if (!work || structureStageFailed)
         return false;
     try {
         std::lock_guard guard(stageMutex);

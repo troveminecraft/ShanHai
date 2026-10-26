@@ -111,7 +111,7 @@ void bindWorld(Level &level, std::string const &name, LevelSettings const &setti
     terrain::log().info("Karma client: world generator provenance validated; runtime generator={}",
                         int(settings.getGenerator()));
     current = &level;
-    terrain::clientPrepare(root, name, seed, marker);
+    terrain::clientPrepare(level, root, name, seed, marker);
     lab::clientPrepare(root, name, marker.at("worldName").get<std::string>());
     terrain::clientActivate();
     lab::clientActivate();

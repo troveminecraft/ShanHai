@@ -105,6 +105,7 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
         origin(volume, yOffset);
         return;
     }
+    auto work=structureTasks.enter();
     // Vanilla void initialization precedes the custom terrain buffer.
     if (volume.mBlocks->mBegin[volume.indexNoBoundsCheck(BlockPos{0, 0, 0})]->getTypeName() !=
         "minecraft:bedrock") {

@@ -59,7 +59,7 @@ void updatePlayerStreaming(Level& level){
  level.forEachPlayer([&](Player& player){
   if(static_cast<int>(player.getDimensionId())!=0)return true;
   auto name=player.getRealName();seen.insert(name);auto& s=playerStreams[name];auto p=player.getFeetPos();
-  auto motion=s.planner.update(p.x,p.z,std::chrono::duration<double>(now.time_since_epoch()).count(),waitingCalculators.load(),nearPending);
+  auto motion=s.planner.update(p.x,p.z,std::chrono::duration<double>(now.time_since_epoch()).count(),worldSession->waitingCalculators.load(),nearPending);
   int cx=int(std::floor(p.x/16)),cz=int(std::floor(p.z/16)),ax=int(std::floor(motion.aheadX/16)),az=int(std::floor(motion.aheadZ/16));
   if(validChunk(cx,cz))next->push_back({p.x/16.0,p.z/16.0,motion.aheadX/16.0,motion.aheadZ/16.0,motion.speed});
   bool arrival=motion.teleport||s.cx==100000;
@@ -98,7 +98,7 @@ void updatePlayerStreaming(Level& level){
      if(done)++viewGapResolved;
      if(done||seconds-patch.started>=20||std::max(std::abs(patch.x-cx),std::abs(patch.z-cz))>radius)patch.view.reset();
     }
-    if(!patch.view&&terrain_runtime::allowSupplementalLoading(ready,waitingCalculators.load(),nearPending,tickBusy))if(auto gap=s.visible.next(seconds,cx,cz)){
+    if(!patch.view&&terrain_runtime::allowSupplementalLoading(ready,worldSession->waitingCalculators.load(),nearPending,tickBusy))if(auto gap=s.visible.next(seconds,cx,cz)){
      patch.x=gap->x;patch.z=gap->z;patch.started=seconds;gap->attempted=seconds;
      patch.view=std::make_unique<ChunkViewSource>(dim->getChunkSource(),ChunkSource::LoadMode::Deferred);
      // BDS decoration/light dependencies need the full eight-chunk halo,
@@ -122,7 +122,7 @@ void updatePlayerStreaming(Level& level){
    default:break;
   }
   if(!unboundedWorld){ax=std::clamp(ax,-Half,Half-1);az=std::clamp(az,-Half,Half-1);}
-  if(terrain_runtime::allowSupplementalLoading(ready,waitingCalculators.load(),nearPending,tickBusy)&&!s.patches[0].view&&motion.allowAhead&&std::max(std::abs(ax-cx),std::abs(az-cz))>=3){
+  if(terrain_runtime::allowSupplementalLoading(ready,worldSession->waitingCalculators.load(),nearPending,tickBusy)&&!s.patches[0].view&&motion.allowAhead&&std::max(std::abs(ax-cx),std::abs(az-cz))>=3){
    if(!s.ahead||std::max(std::abs(ax-s.ax),std::abs(az-s.az))>=2){move(s.ahead,ax,az);s.ax=ax;s.az=az;}
   }else s.ahead.reset();
   return true;

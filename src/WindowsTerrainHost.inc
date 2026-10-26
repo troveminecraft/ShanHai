@@ -1,24 +1,33 @@
 // Windows adapter operations compiled in the terrain host translation unit.
 ll::mod::NativeMod& clientMod() { return Mod::getInstance().self; }
-void clientPrepare(std::filesystem::path const& root, std::string const& name,
+void clientPrepare(Level& level, std::filesystem::path const& root, std::string const& name,
                    std::string const& seed, Json const& marker) {
     clientWorldPath = root;
     Base = root / "karma";
     readData();
+    worldSession->bind(&level);
     if (marker.value("buildMaxYExclusive",320) != buildHeight.maxYExclusive ||
         marker.value("generatedMaxYExclusive",320) != buildHeight.generatedMaxYExclusive)
         throw std::runtime_error("World marker height differs from its immutable terrain profile");
-    if (nativeData.at("seedManifest").at("terrainSeed").get<std::string>() != seed)
+    if (worldSession->nativeData.at("seedManifest").at("terrainSeed").get<std::string>() != seed)
         throw std::runtime_error("Terrain was baked for a different world seed");
     worldName = name;
 }
 void clientActivate() {
     generated = 0;
     errors = 0;
+    flatGenerated=0; voidGenerated=0; observedMinY=0; observedMaxYExclusive=0;
+    observedDetached=0; observedCoalesced=0; observationDrops=0; oldestPendingMs=0;
+    pendingByState.fill(0); loadRequests=0; loadReady=0; loadReleased=0;
+    nearPending=farPending=outsidePending=0;
+    arrivalStarts=arrivalResends=arrivalRebinds=arrivalTimeouts=0;
+    viewGapRepairs=viewGapResolved=viewGapResends=0;
+    priorityCalls=0; priorityBoosts=0;
     mainThread = GetCurrentThreadId();
     active = true;
 }
 void clientRelease() {
+    worldSession->close();
     active = false;
     unboundedWorld = false;
     requested = false;
@@ -29,15 +38,10 @@ void clientRelease() {
     streamingFocus.store(std::make_shared<std::vector<StreamFocus> const>());
     streamTicks = 0;
     logTicks = 0;
-    cacheWriter.stop();
-    for (auto &r : runtimes)
-        r.stop();
-    kernelContext.reset();
-    memoryCache.clear();
     palette.clear();
     biomes.clear();
     registryOnce = std::make_unique<std::once_flag>();
-    loadEvents.clear();
+    { std::lock_guard lock(loadMutex); loadEvents.clear(); }
     pendingLoads.clear();
 }
 void clientTick(Level& level) {

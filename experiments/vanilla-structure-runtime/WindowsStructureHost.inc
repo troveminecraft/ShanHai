@@ -14,9 +14,13 @@ void clientPrepare(std::filesystem::path const& root, std::string const& name, s
 }
 void clientActivate() {
     stageCalls = 0; stageErrors = 0; structureStageFailed = false;
+    prefillJobs=0; prefillComputeNanos=0; prefillLogRows=0; storageLogRows=0;
+    savedStructureSkips=0; structurePlansRetired=0; structureCollections=0;
+    stageMutex.acquisitions=0; stageMutex.waitNanos=0; stageMutex.holdNanos=0;
     automaticStructures = true; smallFeaturesEnabled = true;
 }
 void clientRelease(Level& level) {
+    structureTasks.closeAndWait();
     automaticStructures = false;
     smallFeaturesEnabled = false;
     atlasCatalog.active = false;
@@ -70,6 +74,7 @@ void clientRelease(Level& level) {
     kernelContext.reset();
     atlasCatalog.terrain.reset();
     atlasCatalog.delegate.reset();
+    input=J::object();
 }
 void clientWarmTemplates(Level& level) { warmVillageTemplates(level); warmFossilTemplates(level); }
 void clientTick(Level& level) {

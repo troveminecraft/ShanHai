@@ -29,6 +29,8 @@ try {
 } finally { Pop-Location }
 $bin = Join-Path $build 'windows/x64/release'
 $cases = @(
+    @{Name='world_tasks'; Args=@()},
+    @{Name='terrain_session'; Args=@((Join-Path $output 'inputs/positive.json'),(Join-Path $output 'terrain-session'))},
     @{Name='kernel_facade'; Args=@((Join-Path $output 'inputs/positive.json'))},
     @{Name='new_world_files'; Args=@()},
     @{Name='raised_caverns'; Args=@()},

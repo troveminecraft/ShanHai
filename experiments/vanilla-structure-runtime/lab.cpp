@@ -8,6 +8,8 @@
 #include "mc/world/level/block/MultifaceBlock.h"
 // Native structure adapter, bound to the terrain runtime's active world.
 #include "TerrainKernel.h"
+#include "WorldTasks.h"
+#include "ll/api/service/GamingStatus.h"
 #include "native/Noise.h"
 #include "BdsStructureBinding.h"
 #include "BuildHeight.h"
@@ -195,11 +197,20 @@ std::string const &worldIdentity() {
     return activeWorld;
 }
 #endif
-J input, report;
+J report;
 std::atomic_int liveVillageSpacing{32};
 thread_local std::optional<int> auditVillageSpacing;
-std::unique_ptr<terrain_kernel::Field> field;
-terrain_kernel::ContextPtr kernelContext;
+struct StructureSession {
+    terrain_runtime::WorldTasks tasks;
+    J input;
+    terrain_kernel::ContextPtr kernelContext;
+    std::unique_ptr<terrain_kernel::Field> field;
+};
+StructureSession structureSession;
+auto& input=structureSession.input;
+auto& field=structureSession.field;
+auto& kernelContext=structureSession.kernelContext;
+auto& structureTasks=structureSession.tasks;
 bool structureIncluded(std::string_view name) {
     return worldgen_rules::publicStructureIncluded(name);
 }
@@ -284,6 +295,7 @@ void initialize() {
         rules["villageSpacing"] = liveVillageSpacing.load();
         std::ofstream(folder / "effective-structure-rules.json")
             << J{{"world", activeWorld}, {"savedRevision", previous}, {"effective", rules}}.dump(2);
+        structureTasks.open();
     }
 }
 // Point-query adapter for legacy scattered-feature eligibility only.
@@ -1785,6 +1797,13 @@ class Mod {
     }
     bool disable() {
 #ifndef KARMA_CLIENT
+        if (ll::getGamingStatus()==ll::GamingStatus::Running || ll::getGamingStatus()==ll::GamingStatus::Starting) {
+            ll::mod::NativeMod::current()->getLogger().error("Structure runtime cannot be disabled while its world is running; stop the server normally first");
+            return false;
+        }
+#endif
+        structureTasks.closeAndWait();
+#ifndef KARMA_CLIENT
         stopStructureTest();
 #endif
         if (auto level = ll::service::getLevel())
@@ -1858,10 +1877,15 @@ class Mod {
         mansionTemplatesReady = false;
         villageTemplatesReady = false;
         field.reset();
+        kernelContext.reset();
         return true;
     }
     bool unload() {
+#ifndef KARMA_CLIENT
+        return ll::getGamingStatus()!=ll::GamingStatus::Running && ll::getGamingStatus()!=ll::GamingStatus::Starting;
+#else
         return true;
+#endif
     }
 };
 #ifdef KARMA_CLIENT

@@ -12,7 +12,7 @@ namespace terrain {
 ll::io::Logger& log();
 ll::mod::NativeMod& clientMod();
 nlohmann::json jsonFile(std::filesystem::path const& path);
-void clientPrepare(std::filesystem::path const& root, std::string const& name,
+void clientPrepare(Level& level, std::filesystem::path const& root, std::string const& name,
                    std::string const& seed, nlohmann::json const& marker);
 void clientActivate();
 void clientRelease();
