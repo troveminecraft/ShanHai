@@ -1,7 +1,12 @@
 #pragma once
 #include <unordered_map>
 #include <cstdint>
+#include <vector>
+#include <algorithm>
+#include <cmath>
 namespace terrain_runtime {
+inline constexpr int RepairCoreRadius=2,RepairDependencyRadius=10,RepairSlots=2;
+inline int recoveryViewRadius(int requested){return std::clamp(requested,2,64);}
 struct ViewGapRecovery {
  struct Gap {int x,z;double since,attempted=-1;unsigned seen=0,attempts=0;};
  std::unordered_map<uint64_t,Gap> gaps;unsigned epoch=0;
@@ -12,9 +17,10 @@ struct ViewGapRecovery {
   auto [it,_]=gaps.try_emplace(k,Gap{x,z,now});it->second.seen=epoch;
  }
  void end(){for(auto i=gaps.begin();i!=gaps.end();)if(i->second.seen!=epoch)i=gaps.erase(i);else ++i;}
- Gap* next(double now,int cx,int cz){
+ Gap* next(double now,int cx,int cz,std::vector<std::pair<int,int>> const& active={}){
   Gap* best=nullptr;int distance=0;
   for(auto&[_,g]:gaps){
+   if(std::any_of(active.begin(),active.end(),[&](auto p){return std::max(std::abs(g.x-p.first),std::abs(g.z-p.second))<=2*RepairCoreRadius;}))continue;
    int d=(g.x-cx)*(g.x-cx)+(g.z-cz)*(g.z-cz);
    // A failed request used to permanently exclude this hole until the player
    // left the view. Retry at most twice, with backoff beyond the patch lifetime.

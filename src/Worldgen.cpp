@@ -202,7 +202,9 @@ void pollLoads(Level& level){
   // finished, cancel engine jobs or force a chunk to a ready state.
   if(age>15000&&(focus->empty()||streamingScore(p.event.x,p.event.z,*focus)>512)){++detached;++observedDetached;it=pendingLoads.erase(it);continue;}
   if(!validChunk(p.event.x,p.event.z))++outsidePending;
-  else if(!focus->empty()&&streamingScore(p.event.x,p.event.z,*focus)<=224)++nearPending;else ++farPending;
+  // Backpressure describes the player's own dependency halo. Counting promoted
+  // distant repair jobs here made a repair suppress its own follow-up work.
+  else if(std::any_of(focus->begin(),focus->end(),[&](auto const&f){return chunkDistance(p.event.x,p.event.z,f.x,f.z)<=8;}))++nearPending;else ++farPending;
   ++pendingByState[state>=0&&state<14?state:14];oldestPendingMs=std::max(oldestPendingMs,age);if(age>=60000)++stalled;
   if(logTicks%200==0)examples.emplace_back(age,fmt::format(" ({},{}:{})",p.event.x,p.event.z,loadStateName(state)));
   ++it;
@@ -433,7 +435,7 @@ void writeReport(){
  report["backend"]="native-cpp";
  report["height"]={{"minY",buildHeight.MinY},{"buildMaxYExclusive",buildHeight.maxYExclusive},{"generatedMaxYExclusive",buildHeight.generatedMaxYExclusive},{"subchunks",buildHeight.subchunks()},{"observedMinY",observedMinY.load()},{"observedMaxYExclusive",observedMaxYExclusive.load()},{"flatGeneratorChunks",flatGenerated.load()},{"voidGeneratorChunks",voidGenerated.load()}};
  report["arrivalRecovery"]={{"started",arrivalStarts},{"resends",arrivalResends},{"rebinds",arrivalRebinds},{"timeouts",arrivalTimeouts}};
- report["viewGapRecovery"]={{"repairs",viewGapRepairs},{"resolved",viewGapResolved},{"resends",viewGapResends},{"patchesPerPlayer",1},{"patchRadius",8},{"scanSeconds",2},{"attemptLimit",3},{"retryBackoffSeconds",30}};
+ report["viewGapRecovery"]={{"repairs",viewGapRepairs},{"resolved",viewGapResolved},{"resends",viewGapResends},{"patchesPerPlayer",terrain_runtime::RepairSlots},{"patchRadius",terrain_runtime::RepairDependencyRadius},{"coreRadius",terrain_runtime::RepairCoreRadius},{"maximumViewRadius",64},{"scanSeconds",2},{"attemptLimit",3},{"retryBackoffSeconds",30}};
  report["playerViews"]=Json::array();for(auto const&[name,s]:playerStreams)report["playerViews"].push_back({{"name",name},{"chunk",{s.cx,s.cz}},{"radius",s.viewRadius},{"unfinished",s.visible.gaps.size()}});
  report["latency"]={{"request",latencyJson(worldSession->requestLatency)},{"sameChunkWait",latencyJson(worldSession->gateLatency)},{"calculatorQueue",latencyJson(worldSession->queueLatency)},{"compute",latencyJson(worldSession->computeLatency)},{"derivedCacheRead",latencyJson(worldSession->cacheReadLatency)},{"fill",latencyJson(worldSession->fillLatency)},{"observedReady",latencyJson(worldSession->readyLatency)},{"tickInterval",latencyJson(worldSession->tickGapLatency)}};
  report["stageObservation"]={{"pollEveryTicks",10},{"oldestPendingMs",oldestPendingMs},{"detached",observedDetached},{"coalesced",observedCoalesced},{"dropped",observationDrops.load()},{"networkSendMeasured",false},{"note","State residence is sampled wall time; skipped states have no sample, not zero CPU time"}};

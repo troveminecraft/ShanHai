@@ -13,7 +13,7 @@ struct PlayerStream {
  int cx=100000,cz=100000,ax=100000,az=100000;
  std::unique_ptr<ChunkViewSource> here,ahead;
  struct Patch {int x=0,z=0;double started=0;std::unique_ptr<ChunkViewSource> view;};
- std::array<Patch,1> patches;
+ std::array<Patch,terrain_runtime::RepairSlots> patches;
  uint64_t progress=0;double nextProgressScan=0;
  terrain_runtime::ViewGapRecovery visible;
  int viewRadius=0;double nextViewScan=0,nextGapResend=0;bool gapResendPending=false;
@@ -74,6 +74,8 @@ void updatePlayerStreaming(Level& level){
   };
   if(!s.here||cx!=s.cx||cz!=s.cz){s.arrival.readySince=-1;move(s.here,cx,cz);s.cx=cx;s.cz=cz;}
   bool ready=arrivalReady(*s.here,cx,cz);needsLaunch|=!ready;
+  for(auto&patch:s.patches)if(patch.view&&(seconds-patch.started>=45||
+     std::max(std::abs(patch.x-cx),std::abs(patch.z-cz))>terrain_runtime::recoveryViewRadius(int(player.getChunkRadius()))))patch.view.reset();
   // Track the entire dependency halo, not just the final central state. A
   // stationary TerrainGenerated chunk may be waiting on progressing neighbours.
   if(!ready&&seconds>=s.nextProgressScan){
@@ -83,10 +85,11 @@ void updatePlayerStreaming(Level& level){
     signature=(signature^uint64_t(c?int(c->getState().load())+1:0))*1099511628211ULL;
    }s.progress=signature;
   }
-  // Scan the client view every two seconds; retain one dependency patch/player.
+  // Scan the actual view, including its outer rings. A fixed radius of 32
+  // left visible holes outside the scan until the player moved close to them.
   // Readiness always comes from BDS; never mark unfinished chunks as Loaded.
-  if(ready&&!tickBusy&&seconds>=s.nextViewScan){
-   s.nextViewScan=seconds+2.;s.viewRadius=std::clamp(int(player.getChunkRadius())-2,2,32);
+  if(ready&&seconds>=s.nextViewScan){
+   s.nextViewScan=seconds+2.;s.viewRadius=terrain_runtime::recoveryViewRadius(int(player.getChunkRadius()));
    int radius=s.viewRadius;s.visible.begin();
    for(int dz=-radius;dz<=radius;++dz)for(int dx=-radius;dx<=radius;++dx){
     if(dx*dx+dz*dz>radius*radius)continue;int x=cx+dx,z=cz+dz;if(!validChunk(x,z))continue;
@@ -94,16 +97,21 @@ void updatePlayerStreaming(Level& level){
    }s.visible.end();
    for(auto&patch:s.patches){
     if(patch.view){
-     bool done=arrivalReady(*patch.view,patch.x,patch.z);
+     bool done=true;
+     for(int z=patch.z-terrain_runtime::RepairCoreRadius;z<=patch.z+terrain_runtime::RepairCoreRadius;++z)
+      for(int x=patch.x-terrain_runtime::RepairCoreRadius;x<=patch.x+terrain_runtime::RepairCoreRadius;++x){
+       auto c=patch.view->getExistingChunk({x,z});done&=c&&c->getState().load()==ChunkState::Loaded;
+      }
      if(done)++viewGapResolved;
-     if(done||seconds-patch.started>=20||std::max(std::abs(patch.x-cx),std::abs(patch.z-cz))>radius)patch.view.reset();
+     if(done||seconds-patch.started>=45||std::max(std::abs(patch.x-cx),std::abs(patch.z-cz))>radius)patch.view.reset();
     }
-    if(!patch.view&&terrain_runtime::allowSupplementalLoading(ready,worldSession->waitingCalculators.load(),nearPending,tickBusy))if(auto gap=s.visible.next(seconds,cx,cz)){
+    std::vector<std::pair<int,int>> occupied;for(auto const&p:s.patches)if(p.view)occupied.emplace_back(p.x,p.z);
+    if(!patch.view&&terrain_runtime::allowSupplementalLoading(ready,worldSession->waitingCalculators.load(),nearPending,tickBusy))if(auto gap=s.visible.next(seconds,cx,cz,occupied)){
      patch.x=gap->x;patch.z=gap->z;patch.started=seconds;s.visible.requested(*gap,seconds);
      patch.view=std::make_unique<ChunkViewSource>(dim->getChunkSource(),ChunkSource::LoadMode::Deferred);
-     // BDS decoration/light dependencies need the full eight-chunk halo,
-     // just like the existing arrival view. A radius-four patch can stall.
-     patch.view->move(BlockPos{(patch.x-8)*16,0,(patch.z-8)*16},BlockPos{(patch.x+9)*16-1,0,(patch.z+9)*16-1},false,ChunkSourceViewGenerateMode::GenerateAll,{},nullptr);++viewGapRepairs;
+     // Keep eight dependency rings OUTSIDE the entire 5x5 repaired core.
+     constexpr int halo=terrain_runtime::RepairDependencyRadius;
+     patch.view->move(BlockPos{(patch.x-halo)*16,0,(patch.z-halo)*16},BlockPos{(patch.x+halo+1)*16-1,0,(patch.z+halo+1)*16-1},false,ChunkSourceViewGenerateMode::GenerateAll,{},nullptr);++viewGapRepairs;
     }
    }
    // Native publication sends newly completed chunks. Do not resend the entire
@@ -122,11 +130,12 @@ void updatePlayerStreaming(Level& level){
    default:break;
   }
   if(!unboundedWorld){ax=std::clamp(ax,-Half,Half-1);az=std::clamp(az,-Half,Half-1);}
-  if(terrain_runtime::allowSupplementalLoading(ready,worldSession->waitingCalculators.load(),nearPending,tickBusy)&&!s.patches[0].view&&motion.allowAhead&&std::max(std::abs(ax-cx),std::abs(az-cz))>=3){
+  if(terrain_runtime::allowSupplementalLoading(ready,worldSession->waitingCalculators.load(),nearPending,tickBusy)&&!s.patches[0].view&&!s.patches[1].view&&motion.allowAhead&&std::max(std::abs(ax-cx),std::abs(az-cz))>=3){
    if(!s.ahead||std::max(std::abs(ax-s.ax),std::abs(az-s.az))>=2){move(s.ahead,ax,az);s.ax=ax;s.az=az;}
   }else s.ahead.reset();
-  if(s.patches[0].view&&!next->empty()){
-   auto& f=next->back();f.repair=true;f.repairX=s.patches[0].x;f.repairZ=s.patches[0].z;
+  if(!next->empty()){
+   auto& f=next->back();f.repair=bool(s.patches[0].view);f.repairX=s.patches[0].x;f.repairZ=s.patches[0].z;
+   f.repair2=bool(s.patches[1].view);f.repair2X=s.patches[1].x;f.repair2Z=s.patches[1].z;
   }
   return true;
  });
