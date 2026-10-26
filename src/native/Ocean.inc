@@ -19,7 +19,7 @@ KARMA_NOINLINE double seaShoreNode(int gx,int gz){return seaShoreNodes.get(key2(
 });}
 
 KARMA_NOINLINE void shallowSeaShore(Surface&s,int x,int z){
- if(!erodedSeaShores||!oceanEnabled||s.height<seaLevelValue+1||s.height>96||s.water>=s.height
+ if(!erodedSeaShores||!oceanEnabled||s.height<seaLevelValue+1||s.height>(elevationVariants?132:96)||s.water>=s.height
     ||s.lake||s.river||s.riverBankWater>-32768||s.riverDeposit||s.fluvialType
     ||s.stone>.01||s.volcanic>0||s.barren>0||s.glacier>0||s.superGlacier>0
     ||s.iceGround>=0||s.wetland>0||s.scarp>0||s.cliffLow>-32768||s.aridType)return;

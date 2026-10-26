@@ -1,3 +1,17 @@
+## 0.2.0 — basins, altitude variants and snowy landscapes
+
+- New worlds use sea level **Y100**. Land rises with a continuous profile while the existing peak range and **Y-64..511** building limits remain.
+- Inland basins have **Y60–100** floors, surrounding drainage divides and independent local water levels. Low, middle and high altitude variants preserve their parent landscape; the transition bands overlap instead of forming height steps. Plateaus remain above Y150.
+- Added small, medium and large rifts with curved axes, asymmetric sides, tapered ends and solid floors.
+- Every parent biome can receive a snow skin. Glaciers have a fully snowy collar extending about 32 chunks beyond their edge, fading over the next 32 chunks. Hot volcanic cores stay clear; cold outskirts can retain snow.
+- Broadened ice-spire roots and reduced excessive lean and height. Ice-body geometry no longer follows the patchy surface-material selector.
+- Volcanically coated rock touching coastal water can form irregular obsidian patches.
+- Visible chunk recovery now includes its dependency halo in loading priority. A stalled request can retry twice with backoff; immediate player surroundings still come first.
+
+Use a new world to experience the new generation. Existing supported recipes keep their original rules. This is a **test release awaiting gameplay acceptance**; no server-to-client loading-speed percentage is claimed.
+
+新世界海面 Y100、内陆盆地 Y60～100、连续海拔变种、三档裂谷、各群系覆雪和冰川外围雪带；改善冰尖峰根部与倾斜，火山海岸增加黑曜石接触带。可见区块恢复加入依赖优先级和有间隔的有限重试。游戏内验收仍待用户完成。
+
 ## 0.1.19 — kernel and world-session foundations
 
 - BDS, Windows LL and the packaged CLI now link the same SDK-free terrain library. The library owns immutable recipes and hides the Engine/Field implementation behind a facade.

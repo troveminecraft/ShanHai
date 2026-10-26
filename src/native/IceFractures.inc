@@ -23,7 +23,7 @@ KARMA_NOINLINE std::array<IceRiftColumn,256> glacierBody(int x0,int z0,std::vect
  auto snowSites=snowRifts?riftNeighborhood(x0-32768,z0-32768):std::array<SnowRift,9>{};
  for(int i=0;i<256;++i){auto const&s=surfaces[i];
   // Keep all pre-existing water routes, wet ground and protected landforms.
-  if((gradualIceEcotone&&s.iceGround!=143)||s.superGlacier<=(continuousGlacierBodies?.02:.35)||s.glacier<(continuousGlacierBodies?.02:.45)||s.kind||s.river||s.lake||s.fluvialType||s.wetland>.01||s.water>=s.height||s.scarp>.01||s.cliffLow!=-32768)continue;
+  if((gradualIceEcotone&&!field.elevationVariantsEnabled()&&s.iceGround!=143)||s.superGlacier<=(continuousGlacierBodies?.02:.35)||s.glacier<(continuousGlacierBodies?.02:.45)||s.kind||s.river||s.lake||s.fluvialType||s.wetland>.01||s.water>=s.height||s.scarp>.01||s.cliffLow!=-32768)continue;
   double X=x0+i%16-32768,Z=z0+i/16-32768;
   double n=fractureNoise.at(X/110.,Z/110.),m=fractureNoise.at(X/110.+37.,Z/110.-61.);
   double x=X+9*n,z=Z+9*m;
@@ -37,6 +37,7 @@ KARMA_NOINLINE std::array<IceRiftColumn,256> glacierBody(int x0,int z0,std::vect
   }
   double edge=snowRifts?100.:.5*(std::sqrt(second)-std::sqrt(first));
   double fade=continuousGlacierBodies?s.superGlacier:smooth(.35,.75,s.superGlacier);
+  if(field.elevationVariantsEnabled())fade*=smooth(.20,.72,s.glacier);
   if(glacierEcologyEnabled)fade*=s.glacier>=.65?1.:std::max(0.,(.65/.47)*(s.glacier-.18)/std::max(.001,s.glacier));
   double width=1.3+.5*(n+1);
   double split=1-smooth(width,width+5.,edge);

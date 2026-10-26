@@ -1,0 +1,20 @@
+KARMA_NOINLINE void variantSnowCover(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>const&surfaces){
+ if(!field.elevationVariantsEnabled())return;
+ for(int i=0;i<256;++i){auto const&s=surfaces[i];if(s.snowCover<=0)continue;
+  int x=x0+i%16,z=z0+i/16;double patch=.5+.45*fractureNoise.at(x/33.,z/33.);
+  if(s.snowCover<patch)continue;auto col=raw.data()+i*Height;
+  // A thin frozen water surface is still part of the ocean/river variant.
+  if(s.water>s.height&&s.water<Height-65&&col[s.water+64]==8){col[s.water+64]=9;continue;}
+  int ceiling=std::min(Height-66,std::max({s.height+190,s.water,s.lava}));
+  for(int y=ceiling;y>=s.height&&y>=-60;--y){int b=col[y+64];
+   if(b==0)continue;
+   if(b==8||b==43||b==126||b==145)break;
+   // Only solid terrain and leaves can support snow. Ignore flowers/grass;
+   // they remain in sheltered pockets instead of floating snow on top.
+   bool support=b==2||b==3||b==4||b==5||b==6||b==7||b==9||b==11||b==13||b==15||b==17||b==66||b==80||b==20||b==23||b==33||b==42||b==48||b==85||b==143||b==144||b==168||
+                (b>=149&&b<=178);
+   if(support&&col[y+65]==0)col[y+65]=146;
+   if(support)break;
+  }
+ }
+}

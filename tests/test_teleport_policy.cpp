@@ -26,16 +26,16 @@ int main() {
     for (int g = 0; g < int(structure_test::Groups.size()); ++g)
         for (int i = 0; i < structure_test::Groups[g].quota; ++i) {
             int id = structure_test::firstId(g) + i;
-            auto d = destination(id, 32);
+            auto d = destination(id, 40);
             assert(d && !d->biome && d->group == g && d->point == i);
             assert(ids.insert(id).second);
         }
-    for (int i = 0; i < 32; ++i) {
-        auto d = destination(101 + i, 32);
+    for (int i = 0; i < 40; ++i) {
+        auto d = destination(101 + i, 40);
         assert(d && d->biome && d->group == i && d->point == 0);
         assert(ids.insert(101 + i).second);
     }
-    assert(ids.size() == 77);
+    assert(ids.size() == 85);
     for (int i : {INT_MIN, -1, 0, 46, 100, 133, INT_MAX}) assert(!destination(i, 32));
     auto message = joinMessage();
     assert(message.find("back")==std::string::npos && message.find("[模式]")!=std::string::npos);
@@ -43,9 +43,9 @@ int main() {
     for (size_t i = message.find('\n'); i != std::string::npos; i = message.find('\n', i + 1))
         assert(message.compare(i + 1, std::string("§9").size(), "§9") == 0);
     for (auto const& u : updates) {
-        assert(destination(u.id, 32));
+        assert(destination(u.id, 40));
         assert(message.find("[" + std::to_string(u.id) + "] " + u.name) != std::string::npos);
         assert(message.find(u.content) != std::string::npos);
     }
-    std::cout << "77 stable destinations; safe above-summit targets for both heights; modes and blue updates verified\n";
+    std::cout << "85 stable destinations; safe above-summit targets for both heights; modes and blue updates verified\n";
 }

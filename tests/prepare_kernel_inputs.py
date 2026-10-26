@@ -14,6 +14,7 @@ def prepare(output):
               timeout=120,stage='offline fixture')
   data=json.loads(path.read_bytes());data['seedManifest'].pop('giantCandidates')
   # Use seeded landmark defaults: this fixture tests the actual kernel, not spawn selection.
+  valley=data['config']['stoneForest']['valleyY']
   finish_recipe(data)
   # Preserve legacy fixtures; expanded recipes have separate height/water tests.
   data['config'].update(seaLevel=31,maxY=319)
@@ -24,7 +25,8 @@ def prepare(output):
   data['config'].pop('riverBankSurvey',None)
   data['config'].pop('mountainEcology',None)
   data['config'].pop('regionalPlateaus',None)
-  for key in ('landscapeRevision','volcanoRevision','surfaceMoss','villageSpacing'):data['config'].pop(key,None)
+  for key in ('landscapeRevision','elevationRevision','volcanoRevision','surfaceMoss','villageSpacing'):data['config'].pop(key,None)
+  data['config']['stoneForest']['valleyY']=valley
   data['config']['cave'].pop('raisedCaveHeight',None)
   data['config']['cave'].pop('highMountainUnderground',None)
   data['regionalGeneration']['algorithm']='regional-drainage-v2'

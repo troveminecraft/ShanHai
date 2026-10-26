@@ -63,7 +63,7 @@ bool finalOreAir(Surface const&s,int wx,int y,int wz){
  return false;
 }
 KARMA_NOINLINE void cleanupSnowSupports(std::vector<uint16_t>&raw,std::array<Surface,256>const&surfaces){
- for(int i=0;i<256;++i){if(surfaces[i].glacier<.30)continue;auto col=raw.data()+i*Height;
+ for(int i=0;i<256;++i){if(surfaces[i].glacier<.30&&surfaces[i].snowCover<=0)continue;auto col=raw.data()+i*Height;
   for(int y=1;y<Height;++y)if(col[y]>=146&&col[y]<=148){int b=col[y-1];
    if(b==0||b==8||b==43||b==126||b==145)col[y]=0;
   }

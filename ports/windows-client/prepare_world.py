@@ -10,9 +10,9 @@ HEIGHT_PACK_FOLDER = 'shan-hai-build-height'
 
 def validate_new_world_recipe(data):
     config = data.get('config', {})
-    required = dict(generatedMaxYExclusive=512, mountainPeakY=480, seaLevel=64)
+    required = dict(generatedMaxYExclusive=512, mountainPeakY=480, seaLevel=100, elevationRevision=1)
     if any(type(config.get(key)) is not int or config[key] != value for key,value in required.items()):
-        raise ValueError('New worlds require the 512-height, mountain-480, sea-64 recipe; rebuild with tools/build_streaming_seed.py')
+        raise ValueError('New worlds require the 512-height, mountain-480, sea-100 elevation-variant recipe; rebuild with tools/build_streaming_seed.py')
 
 def install_height_pack(world):
     """Only called inside a new, private preparation staging directory."""

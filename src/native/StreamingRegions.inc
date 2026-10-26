@@ -13,7 +13,7 @@ Field& naturalSamplingField(){
 }
 Surface regionalClimateSample(int x,int z){
  auto s=naturalSamplingField().base(x,z);s.height=int(std::floor(desertHeight(x,z,s.height)));
- s.water=s.height<seaLevelValue?seaLevelValue:-32768;desertClimate(s,x,z);return s;
+ if(!s.closedBasin)s.water=s.height<seaLevelValue?seaLevelValue:-32768;desertClimate(s,x,z);return s;
 }
 struct DesertRegionPlan{bool valid;double x,z,rx,rz;};
 Cache<uint64_t,DesertRegionPlan> desertPlans{64};
@@ -25,10 +25,10 @@ double streamingDesertWeight(double wx,double wz){
   auto plan=desertPlans.get(key2(a,b),[&]{auto saved=regional::get(streamingIdentity,"desert",a,b,[&]{
    double cx=(a+.40+.20*hash01(a,b,terrainSeed^63201))*grid,cz=(b+.40+.20*hash01(a,b,terrainSeed^63203))*grid;
    bool valid=hash01(a,b,terrainSeed^63205)<.45;auto center=naturalSamplingField().base(roundJS(cx)+32768,roundJS(cz)+32768);
-   valid&=center.T>.48&&center.H<.66&&center.height>=44&&center.height<=140;
+   valid&=(elevationVariants?naturalSamplingField().surfaceTemperature(center,roundJS(cx)+32768,roundJS(cz)+32768):center.T)>.48&&center.H<.66&&center.height>=(elevationVariants?seaLevelValue+8:44)&&center.height<=(elevationVariants?400:140);
    // Keep an inland margin around a >100-chunk core. An invalid site does
    // not generate a small substitute desert.
-   for(int zz=-3;zz<=3&&valid;++zz)for(int xx=-3;xx<=3&&valid;++xx){auto s=naturalSamplingField().base(roundJS(cx+xx*880)+32768,roundJS(cz+zz*880)+32768);valid&=s.height>36&&s.stone<=.001&&s.volcanic<=0;}
+   for(int zz=-3;zz<=3&&valid;++zz)for(int xx=-3;xx<=3&&valid;++xx){auto s=naturalSamplingField().base(roundJS(cx+xx*880)+32768,roundJS(cz+zz*880)+32768);valid&=s.height>(elevationVariants?seaLevelValue+4:36)&&s.stone<=.001&&s.volcanic<=0;}
    return J{{"valid",valid},{"x",cx},{"z",cz},{"rx",1900.},{"rz",1850.}};
   });return DesertRegionPlan{saved->at("valid"),saved->at("x"),saved->at("z"),saved->at("rx"),saved->at("rz")};});
   if(!plan.valid)continue;
@@ -42,7 +42,7 @@ std::shared_ptr<J const> regionalWaterPlan(int a,int b){
  auto algorithm=data.at("regionalGeneration").value("algorithm",std::string{});
  bool curved=algorithm!="regional-drainage-v1";
  return regional::get(streamingIdentity,"water",a,b,[&]{return regional::drainage(a,b,terrainSeed,[&](int x,int z){
-  auto s=regionalClimateSample(x+32768,z+32768);return regional::Ground{s.height,s.H,s.T,s.stone,s.volcanic};
+  auto s=regionalClimateSample(x+32768,z+32768);return regional::Ground{s.height,s.H,s.T,s.stone,s.volcanic,s.closedBasin,s.water};
  },curved,seaLevelValue,generatedMaxYExclusive-1,algorithm=="regional-drainage-v3",C.value("riverBankSurvey",0)>=1);});
 }
 void ensureStreamingRegions(int wx,int wz){

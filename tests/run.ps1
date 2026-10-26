@@ -29,6 +29,8 @@ try {
 } finally { Pop-Location }
 $bin = Join-Path $build 'windows/x64/release'
 $cases = @(
+    @{Name='elevation_profile'; Args=@()},
+    @{Name='elevation_variants'; Args=@((Join-Path $output 'inputs/positive.json'))},
     @{Name='world_tasks'; Args=@()},
     @{Name='terrain_session'; Args=@((Join-Path $output 'inputs/positive.json'),(Join-Path $output 'terrain-session'))},
     @{Name='kernel_facade'; Args=@((Join-Path $output 'inputs/positive.json'))},

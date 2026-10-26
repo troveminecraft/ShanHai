@@ -20,7 +20,8 @@ inline void validatePaletteContract(nlohmann::json const& metadata) {
     for (auto key : {"palette", "biomeNames"}) {
         auto const& expected = paletteContract().at(key);
         auto const& actual = metadata.at(key);
-        size_t size=legacy?(std::string(key)=="palette"?168:25):expected.size();
+        bool previous=!version.empty()&&version<"karma-terrain-2.208.0-native-agent-a";
+        size_t size=legacy?(std::string(key)=="palette"?168:25):previous?(std::string(key)=="palette"?178:29):expected.size();
         if (!actual.is_array() || actual.size() != size)
             throw std::runtime_error(std::string("Terrain contract size mismatch: ") + key);
         for (size_t i = 0; i < size; ++i)

@@ -59,15 +59,17 @@ inline std::optional<Destination> destination(int id, int biomeCount) {
 }
 struct Update { int id; char const* name; char const* content; };
 inline constexpr Update updates[]{
-    {101, "海洋", "新世界海平面 Y64，陆地整体抬升"},
-    {114, "山地", "连续山麓、五档海拔和更高覆雪带"},
-    {132, "高原", "保留宽阔缓起伏中间地带"},
-    {125, "火山", "火山口以小中型为主，岩浆贴近口缘；地下岩壁偏转、起伏，保留连通岩浆和基岩封底"},
-    {109, "森林", "地表苔藓；繁茂洞穴上方有概率出现杜鹃"}
+    {101, "海洋", "新世界海平面 Y100，陆地继续抬升"},
+    {133, "内陆盆地", "Y60～100 盆底，封闭陆地围边与独立积水"},
+    {132, "高原", "Y150 以上高原，低中高海拔连续过渡"},
+    {134, "小型裂谷", "小、中、大三档裂谷，编号 134～136"},
+    {124, "超级冰川", "外围 32～64 区块覆雪过渡，冰尖峰根部及倾斜调整"},
+    {137, "覆雪变种", "保留母群系地表；覆雪森林 137、覆雪沙漠 138"},
+    {125, "火山", "海水接触岸带可形成黑曜石"}
 
 };
 inline std::string joinMessage() {
-    std::string result = "§9[山&海] 最近地形更新（0.1.18，待游戏内验收）";
+    std::string result = "§9[山&海] 最近地形更新（0.2.0，待游戏内验收）";
     for (auto const& u : updates)
         result += "\n§9[" + std::to_string(u.id) + "] " + u.name + "：" + u.content;
     return result + "\n§9/karma 查看全部群系/结构；/karma tp <序号> [模式]（1 创造 / 0 观察者；省略保持当前模式）。§r";

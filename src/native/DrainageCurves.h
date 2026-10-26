@@ -75,7 +75,8 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
  auto groundAt=[&](int x,int z){auto key=key2(x,z);auto it=corridor.find(key);
   if(it!=corridor.end())return it->second;auto s=sample(x,z);corridor.emplace(key,s);return s;};
  auto receivingWater=[&](int x,int z,int height,double receiver){
-  if(receiver==seaLevel&&height<seaLevel)return true;
+  auto s=groundAt(x,z);
+  if(s.closedBasin){if(s.water>=receiver&&height<s.water)return true;}else if(receiver==seaLevel&&height<seaLevel)return true;
   auto it=lakeRows.find(z);if(it==lakeRows.end())return false;
   for(auto const&r:it->second)if(x>=r[0]&&x<=r[1]&&r[2]>=receiver)return true;
   return false;
@@ -101,7 +102,7 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
   std::vector<int> path;int end=source;
   while(parent[end]>=0&&path.size()<96&&(!network.contains(end)||network.at(end).water>maximumReceiver)){path.push_back(end);end=parent[end];}
   bool tributary=network.contains(end);
-  if(path.size()<3||path.size()>=96||(!tributary&&(sink[end]<seaLevel||independent>=6)))break;
+  if(path.size()<3||path.size()>=96||(!tributary&&(sink[end]<0||independent>=6)))break;
   path.push_back(end);double receiver=tributary?network.at(end).water:sink[end];
   bool main=!tributary&&distance[source]>1200&&flow[source]>=12;
   double width=main?8.:ground[source].height>=105?1.8:2.6;

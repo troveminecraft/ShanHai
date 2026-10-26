@@ -12,7 +12,7 @@ SmallStoneRegion smallStoneRegion(int gx,int gz){return smallStoneRegions.get(ke
  r.z=std::floor((gz+.30+.40*hash01(gx,gz,terrainSeed^83107))*grid);
  // Immutable dry upland only. No querying generated chunks or voxel noise.
  r.floor=uncliff(r.x+32768,r.z+32768);
- r.valid=r.floor>42&&r.floor<140;return r;
+ r.valid=r.floor>(elevationVariants?seaLevelValue+8:42)&&r.floor<(elevationVariants?350:140);return r;
 });}
 bool nearSmallStoneForest(double x,double z,double extra){
  if(!rareStoneForests)return false;auto const&q=C.at("stoneForest");double grid=num(q,"smallRegionGrid");

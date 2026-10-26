@@ -59,6 +59,7 @@ public:
     J regionalStatistics() const;
     J inspectSmallPools(int lo, int hi);
     J inspectIceRegions();
+    J inspectElevationForms(int lo,int hi);
     J bakeCavernPlan();
     J inspectCavernGroups(int lo = terrain_bounds::MinBlock, int hi = terrain_bounds::MaxBlock, bool geometry = false);
     J inspectFiniteCaves(int lo = terrain_bounds::MinBlock, int hi = terrain_bounds::MaxBlock);

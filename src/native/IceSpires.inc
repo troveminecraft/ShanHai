@@ -6,14 +6,15 @@ IceSpireDescriptor iceSpireDescriptor(int gx,int gz,int X,int Z){return iceSpire
   auto s=field.surface(X+32768,Z+32768,false);bool large=s.superGlacier>.65;
   if(s.glacier<.65||s.river||s.lake||s.water>=s.height||s.scarp>.01||s.cliffLow!=-32768||r(51305)>(large?.70:.35))return out;
   if(snowRifts&&(closedIceRifts?riftSample(X,Z,riftNeighborhood(X,Z),false):riftAt(X,Z)).cut>.12)return out;
-  double rx=large?11+9*r(51307):3+3*r(51307),rz=rx*(.42+.35*r(51309));
-  int height=std::min(large?88+int(72*r(51311)):16+int(27*r(51311)),Height-74-s.height);
+  bool grounded=field.elevationVariantsEnabled();
+  double rx=large?(grounded?24+14*r(51307):11+9*r(51307)):3+3*r(51307),rz=rx*(.42+.35*r(51309));
+  int height=std::min(large?(grounded?48+int(40*r(51311)):88+int(72*r(51311))):16+int(27*r(51311)),Height-74-s.height);
   if(height<=0)return out;
   double phase=r(51313)*6.283185307179586;
   std::array<double,7> vx{},vz{},nx{},nz{},distance{};
   for(int k=0;k<7;++k){double a=phase+6.283185307179586*k/7,j=.84+.16*r(51320+k);vx[k]=rx*std::cos(a)*j;vz[k]=rz*std::sin(a)*j;}
   // Legacy apex stays inside the base; slanted profiles move it with height.
-  double lean=height*(.40+.30*r(51341));
+  double lean=grounded?std::min(rx,rz)*(.12+.12*r(51341)):height*(.40+.30*r(51341));
   double ax=slantedGlaciers?lean*std::cos(phase+.7):.48*rx*std::cos(phase+.7),az=slantedGlaciers?lean*std::sin(phase+.7):.48*rz*std::sin(phase+.7);
   for(int k=0;k<7;++k){int next=(k+1)%7;double dx=vx[next]-vx[k],dz=vz[next]-vz[k],len=std::hypot(dx,dz);nx[k]=dz/len;nz[k]=-dx/len;distance[k]=nx[k]*vx[k]+nz[k]*vz[k];}
   bool valid=true;
@@ -32,10 +33,10 @@ KARMA_NOINLINE void refinedIceSpires(int x0,int z0,std::vector<uint16_t>&raw,std
  for(int gx=int(std::floor((x0-32768-halo)/double(grid)));gx<=int(std::floor((x0-32768+15+halo)/double(grid)));++gx){
   auto r=[&](int salt){return hash01(gx,gz,terrainSeed^salt);};
   int X=int(std::floor((gx+.18+.64*r(51301))*grid)),Z=int(std::floor((gz+.18+.64*r(51303))*grid));
-  if(slantedGlaciers){double h=88+int(72*r(51311)),lean=h*(.40+.30*r(51341)),phase=r(51313)*6.283185307179586+.7;
+  if(slantedGlaciers&&!field.elevationVariantsEnabled()){double h=88+int(72*r(51311)),lean=h*(.40+.30*r(51341)),phase=r(51313)*6.283185307179586+.7;
    double ax=lean*std::cos(phase),az=lean*std::sin(phase);
    if(X+std::max(22.,ax+2)<x0-32768||X+std::min(-22.,ax-2)>x0+15-32768||Z+std::max(22.,az+2)<z0-32768||Z+std::min(-22.,az-2)>z0+15-32768)continue;
-  }else if(X+27<x0-32768||X-27>x0+15-32768||Z+27<z0-32768||Z-27>z0+15-32768)continue;
+  }else {int reach=field.elevationVariantsEnabled()?40:27;if(X+reach<x0-32768||X-reach>x0+15-32768||Z+reach<z0-32768||Z-reach>z0+15-32768)continue;}
   auto const d=iceSpireDescriptor(gx,gz,X,Z);if(!d.valid)continue;
   auto const&nx=d.nx;auto const&nz=d.nz;auto const&distance=d.distance;
   int height=d.height,base=d.base;double ax=d.ax,az=d.az;
@@ -47,7 +48,7 @@ KARMA_NOINLINE void refinedIceSpires(int x0,int z0,std::vector<uint16_t>&raw,std
    std::array<double,N> p{};bool inside=true,possible=true;
    for(int k=0;k<N;++k){p[k]=nx[k]*dx+nz[k]*dz;if(p[k]>distance[k])inside=false;if(p[k]>std::max(distance[k],q[k])+1.2)possible=false;}
    auto col=raw.data()+i*Height;
-   if(slantedGlaciers){
+   if(slantedGlaciers&&!field.elevationVariantsEnabled()){
     if(!possible)continue;
     // Sweep the whole cross-section sideways with height. Clip BOTH ends
     // of each column interval: filling down to the ground would straighten it.

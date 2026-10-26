@@ -113,15 +113,15 @@ double regionalHeight(double wx,double wz,double height){
 }
 void finalTerrainClimate(Surface&s,int wx,int wz,double temperatureNoise,double erosionValue){
  if(!regionalEnabled)return;
- s.continuous=s.e=(s.height-seaLevelValue)/123.;
+ s.continuous=s.e=s.closedBasin?.12:(s.height-seaLevelValue)/123.;
  auto const&q=C.at("transition");auto const&r=C.at("regionalTerrain");
  double high=smooth(num(r,"mountainElevation")-num(q,"domHeightWidth"),num(r,"mountainElevation")+num(q,"domHeightWidth"),s.height);
  s.plateau=high*smooth(.65-num(q,"domErosionWidth"),.65+num(q,"domErosionWidth"),erosionValue);s.mount=high-s.plateau;
  if(regionalPlateaus){
   auto q=regionalSample(wx,wz);
-  s.upland=regionalPlateauWeight(q.lowland,q.selector)*(1-q.protect)*smooth(150,185,s.height)*(1-smooth(290,330,s.height));
+  s.upland=regionalPlateauWeight(q.lowland,q.selector)*(1-q.protect)*smooth(150,185,s.height)*(1-smooth(elevationVariants?330:290,elevationVariants?380:330,s.height));
   s.mount*=1-.75*s.upland;s.plateau*=1-s.upland;
  }
- s.basin=1-smooth(26,46,landscapeAltitude(s.height));
+ s.basin=elevationVariants?s.basinWeight:1-smooth(26,46,landscapeAltitude(s.height));
  s.T=(1-s.stone)*clamp(.62+temperatureNoise*.45-std::max(0.,landscapeAltitude(s.height)-48.)*.004,0,1)+s.stone*.67;
 }

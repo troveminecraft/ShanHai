@@ -70,6 +70,7 @@ void Field::materialColumn(Surface const& s, int x, int z, int top, uint16_t* co
 J Field::inspectMushroomIsland(int gx, int gz)  { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->inspectMushroomIsland(gx, gz); }
 J Field::regionalStatistics() const { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->regionalStatistics(); }
 J Field::inspectSmallPools(int lo, int hi)  { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->inspectSmallPools(lo, hi); }
+J Field::inspectElevationForms(int lo,int hi) { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->inspectElevationForms(lo,hi); }
 J Field::inspectIceRegions()  { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->inspectIceRegions(); }
 J Field::bakeCavernPlan()  { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->bakeCavernPlan(); }
 J Field::inspectCavernGroups(int lo, int hi, bool geometry)  { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->inspectCavernGroups(lo, hi, geometry); }

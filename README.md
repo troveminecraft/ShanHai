@@ -4,7 +4,7 @@
 
 English · [简体中文](README.zh-CN.md)
 
-[Download 0.1.19](https://github.com/troveminecraft/ShanHai/releases/tag/v0.1.19) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
+[Download 0.2.0](https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.0) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
 
 ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows, powered by LeviLamina. Follow rivers through mountain ranges, rolling highlands, forests, deserts and coastlines; explore caves, glaciers and volcanic terrain. Vanilla structures are placed according to the surrounding landscape.
 
@@ -16,17 +16,17 @@ ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows,
 
 ## Install
 
-1. Download [ShanHai-Windows-0.1.19.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.1.19/ShanHai-Windows-0.1.19.zip).
+1. Download [ShanHai-Windows-0.2.0.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.0/ShanHai-Windows-0.2.0.zip).
 2. Save and fully close Minecraft. Import the ZIP into the matching instance through LeviLauncher’s mod manager.
 3. Enable the mod and create a new **normal** world with your chosen seed. Do not select a flat world.
 
 Use the release ZIP, rather than GitHub’s automatically generated source archive. Python and Node.js runtime dependencies are included; copying only the DLL is insufficient. The internal mod ID remains `karma-worldgen-client` for configuration and save compatibility.
 
-## Version 0.1.19
+## Version 0.2.0
 
-This version separates the shared terrain library and Windows host adapters, gives caches and calculators explicit world ownership, and fixes CI artifact selection. Terrain generation retains the 0.1.18 rules; no loading-speed improvement is claimed. New worlds use sea level **Y64**, raised land, smoother foothills, mountain height bands and a higher snow belt. The build range is **Y-64 through Y511**. Keep the world’s bundled height behavior pack enabled.
+New worlds use sea level **Y100**, raised land and inland basins with **Y60–100** floors. Explore low, middle and high altitude variants, broad plateaus and three sizes of rifts. Altitude and snow transitions are continuous; the build range remains **Y-64 through Y511**. Keep the world's bundled height behavior pack enabled.
 
-Volcanoes usually have small or medium craters, with occasional larger examples. Lava lies closer to the rim; connected underground magma bends and expands asymmetrically above an intact bedrock floor. Deepslate, tuff and the centre-weighted diamond bonus remain. Surface moss and azaleas above lush caves add vegetation; village candidates are more frequent. Loading recovery distinguishes progressing dependencies from stalled generation.
+Snowy landscapes retain the parent biome's ground and vegetation. A broad snow belt surrounds super glaciers; ice spires have wider roots and less extreme lean. Coastal volcanic rock can form obsidian where it meets water. Loading recovery now prioritizes the dependencies of visible missing chunks and retries stalled requests within a fixed limit. See [elevation and climate](docs/ELEVATION.md) for the generation rules.
 
 **This is a test release awaiting gameplay acceptance.** Offline generation tests and successful builds do not establish in-game correctness. Please report the version, world seed, coordinates, screenshots and reproduction steps when you encounter an issue.
 

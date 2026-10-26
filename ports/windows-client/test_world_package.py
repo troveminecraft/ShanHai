@@ -85,13 +85,13 @@ class WorldPackageTests(unittest.TestCase):
         self.data['config']=dict(generatedMaxYExclusive=512);self.save_native_data();self.save_metadata()
         with self.assertRaisesRegex(ValueError,'Native recipe height'):check(self.w)
     def test_new_preparation_requires_current_recipe(self):
-        config=dict(generatedMaxYExclusive=512,mountainPeakY=480,seaLevel=64)
+        config=dict(generatedMaxYExclusive=512,mountainPeakY=480,seaLevel=100,elevationRevision=1)
         validate_new_world_recipe(dict(config=config))
         for key in config:
             invalid=config.copy();invalid.pop(key)
             with self.subTest(missing=key),self.assertRaisesRegex(ValueError,'build_streaming_seed'):
                 validate_new_world_recipe(dict(config=invalid))
-        for key,bad in [('generatedMaxYExclusive',320),('generatedMaxYExclusive',512.0),('mountainPeakY',0),('seaLevel',31)]:
+        for key,bad in [('generatedMaxYExclusive',320),('generatedMaxYExclusive',512.0),('mountainPeakY',0),('seaLevel',31),('seaLevel',64),('elevationRevision',0)]:
             invalid=config.copy();invalid[key]=bad
             with self.subTest(field=key,value=bad),self.assertRaisesRegex(ValueError,'build_streaming_seed'):
                 validate_new_world_recipe(dict(config=invalid))

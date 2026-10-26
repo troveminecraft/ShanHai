@@ -5,6 +5,10 @@ int main() {
     using namespace terrain_runtime;
     try {
         validatePaletteContract(paletteContract());
+        auto previous=paletteContract();previous["version"]="karma-terrain-2.207.0-native-agent-a";
+        previous["palette"].erase(previous["palette"].begin()+178,previous["palette"].end());
+        previous["biomeNames"].erase(previous["biomeNames"].begin()+29,previous["biomeNames"].end());
+        validatePaletteContract(previous);
         auto legacy=paletteContract();legacy["version"]="karma-terrain-2.195.0-native-agent-a";
         legacy["palette"].erase(legacy["palette"].begin()+168,legacy["palette"].end());
         legacy["biomeNames"].erase(legacy["biomeNames"].begin()+25,legacy["biomeNames"].end());

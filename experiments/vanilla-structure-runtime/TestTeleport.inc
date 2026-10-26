@@ -30,14 +30,25 @@ constexpr TestBiomeGroup testBiomes[]={
  {"small_stone_forest","小型石峰林",-4},{"giant_forest","巨木森林",-5},
  {"mushroom_island","蘑菇岛",25},{"mesa_bryce","侵蚀恶地",26},
  {"mesa_plateau","恶地高原",27},{"mesa_plateau_stone","繁茂恶地高原",28},
- {"rolling_plateau","高原",-6}
+ {"rolling_plateau","高原",-6},{"inland_basin","内陆盆地",-7},
+ {"small_rift","小型裂谷",-8},{"medium_rift","中型裂谷",-9},{"large_rift","大型裂谷",-10},
+ {"snowy_forest","覆雪森林",-11},{"snowy_desert","覆雪沙漠",-12},
+ {"mid_altitude","中海拔地带",-13},{"high_altitude","高海拔地带",-14}
 };
 template<class S> bool testBiomeMatches(int i,S const&s){
  int b=testBiomes[i].biome;
+ if(b==14&&s.altitudeBand==2&&s.height>=300&&s.water<s.height)return true;
  if(b==11)return test_teleport::desertInterior(s);
  if(b>=0)return s.biome==b||(b==15&&s.biome>=26&&s.biome<=28)||(b==7&&s.biome==8)||(b==6&&s.biome==17)||(b==11&&s.biome==16);
  switch(b){case -1:return s.glacier>.5&&s.superGlacier<.1;case -2:return s.superGlacier>.5;
- case -3:return s.volcanic>.5;case -4:return s.stone>.5;case -5:return s.giant>.5;case -6:return test_teleport::plateauInterior(s);default:return false;}
+ case -3:return s.volcanic>.5;case -4:return s.stone>.5;case -5:return s.giant>.5;case -6:return test_teleport::plateauInterior(s);
+ case -7:return s.closedBasin&&s.basinWeight>.8&&s.height>=60&&s.height<=100;
+ case -8:case -9:case -10:return s.riftSize==-b-7&&s.riftWeight>.45;
+ case -11:return (s.biome==9||s.biome==23)&&s.snowCover>.8;
+ case -12:return s.biome==11&&s.snowCover>.8;
+ case -13:return s.altitudeBand==1&&s.height>=175&&s.water<s.height;
+ case -14:return s.altitudeBand==2&&s.height>=305&&s.water<s.height;
+ default:return false;}
 }
 
 struct StructureTestTeleport {

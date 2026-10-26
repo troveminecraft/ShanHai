@@ -13,7 +13,7 @@
 
 namespace nativegen::regional {
 inline constexpr int Core=2048,Halo=512,Pitch=64,Count=(Core+Halo*2)/Pitch+1;
-struct Ground{int height;double humidity,temperature,stone,volcanic;};
+struct Ground{int height;double humidity,temperature,stone,volcanic;bool closedBasin=false;int water=-32768;};
 template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool curved=false,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,bool confinedBanks=false){
  constexpr int N=Count,Total=N*N;
  int originX=gx*Core-Halo,originZ=gz*Core-Halo;
@@ -23,13 +23,13 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
  for(int i=0;i<Total;++i){auto[x,z]=point(i);ground[i]=sample(x,z);}
  J lakes=J::array(),segments=J::array();
  std::array<double,Total> sink;sink.fill(-1);
- for(int i=0;i<Total;++i)if(ground[i].height<seaLevel&&eligible(ground[i]))sink[i]=seaLevel;
+ for(int i=0;i<Total;++i)if(eligible(ground[i])){auto const&s=ground[i];if(!s.closedBasin&&s.height<seaLevel)sink[i]=seaLevel;else if(s.closedBasin&&s.water>s.height)sink[i]=s.water;}
  // Closed basins are tested against their actual surrounding terrain. A lake
  // owns a small bounded footprint wholly inside its canonical region.
  size_t lakeLimit=curved?4:3;
  for(int z=10;z<N-10&&lakes.size()<lakeLimit;++z)for(int x=10;x<N-10&&lakes.size()<lakeLimit;++x){
   int i=z*N+x;auto const&s=ground[i];auto[X,Z]=point(i);
-  if(s.height<seaLevel+9||s.height>maxSurfaceY-84||s.humidity<.40||!eligible(s)||hash01(X,Z,seed^63101)>.35)continue;
+  if((!s.closedBasin&&s.height<seaLevel+9)||s.height>maxSurfaceY-84||s.humidity<.40||!eligible(s)||hash01(X,Z,seed^63101)>.35)continue;
   bool minimum=true;for(int dz=-1;dz<=1;++dz)for(int dx=-1;dx<=1;++dx)if(dx||dz)minimum&=s.height<ground[(z+dz)*N+x+dx].height;
   if(!minimum)continue;
   bool overlap=false;for(auto const&lake:lakes){double ax=lake.at("center").at(0),az=lake.at("center").at(1);overlap|=std::hypot(X-ax,Z-az)<192;}if(overlap)continue;
@@ -76,7 +76,7 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
  for(int source:sources){if(acceptedSources.size()>=5)break;auto[SX,SZ]=point(source);bool close=false;
   for(auto[x,z]:acceptedSources)close|=std::hypot(double(SX-x),double(SZ-z))<400;if(close)continue;
   std::vector<int> path;int end=source;while(parent[end]>=0&&path.size()<96&&!occupied.contains(end)){path.push_back(end);end=parent[end];}
-  if(path.size()<8||path.size()>=96||occupied.contains(end)||sink[end]<seaLevel)continue;
+  if(path.size()<8||path.size()>=96||occupied.contains(end)||sink[end]<0)continue;
   path.push_back(end);double receiver=sink[end],water=ground[source].height-1,age=0;J route=J::array();bool bad=false;
   bool main=distance[source]>1200&&flow[source]>=12;double width=main?8.:3.;
   std::array<double,5> previous{};bool first=true;

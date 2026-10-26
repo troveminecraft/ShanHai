@@ -205,6 +205,10 @@ void volcanicRelief(Surface&s,double&height,int wx,int wz){
 // Called after bedrock and before generic caves, water or vegetation material.
 int volcanicMaterial(Surface const&s,int x,int y,int z){
  if(s.volcanic<=0)return -1;
+ if(elevationVariants&&s.lavaSeaContact&&s.volcanoHeat<.25&&y<=s.height&&y>=s.height-2){
+  double contact=.5+.65*volcanicNoise.at((x-32768)/19.,(z-32768)/19.);
+  if(contact>.50&&(!s.closedBasin)&&!s.lake)return 178;
+ }
  if(volcanicGeology){
   // Sealed asymmetric magma chamber and a flaring, bent conduit. Both have
   // finite lower bounds; the old constant-radius shaft no longer reaches bedrock.

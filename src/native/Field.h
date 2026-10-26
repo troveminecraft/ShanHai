@@ -6,6 +6,7 @@
 #include "MountainHeight.h"
 #include "PlateauProfile.h"
 #include "EcologyClimate.h"
+#include "ElevationProfile.h"
 #include "CaveNetwork.h"
 #include "FiniteCaves.h"
 #include "CavernGroups.h"
@@ -18,14 +19,16 @@ struct Cliff{bool valid=false;double x=0,z=0,h=0,slope=0,nx=0,nz=0,crest=0;};
 class Field {
  friend struct CompletedBiomesTest;
  friend struct TerrainRevisionTest;
+ friend struct ElevationVariantsTest;
  // Only owners whose conservative influence bounds touch a sample are needed.
  bool localPlanningCulling=false;
  J const&data;J const&C;uint32_t terrainSeed;Density graph,caves;
  int seaLevelValue=C.value("seaLevel",31);
  int generatedMaxYExclusive=C.value("generatedMaxYExclusive",320);
  int mountainPeakY=C.value("mountainPeakY",0);
- bool elevatedLandscape=C.value("landscapeRevision",0)==2;
- double landscapeAltitude(double height)const{return elevatedLandscape?height-24.:height;}
+ bool elevatedLandscape=C.value("landscapeRevision",0)>=2;
+ bool elevationVariants=C.value("elevationRevision",0)==1;
+ double landscapeAltitude(double height)const{return elevationVariants?height-60.:elevatedLandscape?height-24.:height;}
  bool raisedSnowline=C.value("mountainSnowline",0)>=1;
  bool raisedEcology=C.value("mountainEcology",0)>=1;
  std::array<double,576> ecologyAltitudes{};
@@ -55,6 +58,8 @@ class Field {
  #include "StreamingRegions.inc"
  #include "CompletedBiomes.inc"
  #include "BadlandsRegions.inc"
+ #include "ElevationForms.inc"
+ #include "SnowVariants.inc"
  double v0(int level,int x,int z){auto const&q=C.at("relief").at("levels")[level];return rawNodes[level].get(key2(x,z),[&]{return vcont(x*num(q,"pitch"),z*num(q,"pitch"));});}
  ReliefNode node(int level,int x,int z){return nodes[level].get(key2(x,z),[&]{auto const&q=C.at("relief").at("levels")[level];double v=v0(level,x,z),lo=v,hi=v,sum=0;for(int dz=-1;dz<=1;dz++)for(int dx=-1;dx<=1;dx++){if(!dx&&!dz)continue;double a=v0(level,x+dx,z+dz);lo=std::min(lo,a);hi=std::max(hi,a);sum+=a;}double r=hi-lo,p=r>1e-6?(v-lo)/r:.5,w=smooth(0,num(q,"edgeBand"),p)*smooth(0,num(q,"edgeBand"),1-p),cap=std::min(num(q,"cap"),num(q,"reliefCap")*r);return ReliefNode{v,r,p,clamp(-num(q,"gain")*(v-sum/8)*w*smooth(num(q,"reliefLo"),num(q,"reliefHi"),r),-cap,cap)};});}
  double shaped(double x,double z,double v,bool applyRegional=true){auto const&q=C.at("relief");double corr=0,rel=0,pos=.5,regional=v;for(int i=0;i<2;i++){double R=num(q.at("levels")[i],"pitch"),gx=x/R,gz=z/R;int ix=int(std::floor(gx)),iz=int(std::floor(gz));auto a=node(i,ix,iz),b=node(i,ix+1,iz),c=node(i,ix,iz+1),d=node(i,ix+1,iz+1);double u=smooth(0,1,gx-ix),w=smooth(0,1,gz-iz);auto bl=[&](double A,double B,double D,double E){return A*(1-u)*(1-w)+B*u*(1-w)+D*(1-u)*w+E*u*w;};corr+=bl(a.corr,b.corr,c.corr,d.corr);regional=bl(a.v,b.v,c.v,d.v);if(!i){rel=bl(a.relief,b.relief,c.relief,d.relief);pos=bl(a.pos,b.pos,c.pos,d.pos);}}
@@ -72,7 +77,8 @@ class Field {
   result=mix(weight,result,elevatedLandscape?tieredMountainHeight(x,z,result):raisedMountainHeight(result,mountainPeakY));
  }
  result=applyRegional?badlandsHeight(x,z,result):result;
- return result+(elevatedLandscape?24*smooth(0.,40.,result):0);
+ result+=elevatedLandscape?24*smooth(0.,40.,result):0;
+ return elevationVariants?elevation::raise(result):result;
  }
  double uncliff(double x,double z){return shaped(x,z,vcont(x,z));}
  Cliff patch(int gx,int gz){return cliffs.get(key2(gx,gz),[&]{Cliff a;auto const&q=C.at("cliffs");auto const&s=C.at("stoneForest");if(hash01(gx,gz,terrainSeed^int(num(q,"seed")))>=num(q,"chance"))return a;double cx=(gx+.5)*num(q,"grid"),cz=(gz+.5)*num(q,"grid");if(largeStoneForestEnabled()&&std::hypot(cx-32768-num(s,"centerX"),cz-32768-num(s,"centerZ"))<=num(s,"outerRadius")+num(s,"edgeWarp")+num(q,"grid"))return a;for(int dz:{-12,0,12})for(int dx:{-12,0,12}){double x=cx+dx,z=cz+dz,h=uncliff(x,z);if(h<num(q,"minHeight")||h>num(q,"maxHeight"))continue;double ex=(uncliff(x+8,z)-uncliff(x-8,z))/16,ez=(uncliff(x,z+8)-uncliff(x,z-8))/16,sl=std::hypot(ex,ez);if(sl<num(q,"minSlope")||sl>num(q,"maxSlope")||(a.valid&&sl<=a.slope))continue;a={true,x,z,h,sl,ex/sl,ez/sl,0};}if(a.valid)a.crest=std::max(a.h,uncliff(a.x+a.nx*24,a.z+a.nz*24));return a;});}
@@ -119,8 +125,9 @@ class Field {
  v+=s.coast*24*smooth(seaLevelValue-2,seaLevelValue+14,v)*(1-smooth(seaLevelValue+21,seaLevelValue+65,v));
  oceanRelief(s,v,wx,wz);
  volcanicRelief(s,v,wx,wz);
+ elevationRelief(s,v,wx,wz);
  s.height=int(clamp(std::floor(v),-61,generatedMaxYExclusive-1));s.continuous=(v-seaLevelValue)/123;s.e=(s.height-seaLevelValue)/123.;auto const&tr=C.at("transition");double highW=smooth(145-num(tr,"domHeightWidth"),145+num(tr,"domHeightWidth"),s.raw);s.plateau=highW*smooth(.65-num(tr,"domErosionWidth"),.65+num(tr,"domErosionWidth"),er);s.mount=highW-s.plateau;s.basin=1-smooth(67-num(tr,"domHeightWidth"),67+num(tr,"domHeightWidth"),s.raw);
- double temperatureNoise=temp(x,0,z);s.T=(1-s.stone)*clamp(.62+temperatureNoise*.45-std::max(0.,s.raw-85)*.003,0,1)+s.stone*.67;s.H=(1-s.stone)*clamp(.52+humidity(x,0,z)*.45,.05,.95)+s.stone*.72;s.water=s.height<seaLevelValue?seaLevelValue:-32768;s.kind=s.height<seaLevelValue?(s.ridge<.1?1:3):0;waterSurface(s,wx,wz);s.preRiverHeight=s.height;if(drainage){riverRelief(s,wx,wz);junctionBed(s,wx,wz);}finalTerrainClimate(s,wx,wz,temperatureNoise,er);desertClimate(s,wx,wz);return s;
+ double temperatureNoise=temp(x,0,z);s.T=(1-s.stone)*clamp(.62+temperatureNoise*.45-std::max(0.,s.raw-85)*.003,0,1)+s.stone*.67;s.H=(1-s.stone)*clamp(.52+humidity(x,0,z)*.45,.05,.95)+s.stone*.72;s.water=s.closedBasin?s.basinWater:s.height<seaLevelValue?seaLevelValue:-32768;s.kind=!s.closedBasin&&s.height<seaLevelValue?(s.ridge<.1?1:3):0;if(s.basinWater>s.height){s.lake=1;}waterSurface(s,wx,wz);s.preRiverHeight=s.height;if(drainage){riverRelief(s,wx,wz);junctionBed(s,wx,wz);}finalTerrainClimate(s,wx,wz,temperatureNoise,er);desertClimate(s,wx,wz);return s;
  }
 public:
  bool highMountainUndergroundEnabled()const{return generatedMaxYExclusive==512&&C.at("cave").value("highMountainUnderground",0)==1;}
@@ -130,6 +137,8 @@ public:
  double ecologyHeight(Surface const&s)const{if(elevatedLandscape)return mountainEcologyActive(s)?mountainClimateHeight(landscapeAltitude(s.height),mountainPeakY):landscapeAltitude(s.height);if(!mountainEcologyActive(s))return double(s.height);return s.height>=-64&&s.height<512?ecologyAltitudes[s.height+64]:mountainClimateHeight(s.height,mountainPeakY);}
  double ecologyTemperature(Surface const&s)const{return mountainEcologyActive(s)&&s.ecologyT>=0?s.ecologyT:s.T;}
  double ecologyTreeWeight(Surface const&s)const{return (mountainEcologyActive(s)?mountainEcologyTreeWeight(ecologyHeight(s),ecologyTemperature(s)):1.)*(1.-.5*s.upland);}
+ bool elevationVariantsEnabled()const{return elevationVariants;}
+ J inspectElevationForms(int lo,int hi){return elevationInventory(lo,hi);}
  int seaLevel()const{return seaLevelValue;}
  int generationHeight()const{return generatedMaxYExclusive+64;}
  J inspectBadlandsRegion(int gx,int gz){auto a=badlandsRegion(gx,gz);return J{{"valid",a.valid},{"x",a.x-32768},{"z",a.z-32768},{"radiusX",a.rx},{"radiusZ",a.rz}};}
@@ -184,7 +193,7 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
  explicit Field(J const&d,bool cullLocalPlans=true):data(d),C(d.at("config")),terrainSeed(C.at("seed").get<uint32_t>()),graph(d,true),caves(d,false),low(seedHash(terrainSeed,201)),high(seedHash(terrainSeed,211)),secondary(seedHash(terrainSeed,237)),warpX(seedHash(terrainSeed,238)),warpZ(seedHash(terrainSeed,239)),stoneNoise(seedHash(terrainSeed,308)),giantNoise(seedHash(terrainSeed,503)),matNoise(seedHash(terrainSeed,221)),rockNoise(seedHash(terrainSeed,222)),treeNoise(seedHash(terrainSeed,223)),biomeNoise(seedHash(terrainSeed,224)){
  localPlanningCulling=cullLocalPlans;
   if(raisedEcology&&mountainPeakY>240)for(int y=-64;y<512;++y)ecologyAltitudes[y+64]=mountainClimateHeight(y,mountainPeakY);
- if(seaLevelValue<0||seaLevelValue>64)throw std::runtime_error("Sea level outside supported range");
+ if(seaLevelValue<0||seaLevelValue>(elevationVariants?100:64))throw std::runtime_error("Sea level outside supported range");
  if(generatedMaxYExclusive!=320&&generatedMaxYExclusive!=512)throw std::runtime_error("Unsupported generated height");
  if(mountainPeakY!=0&&(mountainPeakY!=480||generatedMaxYExclusive!=512))throw std::runtime_error("Raised mountains require the 512-height profile");
  if(!d.contains("seedManifest")||d.at("seedManifest").at("runtimeSeed")!=terrainSeed)
@@ -204,6 +213,7 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
  double giantWeight(int x,int z,Surface const&s)const{if(s.lake==1||s.river>0)return 0;auto const&q=C.at("giantForest");double dx=x-32768-num(q,"centerX"),dz=z-32768-num(q,"centerZ"),d=std::hypot(dx,dz)+24*giantNoise.at(dx/96,dz/96);if(d>=num(q,"outerRadius")||s.stone>.01)return 0;return std::pow(1-s.barren,3)*(1-smooth(num(q,"innerRadius"),num(q,"outerRadius"),d))*smooth(35,47,s.height)*(1-smooth(240,270,s.height));}
  // Cache only coarse climate samples, never a pre-generated terrain map.
  double surfaceTemperature(Surface const&s,int x,int z){
+  if(elevationVariants){double scale=num(C.at("epic"),"horizontalScale");return clamp(.62+.45*temp((x-32768)*scale,0,(z-32768)*scale),0.,1.);}
   if(!raisedSnowline||!regionalEnabled||!mountainPeakY||s.height<=96||s.stone>0||s.volcanic>0)return s.T;
   double scale=num(C.at("epic"),"horizontalScale");
   double noise=temp((x-32768)*scale,0,(z-32768)*scale);
@@ -217,11 +227,11 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
   std::array<double,3> out{};for(int i=0;i<3;++i)out[i]=(a[i]*(1-u)+b[i]*u)*(1-v)+(c[i]*(1-u)+d[i]*u)*v;
   return out;
  }
- Surface computeSurface(int x,int z,bool slope=false){ensureStreamingIce(x,z);auto s=base(x,z);if(mushroomSurface(s,x,z))return s;if(dryHabitatWeight(x,z)<.25)wetlandRelief(s,x,z);scarpRelief(s,x,z);fluvialRelief(s,x,z);auto const&q=C.at("transition");double bw=num(q,"climateWidth"),ew=num(q,"elevationWidth"),T=surfaceTemperature(s,x,z),H=s.H,e=s.continuous;auto climate=regionalClimate(x,z);if(s.stone==0){T=.1*T+.9*mix(smooth(96.,128.,s.height),climate[0],climate[2]);H=.1*H+.9*climate[1];}badlandsClimate(T,H,x,z);if(mountainEcologyActive(s))s.ecologyT=T;auto above=[](double v,double t,double w){return smooth(t-w,t+w,v);};auto below=[&](double v,double t,double w){return 1-above(v,t,w);};std::array<double,17>W{};double water=below(e,0,ew),dry=1-water,open=water*above(T,.22,bw),shore=dry*below(e,.02,ew),land=dry*above(e,.02,ew);W[2]=water*below(T,.22,bw);W[0]=open*below(e,-.42,ew*6);W[1]=open*above(e,-.42,ew*6);W[4]=shore*below(T,.22,bw);W[3]=shore*above(T,.22,bw);W[5]=land*below(T,.20,bw);double cold=land*above(T,.20,bw)*below(T,.34,bw),temperate=land*above(T,.34,bw)*below(T,.64,bw),wet=temperate*above(H,.66,bw),warm=land*above(T,.64,bw);W[7]+=cold*below(H,.28,bw);W[6]+=cold*above(H,.28,bw);W[7]+=temperate*below(H,.28,bw);W[8]+=temperate*above(H,.28,bw)*below(H,.48,bw);W[9]+=temperate*above(H,.48,bw)*below(H,.66,bw)+wet*above(e,.06,ew*6);W[10]+=wet*below(e,.06,ew*6);W[11]+=warm*below(H,.30,bw);W[12]+=warm*above(H,.30,bw)*below(H,.58,bw);W[13]+=warm*above(H,.58,bw);
+ Surface computeSurface(int x,int z,bool slope=false){ensureStreamingIce(x,z);auto s=base(x,z);if(mushroomSurface(s,x,z))return s;if(dryHabitatWeight(x,z)<.25)wetlandRelief(s,x,z);scarpRelief(s,x,z);fluvialRelief(s,x,z);auto const&q=C.at("transition");double bw=num(q,"climateWidth"),ew=num(q,"elevationWidth"),T=surfaceTemperature(s,x,z),H=s.H,e=s.closedBasin?std::max(.12,s.continuous):s.continuous;auto climate=regionalClimate(x,z);if(s.stone==0){T=.1*T+.9*(elevationVariants?climate[2]:mix(smooth(96.,128.,s.height),climate[0],climate[2]));H=.1*H+.9*climate[1];}badlandsClimate(T,H,x,z);if(mountainEcologyActive(s))s.ecologyT=T;auto above=[](double v,double t,double w){return smooth(t-w,t+w,v);};auto below=[&](double v,double t,double w){return 1-above(v,t,w);};std::array<double,17>W{};double water=below(e,0,ew),dry=1-water,open=water*above(T,.22,bw),shore=dry*below(e,.02,ew),land=dry*above(e,.02,ew);W[2]=water*below(T,.22,bw);W[0]=open*below(e,-.42,ew*6);W[1]=open*above(e,-.42,ew*6);W[4]=shore*below(T,.22,bw);W[3]=shore*above(T,.22,bw);W[5]=land*below(T,.20,bw);double cold=land*above(T,.20,bw)*below(T,.34,bw),temperate=land*above(T,.34,bw)*below(T,.64,bw),wet=temperate*above(H,.66,bw),warm=land*above(T,.64,bw);W[7]+=cold*below(H,.28,bw);W[6]+=cold*above(H,.28,bw);W[7]+=temperate*below(H,.28,bw);W[8]+=temperate*above(H,.28,bw)*below(H,.48,bw);W[9]+=temperate*above(H,.48,bw)*below(H,.66,bw)+wet*above(e,.06,ew*6);W[10]+=wet*below(e,.06,ew*6);W[11]+=warm*below(H,.30,bw);W[12]+=warm*above(H,.30,bw)*below(H,.58,bw);W[13]+=warm*above(H,.58,bw);
  // Only qualified large regions may be deserts; warm dry microclimates
  // elsewhere remain savanna, while beaches and river/lake sand retain their roles.
  if(largeDesertOnly){W[12]+=W[11];W[11]=0;}
- for(int b:{8,9,6,7}){double mv=W[b]*s.mount;W[b]-=mv;W[14]+=mv;}for(int b:{8,7,12}){double mv=W[b]*s.plateau*(completedBiomes?above(T,.48,bw)*below(H,.58,bw):1.);W[b]-=mv;W[15]+=mv;}double take=s.basin*below(H,.32,bw);for(int b=5;b<16;b++){double mv=W[b]*take;W[b]-=mv;W[16]+=mv;}if(regionalBadlands){W[12]+=W[15];W[15]=0;}double sum=0;for(double w:W)sum+=w;if(sum>0)for(auto&w:W)w/=sum;
+ for(int b:{8,9,6,7}){double mv=W[b]*(elevationVariants?0.:s.mount);W[b]-=mv;W[14]+=mv;}for(int b:{8,7,12}){double mv=W[b]*(elevationVariants?0.:s.plateau)*(completedBiomes?above(T,.48,bw)*below(H,.58,bw):1.);W[b]-=mv;W[15]+=mv;}double take=(elevationVariants?0.:s.basin)*below(H,.32,bw);for(int b=5;b<16;b++){double mv=W[b]*take;W[b]-=mv;W[16]+=mv;}if(regionalBadlands){W[12]+=W[15];W[15]=0;}double sum=0;for(double w:W)sum+=w;if(sum>0)for(auto&w:W)w/=sum;
  constexpr int species[17]={1,1,1,1,1,0,0,1,1,1,4,5,3,2,1,1,1};std::array<double,6>sw{};int best=0;double sand=0,snow=0,excluded=0;for(int b=0;b<17;b++){double v=W[b];if(v<=0)continue;if(v>W[best])best=b;s.treeD+=v*C.at("treeDensityByBiome")[b].get<double>();if(b==3||b==4||b==11)sand+=v;if(b==5)snow+=v;if(b==3||b==4||b==5)excluded+=v;sw[species[b]]+=v;}
  // A biome describes a region, not a 20-block lottery. Density still uses all
  // climate weights; the dominant region determines compatible tree species.
@@ -307,7 +317,7 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
   s.rock=s.scarp>.05||s.coast>.45||s.stone>=.5||s.cliffLow>-32768||p>=1
       ||(p>0&&clamp(.5+.95*rockNoise.at(x/num(q,"ditherWavelength"),z/num(q,"ditherWavelength")),0,.999999)<p);
  }
- Surface surface(int x,int z,bool slope=true){if(evaluatingSmallPool){auto s=computeSurface(x,z,false);if(slope)surfaceRock(s,x,z);return s;}auto s=skinCache.get(key2(x,z),[&]{if(!regionalBadlands)return computeSurface(x,z,false);auto result=beforeBadlands(x,z);regionalBadlandsSurface(result,x,z);return result;});if(slope)surfaceRock(s,x,z);return s;}
+ Surface surface(int x,int z,bool slope=true){if(evaluatingSmallPool){auto s=computeSurface(x,z,false);applySnowVariant(s,x,z);if(slope)surfaceRock(s,x,z);return s;}auto s=skinCache.get(key2(x,z),[&]{auto result=regionalBadlands?beforeBadlands(x,z):computeSurface(x,z,false);if(regionalBadlands)regionalBadlandsSurface(result,x,z);applySnowVariant(result,x,z);return result;});if(slope)surfaceRock(s,x,z);return s;}
  std::vector<std::array<int,3>> caveFalls(int cx,int cz){return cavernGroups.waterfallCandidates(cx,cz,[&](int X,int Z){return cavernHeight(X,Z);});}
  void materialColumn(Surface const&s,int x,int z,int top,uint16_t*col){
  if(top < -64 || top >= generatedMaxYExclusive || s.height < -64 || s.height >= generatedMaxYExclusive)throw std::out_of_range("Material column outside world height");

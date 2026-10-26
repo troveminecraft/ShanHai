@@ -58,10 +58,10 @@ double desertHeight(double wx,double wz,double h){
  // rather than the requested predominantly low, broad desert basin.
  double foothill=1-smooth(135,220,h)*(1-w);
  double weight=w*foothill*smooth(36,48,h);
- return mix(weight,h,target+d.sand*d.dune);
+ return mix(elevationVariants?weight*.42:weight,h,target+d.sand*d.dune);
 }
 void desertClimate(Surface&s,int x,int z){
- s.desert=desertWeight(x,z)*(1-smooth(150,225,landscapeAltitude(s.height)));
+ s.desert=desertWeight(x,z)*(elevationVariants?1.:(1-smooth(150,225,landscapeAltitude(s.height))));
  if(s.desert<=0||s.stone>.01||s.volcanic>0||s.height<34){s.desert=0;return;}
  auto d=desertDetail(x,z);s.desertSand=d.sand;s.desertCrest=d.crest;s.desertPatch=d.patch;
  s.T=mix(s.desert,s.T,.77);s.H=mix(s.desert,s.H,.13);

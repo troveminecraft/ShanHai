@@ -22,10 +22,10 @@ double coastalNode(int x,int z){return coastalNodes.get(key2(x,z),[&]{
   int sx=x+dx/16,sz=z+dz/16;
   double h=coastalHeights.get(key2(sx,sz),[&]{return uncliff(sx*16.,sz*16.);});lo=std::min(lo,h);hi=std::max(hi,h);
  }
- return (1-smooth(seaLevelValue-6,seaLevelValue+2,lo))*smooth(90,135,hi)*smooth(.45,1.1,(hi-lo)/128);
+ return (1-smooth(seaLevelValue-6,seaLevelValue+2,lo))*smooth(elevationVariants?126:90,elevationVariants?171:135,hi)*smooth(.45,1.1,(hi-lo)/128);
 });}
 double coastWeight(double x,double z,double h){
- if(!waterEnabled||h<seaLevelValue-6||h>105)return 0;
+ if(!waterEnabled||h<seaLevelValue-6||h>(elevationVariants?141:105))return 0;
  int ix=int(std::floor(x/16)),iz=int(std::floor(z/16));double u=smooth(0,1,x/16-ix),v=smooth(0,1,z/16-iz);
  return (1-u)*(1-v)*coastalNode(ix,iz)+u*(1-v)*coastalNode(ix+1,iz)+(1-u)*v*coastalNode(ix,iz+1)+u*v*coastalNode(ix+1,iz+1);
 }
