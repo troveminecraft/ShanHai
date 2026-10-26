@@ -37,12 +37,22 @@ jobs:
         shell: pwsh
         run: ./tests/run.ps1 -BuildDirectory (Join-Path $env:RUNNER_TEMP 'shan-hai-tests') -OutputDirectory (Join-Path $env:RUNNER_TEMP 'shan-hai-test-results')
       - name: Build and package
+        id: package
         shell: pwsh
-        run: ./build.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'shan-hai-build')
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'shan-hai-build'
+          ./build.ps1 -OutputDirectory $out
+          $version = (Get-Content -Raw ports/windows-client/manifest.json | ConvertFrom-Json).version
+          $name = "ShanHai-Windows-$version"
+          $package = Join-Path $out "$name.zip"
+          if (!(Test-Path -LiteralPath $package -PathType Leaf)) { throw "Missing package: $package" }
+          if ((Get-Item -LiteralPath $package).Length -eq 0) { throw 'Empty package' }
+          "name=$name" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "path=$package" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
       - uses: actions/upload-artifact@v4
         with:
-          name: ShanHai-Windows-0.1.5
-          path: ${{ runner.temp }}/shan-hai-build/ShanHai-Windows-0.1.5.zip
+          name: ${{ steps.package.outputs.name }}
+          path: ${{ steps.package.outputs.path }}
           if-no-files-found: error
       - name: Collect validation diagnostics
         if: always()
