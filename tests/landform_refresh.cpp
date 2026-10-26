@@ -85,6 +85,11 @@ int main(int argc,char**argv){try{
   return nativegen::regional::Ground{int(150+std::min(20.,nearest*.12)),.8,.6,0,0,false,-32768};};
  int lakes=0;for(int seed=0;seed<8;++seed){auto plan=nativegen::regional::drainage(0,0,seed,ground,true,100,511,true,true,true);lakes+=int(plan.at("lakes").size());}
  assert(lakes>=16);
+ auto isolated=[](int x,int z){double d=std::hypot(double(x-512),double(z-512));int h=int(150+std::min(30.,d*.20));
+  if(std::abs(x-416)<=3&&std::abs(z-512)<=12)h=140; // Unrelated low outer boundary, behind a high rim.
+  return nativegen::regional::Ground{h,.8,.6,0,0,false,-32768};};
+ int enclosed=0;for(int seed=0;seed<8;++seed){auto p=nativegen::regional::drainage(0,0,seed,isolated,true,100,511,true,true,true);enclosed+=int(p.at("lakes").size());}
+ assert(enclosed>0);
  assert(worldgen_rules::configuredVillageSpacing(16)==16);
  std::cout<<"PASS upper cave added voxels="<<added<<", closed lakes="<<lakes<<"; lowland cave masks unchanged\n";
 }catch(std::exception const&e){std::cerr<<e.what()<<std::endl;return 1;}}

@@ -25,7 +25,7 @@ def prepare(output):
   data['config'].pop('riverBankSurvey',None)
   data['config'].pop('mountainEcology',None)
   data['config'].pop('regionalPlateaus',None)
-  for key in ('landscapeRevision','elevationRevision','volcanoRevision','surfaceMoss','villageSpacing'):data['config'].pop(key,None)
+  for key in ('landscapeRevision','elevationRevision','volcanoRevision','surfaceMoss','villageSpacing','lakeBasinsVersion'):data['config'].pop(key,None)
   data['config']['stoneForest']['valleyY']=valley
   data['config']['cave'].pop('raisedCaveHeight',None)
   data['config']['cave'].pop('highMountainUnderground',None)

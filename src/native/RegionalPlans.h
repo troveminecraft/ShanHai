@@ -35,18 +35,29 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
   bool overlap=false;for(auto const&lake:lakes){double ax=lake.at("center").at(0),az=lake.at("center").at(1);overlap|=std::hypot(X-ax,Z-az)<192;}if(overlap)continue;
   constexpr int Side=33;int Step=refresh?6:4;std::array<Ground,Side*Side> fine;int rim=maxSurfaceY+1;
   for(int zz=0;zz<Side;++zz)for(int xx=0;xx<Side;++xx){auto q=sample(X+(xx-16)*Step,Z+(zz-16)*Step);fine[zz*Side+xx]=q;if(xx==0||zz==0||xx==Side-1||zz==Side-1)rim=std::min(rim,q.height);}
-  int level=std::min(s.height+(refresh?7:4),rim-1);if(level<s.height+2)continue;
-  std::array<bool,Side*Side> wet{};std::vector<int> queue{16*Side+16};wet[queue[0]]=true;bool open=false;
-  for(size_t k=0;k<queue.size();++k){int j=queue[k],xx=j%Side,zz=j/Side;
-   if(xx==0||zz==0||xx==Side-1||zz==Side-1||!eligible(fine[j])){open=true;break;}
-   for(auto[dx,dz]:{std::pair{1,0},{-1,0},{0,1},{0,-1}}){int a=(zz+dz)*Side+xx+dx;if(!wet[a]&&fine[a].height<level){wet[a]=true;queue.push_back(a);}}
+  int start=16*Side+16;
+  // A 64-block coarse grid rarely lands on the bottom of a natural basin.
+  // Refine the seed locally; a low point on an unrelated outer boundary must
+  // not reject a basin whose own connected shoreline is fully enclosed.
+  if(refresh)for(int zz=8;zz<=24;++zz)for(int xx=8;xx<=24;++xx){int j=zz*Side+xx;if(eligible(fine[j])&&fine[j].height<fine[start].height)start=j;}
+  int low=fine[start].height,level=refresh?low+7:std::min(s.height+4,rim-1);
+  if(level<low+2)continue;
+  std::array<bool,Side*Side> wet{};std::vector<int> queue;bool accepted=false;
+  for(;level>=low+2;--level){
+   wet.fill(false);queue={start};wet[start]=true;bool open=false;
+   for(size_t k=0;k<queue.size();++k){int j=queue[k],xx=j%Side,zz=j/Side;
+    if(xx==0||zz==0||xx==Side-1||zz==Side-1||!eligible(fine[j])){open=true;break;}
+    for(auto[dx,dz]:{std::pair{1,0},{-1,0},{0,1},{0,-1}}){int a=(zz+dz)*Side+xx+dx;if(!wet[a]&&fine[a].height<level){wet[a]=true;queue.push_back(a);}}
+   }
+   if(!open&&queue.size()>=32){accepted=true;break;}
+   if(!refresh)break;
   }
-  if(open||queue.size()<32)continue;
+  if(!accepted)continue;
   J rows=J::array();
   for(int zz=0;zz<Side;++zz)for(int xx=0;xx<Side;){if(!wet[zz*Side+xx]){++xx;continue;}int begin=xx;while(xx+1<Side&&wet[zz*Side+xx+1])++xx;
    for(int dz=0;dz<Step;++dz)rows.push_back({Z+(zz-16)*Step-Step/2+dz,X+(begin-16)*Step-Step/2,X+(xx-16)*Step+(Step-1)/2});++xx;
   }
-  lakes.push_back({{"level",level},{"center",{X,Z}},{"rows",rows},{"frozen",s.temperature<.42}});sink[i]=level;
+  lakes.push_back({{"level",level},{"center",{X+(refresh?(start%Side-16)*Step:0),Z+(refresh?(start/Side-16)*Step:0)}},{"rows",rows},{"frozen",s.temperature<.42}});sink[i]=level;
  }
  std::array<double,Total> distance;distance.fill(INFINITY);
  std::array<int,Total> parent,root;parent.fill(-1);root.fill(-1);

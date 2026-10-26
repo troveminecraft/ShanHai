@@ -17,7 +17,7 @@ def finish_recipe(data):
     data["config"]["mountainSnowline"]=1
     data["config"]["mountainEcology"]=1
     data["config"]["regionalPlateaus"]=1
-    data["config"].update(landscapeRevision=3,volcanoRevision=4,surfaceMoss=2,villageSpacing=16)
+    data["config"].update(landscapeRevision=3,volcanoRevision=4,surfaceMoss=2,villageSpacing=16,lakeBasinsVersion=1)
     data["config"]["cave"].update(raisedCaveHeight=1,highMountainUnderground=1,uplandNetworks=1)
     data["config"]["smallPoolsVersion"]=3
     data['regionalGeneration']=dict(algorithm='regional-drainage-v3',coreBlocks=2048,haloBlocks=512,
