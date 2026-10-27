@@ -4,7 +4,7 @@
 
 English · [简体中文](README.zh-CN.md)
 
-[Download 0.2.4](https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.4) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
+[Download 0.2.5](https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.5) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
 
 ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows, powered by LeviLamina. Follow rivers through mountain ranges, rolling highlands, forests, deserts and coastlines; explore caves, glaciers and volcanic terrain. Vanilla structures are placed according to the surrounding landscape.
 
@@ -16,21 +16,19 @@ ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows,
 
 ## Install
 
-1. Download [ShanHai-Windows-0.2.4.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.4/ShanHai-Windows-0.2.4.zip).
+1. Download [ShanHai-Windows-0.2.5.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.5/ShanHai-Windows-0.2.5.zip).
 2. Save and fully close Minecraft. Import the ZIP into the matching instance through LeviLauncher’s mod manager.
 3. Enable the mod and create a new **normal** world with your chosen seed. Do not select a flat world.
 
 Use the release ZIP, rather than GitHub’s automatically generated source archive. Python and Node.js runtime dependencies are included; copying only the DLL is insufficient. The internal mod ID remains `karma-worldgen-client` for configuration and save compatibility.
 
-## Version 0.2.4
+## Version 0.2.5
 
-Native structure queries now reuse terrain regional plans instead of repeating expensive drainage calculations under the shared structure lock. River and lake surveys perform fewer duplicate samples; forest passes avoid redundant crown calculations and jungle shape rebuilding. Native task, lock and Windows mesh-builder timings provide more precise loading diagnostics.
+This update repairs the Windows creation handoff when the new world's behavior-pack directory was scanned before ShanHai's height pack existed. It rearms discovery before refreshing the repository, preserves height validation, and records the discovery state for diagnosis.
 
-New worlds restore large glacier spires to their **88–159-block design height**, limited by the build ceiling, while keeping wider bases. Sea level remains **Y100**, basin floors **Y60–100**, and building range **Y-64 through Y511**. BDS versions are terrain **1.0.50** / structures **1.0.65**. Keep the world's bundled height behavior pack enabled.
+When this handoff fails before the local server starts, the mod preserves only its own unchanged attachment in the creation-task backup, allowing a fresh retry. Initialized or modified worlds are protected; unrelated pack selections stay intact.
 
-Existing recipes keep their original terrain, including old ice-spire dimensions. Newly created worlds use kernel **2.210**. Classic and Vibrant Visuals clouds retain the Y500 target in expanded Overworlds.
-
-Offline parity and cache checks do **not** establish that every visible hole or forest loading stall is resolved in-game. Diagnostics measure native functions and the mesh builder, not GPU upload or on-screen visibility.
+Terrain rules remain those of **0.2.4**, with sea level **Y100** and building range **Y-64 through Y511**. BDS remains terrain **1.0.50** / structures **1.0.65**. Existing recipes retain their rules; keep the world's height behavior pack enabled. Native Windows creation and re-entry still require gameplay acceptance.
 
 **This is a test release awaiting gameplay acceptance.** Offline generation tests and successful builds do not establish in-game correctness. Please report the version, world seed, coordinates, screenshots and reproduction steps when you encounter an issue.
 

@@ -1,3 +1,11 @@
+## 0.2.5 — Windows new-world height-pack discovery and retry
+
+- Rearm discovery for the new world's behavior-pack directory after native pack copying and before repository refresh. A directory scanned before the height pack was written must not keep an empty cached result.
+- If height-pack handoff fails before native server startup, preserve this job's unchanged terrain attachment in its creation-task backup. A retry can attach again; initialized worlds, changed payloads and unrelated pack selections are protected.
+- Record pack discovery state and the actual failure phase in the creation task. Keep height-resource and runtime-height checks in place.
+
+Windows **0.2.5**. BDS remains terrain **1.0.50** / structures **1.0.65**, kernel **2.210**; generation rules, sea level and building limits are unchanged. Source is maintained in both repositories. This is a test release awaiting native Windows creation/loading acceptance; filesystem tests do not substitute for the game's pack discovery.
+
 ## 0.2.4 — regional planning stalls and tall glacier spires
 
 - Connect native structure queries to the same regional-plan disk cache as terrain generation. Exclude only structure policy fields from terrain cache identity; avoid repeating drainage planning while holding the shared structure lock.

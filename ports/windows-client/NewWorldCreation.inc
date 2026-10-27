@@ -9,6 +9,8 @@
 #include "mc/client/gui/screens/models/IContentManager.h"
 #include "mc/resources/IResourcePackRepository.h"
 #include "mc/resources/ResourcePack.h"
+#include "mc/resources/PackSourceFactory.h"
+#include "mc/resources/DirectoryPackSource.h"
 #include "mc/deps/core/resource/PackIdVersion.h"
 #include "mc/deps/core/file/Path.h"
 #include "mc/platform/UUID.h"
@@ -67,6 +69,7 @@ std::wstring quote(std::wstring const& value){
 }
 struct Job {
  std::filesystem::path path;
+ std::filesystem::path attachedRoot;
  std::string seed,name,phase="正在准备 Karma 世界";
  Json result;
  HANDLE group=nullptr,process=nullptr;
@@ -96,13 +99,14 @@ struct Job {
   MoveFileExW(tmp.c_str(),(path/"status.json").c_str(),MOVEFILE_REPLACE_EXISTING);
   trace("cancelled");
  }
- void fail(std::string message){
+ void fail(std::string message,char const* stage="world-preparation"){
   failed=true;phase=std::move(message);
   cancel(); // This job owns only preparation helpers, never the game process.
   try {terrain::log().error("Create world seed={}: {}",seed,phase);} catch(...) {}
-  try { std::ofstream(path/"failure.json")<<Json{{"stage","world-preparation"},{"seed",seed},
+  try { std::ofstream(path/"failure.json")<<Json{{"stage",stage},{"seed",seed},
    {"version",terrain::jsonFile(modFolder/"manifest.json").value("version",std::string{})},
-   {"reason",phase},{"worldCreated",false},{"action","Retry preparation after correcting the cause"}}.dump(2); } catch(std::exception const&) {}
+   {"reason",phase},{"worldAttached",attached},{"worldPath",attachedRoot.string()},
+   {"serverStarted",false},{"action","Retry creation after correcting the cause"}}.dump(2); } catch(std::exception const&) {}
   try {trace("failed");} catch(...) {}
  }
  void poll(){
@@ -306,7 +310,7 @@ LL_TYPE_INSTANCE_HOOK(CreateFiles,ll::memory::HookPriority::Normal,WorldCreation
   *mLevelSettings->mDefaultSpawn=BlockPos{spawn.at("x").get<int>(),spawn.at("y").get<int>(),spawn.at("z").get<int>()};
   installPreparedWorld(root,j->path/"prepared");
   {std::lock_guard lock(freshWorldMutex);freshWorldSeeds[std::filesystem::weakly_canonical(root)]=j->seed;}
-  j->attached=true;prepared.erase(this);awaitingServer[this]=j;
+  j->attachedRoot=root;j->attached=true;prepared.erase(this);awaitingServer[this]=j;
   j->trace("attached");
   terrain::log().info("Karma new world attached: {} seed={}",root.string(),j->seed);
   std::ofstream(diagnostics/"new-world-created.json")<<Json{{"world",root.string()},{"seed",j->seed},{"attached",true}}.dump(2);
@@ -336,13 +340,29 @@ LL_TYPE_INSTANCE_HOOK(CreateServer,ll::memory::HookPriority::Normal,WorldCreatio
   bool selectedInSettings=false;
   if(!uuid.empty()){
    auto& repository=*mResourcePackRepository;
-   repository.addWorldPackSource(Core::Path(root));
-   repository.addWorldResourcePacks(Core::Path(root));
-   repository.refreshPacks();
    auto header=readCreationJson(root/"behavior_packs"/HeightPackFolder/"manifest.json").at("header");
    auto v=header.at("version");
    PackIdVersion id(uuid,std::to_string(v.at(0).get<int>())+"."+std::to_string(v.at(1).get<int>())+"."+std::to_string(v.at(2).get<int>()),PackType::Behavior);
+   Json discovery{{"world",root.string()},{"version",shanhai_release::Windows},{"packUuid",uuid},
+     {"phase","before-world-source-refresh"},{"repositoryInitialized",repository.isInitialized()}};
+   auto recordDiscovery=[&]{std::ofstream(j->path/"height-pack-discovery.json")<<discovery.dump(2);};
+   recordDiscovery();
+   repository.addWorldPackSource(Core::Path(root));
+   {
+     auto* source=repository.getPackSourceFactory().getDirectoryPackSource(Core::Path(root/"behavior_packs"),PackType::Behavior);
+     if(!source)throw std::runtime_error("Native world behavior-pack source is missing");
+     discovery["previouslyDiscovered"]=bool(source->mDiscovered);
+     discovery["rediscoverable"]=bool(source->mIsRediscoverable);
+     // 26.20.7 exposes the native directory-source discovery latch. Creation
+     // may have scanned this path before our files existed. Rearm discovery
+     // on the UI thread after pack copying, without deleting packs or files.
+     source->mDiscovered=false;
+     discovery["discoveryRearmed"]=true;recordDiscovery();
+   }
+   repository.addWorldResourcePacks(Core::Path(root));repository.refreshPacks();
    auto pack=repository.getResourcePackForPackId(id);
+   discovery["phase"]="after-world-source-refresh";discovery["found"]=bool(pack);
+   discovery["invalidBehaviorPacks"]=repository.getInvalidPacks(PackType::Behavior).size();recordDiscovery();
    visibleInRepository=bool(pack);
    if(!pack)throw std::runtime_error("Height behavior pack could not be loaded into the native repository; local server was not started");
    std::string definition;
@@ -368,7 +388,16 @@ LL_TYPE_INSTANCE_HOOK(CreateServer,ll::memory::HookPriority::Normal,WorldCreatio
    {"version",shanhai_release::Windows},{"stage","before-local-server"},
    {"runtimeHeightVerified",false}}.dump(2);
  }catch(std::exception const&e){
-  j->fail(std::string("主世界高度包接入失败：")+e.what());
+  std::string error=std::string("主世界高度包接入失败：")+e.what();
+  // No native server call has occurred. Preserve only this job's unchanged
+  // attachment, so retrying the same creation helper passes the fresh-root gate.
+  if(j->attached&&!j->attachedRoot.empty())try{
+   preserveFailedAttachment(j->attachedRoot,j->path/"prepared",j->path/"failed-attachment");
+   {std::lock_guard lock(freshWorldMutex);freshWorldSeeds.erase(std::filesystem::weakly_canonical(j->attachedRoot));}
+   j->attached=false;j->trace("attachment_preserved_for_retry");
+  }catch(std::exception const& cleanup){error+="；撤回接入数据未完成，已保留现有文件：";error+=cleanup.what();}
+  j->fail(error,"height-pack-before-local-server");
+  std::ofstream(diagnostics/"new-world-error.txt")<<error;
   awaitingServer.erase(this);prepared.erase(this);
   for(auto it=jobs.begin();it!=jobs.end();){
    if(it->second!=j){++it;continue;}

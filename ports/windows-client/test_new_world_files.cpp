@@ -36,6 +36,22 @@ int main(){
   client::creation::installPreparedHeightPack(root,package);
   selected=client::creation::readCreationJson(root/"world_behavior_packs.json");
   check(selected.size()==2&&selected[0].at("pack_id")=="later-user-pack","late native selection was lost");
+  auto retained=base/"failed-attachment";
+  client::creation::preserveFailedAttachment(root,package,retained);
+  check(fs::exists(retained/"karma/input.json")&&fs::exists(retained/"karma-worldgen.json"),"failed attachment was not retained");
+  check(!fs::exists(root/"karma")&&!fs::exists(root/"karma-worldgen.json"),"retry root still has managed data");
+  check(client::creation::readCreationJson(root/"world_behavior_packs.json")==selected,"retry cleanup changed selected packs");
+  client::creation::installPreparedWorld(root,package);
+  check(fs::exists(root/"karma/input.json"),"retry could not attach to the native directory");
+  std::ofstream(root/"karma/user-added.txt")<<"keep";
+  bool refused=false;
+  try{client::creation::preserveFailedAttachment(root,package,base/"must-not-move");}catch(std::exception const&){refused=true;}
+  check(refused&&fs::exists(root/"karma/user-added.txt")&&!fs::exists(base/"must-not-move"),"modified data was moved during rollback");
+  fs::remove(root/"karma/user-added.txt");
+  std::ofstream(root/"level.dat")<<"initialized sentinel";
+  refused=false;
+  try{client::creation::preserveFailedAttachment(root,package,base/"must-not-move-open-world");}catch(std::exception const&){refused=true;}
+  check(refused&&fs::exists(root/"karma/input.json")&&fs::exists(root/"level.dat"),"initialized world was touched during rollback");
   auto malformed=base/"malformed";fs::create_directory(malformed);
   std::ofstream(malformed/"world_behavior_packs.json")<<"malformed sentinel";
   bool rejected=false;
@@ -64,6 +80,6 @@ int main(){
   try{client::creation::installPreparedWorld(partial,package);}catch(std::exception const&){rejected=true;}
   check(rejected&&fs::is_empty(partial),"incomplete package published");
   fs::remove_all(base);
-  std::cout<<"PASS: height pack attachment, preserved selected packs, late-copy merge, duplicate prevention, rollback, dimension conflict and existing-world guards\n";
+  std::cout<<"PASS: height attachment, preserved selections, failed-attachment retention/retry, modified/initialized-world guards and dimension conflicts\n";
  }catch(std::exception const& e){std::cerr<<e.what()<<"; evidence at "<<base<<'\n';return 1;}
 }

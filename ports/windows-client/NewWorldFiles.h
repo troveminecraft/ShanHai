@@ -3,6 +3,8 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
+#include <array>
+#include <algorithm>
 
 namespace client::creation {
 inline constexpr char HeightPackFolder[]="shan-hai-build-height";
@@ -131,5 +133,54 @@ inline void installPreparedWorld(std::filesystem::path const& root,std::filesyst
   std::filesystem::remove_all(staging,ignored);throw;
  }
  std::error_code ignored;std::filesystem::remove(staging,ignored);
+}
+
+// Only called for an attachment made by the current in-memory creation Job,
+// before startLocalServer was invoked. Preserve it in the job for diagnosis;
+// never discard a world or loosen the fresh-world gate for a subsequent retry.
+inline void preserveFailedAttachment(std::filesystem::path const& root,
+                                     std::filesystem::path const& package,
+                                     std::filesystem::path const& backup) {
+ namespace fs=std::filesystem;
+ requireUnopenedWorld(root);
+ if(fs::is_symlink(root)||fs::is_symlink(root/"karma")||fs::is_symlink(root/"karma-worldgen.json"))
+  throw std::runtime_error("Refusing linked failed-attachment paths");
+ if(readCreationJson(root/"karma-worldgen.json")!=readCreationJson(package/"karma-worldgen.json"))
+  throw std::runtime_error("Failed attachment identity changed; preserved in place");
+ // Both directions: an added file may contain user/native data. Do not move it
+ // out of a world merely because our original files are still present.
+ auto identical=[](fs::path const& a,fs::path const& b){
+  if(!fs::is_regular_file(a)||!fs::is_regular_file(b)||fs::is_symlink(a)||fs::is_symlink(b)||fs::file_size(a)!=fs::file_size(b))return false;
+  std::ifstream x(a,std::ios::binary),y(b,std::ios::binary);
+  if(!x||!y)return false;
+  std::array<char,65536> left{},right{};
+  while(x){x.read(left.data(),left.size());y.read(right.data(),right.size());
+   if(x.gcount()!=y.gcount()||!std::equal(left.begin(),left.begin()+x.gcount(),right.begin()))return false;
+  }
+  return x.eof()&&y.eof();
+ };
+ for(auto pair:{std::pair{root/"karma",package/"karma"},std::pair{package/"karma",root/"karma"}}){
+  if(!fs::is_directory(pair.first)||!fs::is_directory(pair.second))throw std::runtime_error("Failed attachment data missing");
+  for(auto const& entry:fs::recursive_directory_iterator(pair.first)){
+   auto other=pair.second/entry.path().lexically_relative(pair.first);
+   if(fs::is_symlink(entry.path())||fs::is_symlink(other)||
+      (entry.is_directory()?!fs::is_directory(other):!identical(entry.path(),other)))
+    throw std::runtime_error("Failed attachment data changed; preserved in place");
+  }
+ }
+ if(!backup.is_absolute()||fs::exists(backup)||!fs::is_directory(backup.parent_path()))
+  throw std::runtime_error("Failed-attachment backup is unavailable");
+ requireUnopenedWorld(root);
+ if(!fs::create_directory(backup))throw std::runtime_error("Failed-attachment backup was concurrently created");
+ bool moved=false;
+ try{
+  fs::rename(root/"karma",backup/"karma");moved=true;
+  fs::rename(root/"karma-worldgen.json",backup/"karma-worldgen.json");
+ }catch(...){
+  std::error_code ignored;if(moved)fs::rename(backup/"karma",root/"karma",ignored);
+  fs::remove(backup,ignored);throw;
+ }
+ // Keep native pack selections/folders. The next attachment merges the height
+ // reference again; these files may also contain unrelated user selections.
 }
 }
