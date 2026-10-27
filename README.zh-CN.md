@@ -1,18 +1,18 @@
-当前版本：0.2.5。补块只处理停滞任务和被已加载区块包围的空缺，限制并发修复范围；增加单人加载分阶段诊断。扩展主世界的普通云和灵动视效云层目标 Y500。保留 0.2.1 地形配方；离线抽样尚未证明整体提速，缺块、森林加载和云层画面仍待游戏内验收。
+当前版本：0.2.6。补块只处理停滞任务和被已加载区块包围的空缺，限制并发修复范围；增加单人加载分阶段诊断。扩展主世界的普通云和灵动视效云层目标 Y500。保留 0.2.1 地形配方；离线抽样尚未证明整体提速，缺块、森林加载和云层画面仍待游戏内验收。
 
 <p align="center">
   <img src="docs/assets/shan-hai.png" alt="山&amp;海" width="720">
 </p>
 
 <p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.5"><img src="https://img.shields.io/badge/release-0.2.5-2ea44f" alt="0.2.5"></a>
+  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.6"><img src="https://img.shields.io/badge/release-0.2.6-2ea44f" alt="0.2.6"></a>
   <img src="https://img.shields.io/badge/Minecraft_Bedrock-1.26.20.04-62b47a" alt="Minecraft Bedrock 1.26.20.04">
   <img src="https://img.shields.io/badge/LeviLamina-26.20.7-00a896" alt="LeviLamina 26.20.7">
   <img src="https://img.shields.io/badge/Windows-x64-0078d4" alt="Windows x64">
 </p>
 
 <p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.5">下载安装</a> ·
+  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.6">下载安装</a> ·
   <a href="docs/BUILDING.md">从源码构建</a> ·
   <a href="https://github.com/troveminecraft/ShanHai/issues">反馈问题</a>
 </p>
@@ -38,7 +38,7 @@
 
 需要 **Minecraft for Windows 1.26.20.04**、**LeviLamina 26.20.7 客户端版**和支持 AVX2 的 Windows x64 电脑。可通过 LeviLauncher 管理游戏实例和模组。
 
-1. 下载 [ShanHai-Windows-0.2.5.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.5/ShanHai-Windows-0.2.5.zip)。
+1. 下载 [ShanHai-Windows-0.2.6.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.6/ShanHai-Windows-0.2.6.zip)。
 2. 完全退出 Minecraft，在 LeviLauncher 对应实例的模组管理中导入 ZIP。
 3. 确认模组已启用，启动游戏，创建一个普通新世界；不要选择超平坦。
 
@@ -48,26 +48,24 @@
 
 本次更新见 [更新记录](CHANGELOG.md)，生成和存档机制见 [说明](docs/RUNTIME.md)。
 
-## 0.2.5 更新
+## 0.2.6 更新
 
-修复 Windows 创建世界时高度包未被原生仓库识别的问题：在原生包复制完成后重新启用世界行为包目录的扫描，再刷新资源仓库。
+修复 Windows 新建世界查找行为包来源时路径分隔符不一致的问题。游戏用正斜线登记来源，模组曾传入混合斜线；现统一为原生使用的 UTF-8 路径，并记录查找路径与实际来源路径。高度检查、失败后保留数据和重试保护继续启用。
 
-若在启动本地服务器之前接入失败，会将本次尚未使用、内容未改变的地形数据保留到创建任务备份，允许重试；已有世界和其他行为包选择继续受到保护。增加高度包发现状态及准确的失败阶段记录。
-
-地形规则沿用 0.2.4，海平面 Y100、建造范围 Y-64..511 不变；BDS 仍为地形 1.0.50、结构 1.0.65。离线检查通过不等同于游戏内创建和重进已经验收。
+路径不匹配已通过只读检查失败的 0.2.5 进程确认。游戏内创建、加载和重进仍待验收。地形规则沿用 0.2.4，海平面 Y100、建造范围 Y-64..511 不变；BDS 仍为地形 1.0.50、结构 1.0.65。
 
 ## 使用前
 
-**0.2.5 是公开测试版本。** 结构与复杂坡地的衔接仍可能出现异常，欢迎带上种子、坐标和截图反馈。建议备份存档，并用新世界体验；已经生成的原版区块不会自动变成新地形。
+**0.2.6 是公开测试版本。** 结构与复杂坡地的衔接仍可能出现异常，欢迎带上种子、坐标和截图反馈。建议备份存档，并用新世界体验；已经生成的原版区块不会自动变成新地形。
 
 继续游玩模组世界时，请保持模组启用。这个安装包仅用于上面列出的 Windows 客户端环境，不适用于 BDS、Android 或 Java 版。
 
 ## 源码
 
-本仓库包含 0.2.5 的地形内核、结构生成、Windows 接口和构建脚本。种子生成需要用到 Python 与 JavaScript，它们也是模组的一部分。构建方法见 [BUILDING.md](docs/BUILDING.md)。
+本仓库包含 0.2.6 的地形内核、结构生成、Windows 接口和构建脚本。种子生成需要用到 Python 与 JavaScript，它们也是模组的一部分。构建方法见 [BUILDING.md](docs/BUILDING.md)。
 
 第三方组件及许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。项目原创代码采用 [MIT 协议](LICENSE)；第三方组件及派生资源保留各自许可。安装包不包含 Minecraft 游戏本体或原版结构资源，结构模板从本机游戏读取。
 
 本系列基于 0.1.13 的源码重新实现：新世界海面 Y100、Y60～100 内陆盆地、海拔与覆雪变种、三档裂谷和火山海岸接触带。0.1.14/0.1.15 实验世界请使用留存的对应版本，不静默迁移。游戏内验收尚待用户完成。
 
-已有 0.1.16 模组世界保持原配方，不重写已有区块。日志应显示 `Karma Windows client 0.2.5; local world creation enabled`，随后模组启用成功；若启用失败，请连同日志与 `diagnostics/game-image.json` 反馈。
+已有 0.1.16 模组世界保持原配方，不重写已有区块。日志应显示 `Karma Windows client 0.2.6; local world creation enabled`，随后模组启用成功；若启用失败，请连同日志与 `diagnostics/game-image.json` 反馈。

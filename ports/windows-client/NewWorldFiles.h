@@ -8,6 +8,14 @@
 
 namespace client::creation {
 inline constexpr char HeightPackFolder[]="shan-hai-build-height";
+
+// Native PackSourceFactory compares UTF-8 path strings byte for byte. Its world
+// sources use '/', while filesystem::operator/ appends '\\' on Windows. Core::Path
+// does not normalize that difference, even when both paths name the same folder.
+inline std::string nativePackPathKey(std::filesystem::path const& path) {
+ auto bytes=path.generic_u8string();
+ return {bytes.begin(),bytes.end()};
+}
 inline nlohmann::json readCreationJson(std::filesystem::path const& path) {
  std::ifstream input(path);if(!input)throw std::runtime_error("Cannot read new-world package: "+path.string());
  return nlohmann::json::parse(input);

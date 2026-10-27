@@ -1,3 +1,11 @@
+## 0.2.6 — Windows native pack-source path identity
+
+- Fix the mixed path separators that made Windows new-world creation report a missing native behavior-pack source. Bedrock registers forward-slash UTF-8 paths and compares them byte for byte; filesystem path joining produced a backslash before `behavior_packs`.
+- Use the same UTF-8 path format when binding and looking up the world source, record both lookup and registered paths, and retain the height validation and safe failed-attachment retry introduced in 0.2.5.
+- Avoid an additional repository refresh after `addWorldResourcePacks`, which already performs that operation in the pinned client.
+
+The cause was confirmed by read-only inspection of the failing 0.2.5 client: the source existed, its discovery latch was set, and its registered path used forward slashes. Windows path and filesystem regressions are separate from native new-world acceptance, which remains pending. BDS stays at terrain 1.0.50 / structures 1.0.65; terrain kernel 2.210 and generation rules are unchanged.
+
 ## 0.2.5 — Windows new-world height-pack discovery and retry
 
 - Rearm discovery for the new world's behavior-pack directory after native pack copying and before repository refresh. A directory scanned before the height pack was written must not keep an empty cached result.

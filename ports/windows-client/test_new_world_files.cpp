@@ -9,6 +9,15 @@ int main(){
  auto base=fs::temp_directory_path()/("karma-world-attachment-test-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
  fs::create_directory(base);
  try {
+  auto nativeRoot=fs::path(u8"X:/Minecraft Bedrock/Users/测试/minecraftWorlds/BtD1nceacNE=");
+  auto lookup=nativeRoot/"behavior_packs";
+  std::u8string expected=u8"X:/Minecraft Bedrock/Users/测试/minecraftWorlds/BtD1nceacNE=/behavior_packs";
+  check(client::creation::nativePackPathKey(lookup)==std::string(expected.begin(),expected.end()),
+    "native pack key must match the registered forward-slash UTF-8 path");
+#ifdef _WIN32
+  auto raw=lookup.u8string();
+  check(raw!=expected,"Windows fixture must reproduce the mixed-separator lookup failure");
+#endif
   auto package=base/"prepared";fs::create_directories(package/"karma/structures");
   std::ofstream(package/"karma/input.json")<<"terrain payload";
   std::ofstream(package/"karma/structures/registry.json")<<"structure payload";
@@ -80,6 +89,6 @@ int main(){
   try{client::creation::installPreparedWorld(partial,package);}catch(std::exception const&){rejected=true;}
   check(rejected&&fs::is_empty(partial),"incomplete package published");
   fs::remove_all(base);
-  std::cout<<"PASS: height attachment, preserved selections, failed-attachment retention/retry, modified/initialized-world guards and dimension conflicts\n";
+  std::cout<<"PASS: native UTF-8 pack path keys, height attachment, preserved selections, failed-attachment retention/retry, modified/initialized-world guards and dimension conflicts\n";
  }catch(std::exception const& e){std::cerr<<e.what()<<"; evidence at "<<base<<'\n';return 1;}
 }

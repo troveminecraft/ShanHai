@@ -343,14 +343,18 @@ LL_TYPE_INSTANCE_HOOK(CreateServer,ll::memory::HookPriority::Normal,WorldCreatio
    auto header=readCreationJson(root/"behavior_packs"/HeightPackFolder/"manifest.json").at("header");
    auto v=header.at("version");
    PackIdVersion id(uuid,std::to_string(v.at(0).get<int>())+"."+std::to_string(v.at(1).get<int>())+"."+std::to_string(v.at(2).get<int>()),PackType::Behavior);
+   Core::Path worldPath(nativePackPathKey(root));
+   Core::Path behaviorPath(nativePackPathKey(root/"behavior_packs"));
    Json discovery{{"world",root.string()},{"version",shanhai_release::Windows},{"packUuid",uuid},
-     {"phase","before-world-source-refresh"},{"repositoryInitialized",repository.isInitialized()}};
+     {"phase","before-world-source-refresh"},{"repositoryInitialized",repository.isInitialized()},
+     {"lookupPath",behaviorPath.value}};
    auto recordDiscovery=[&]{std::ofstream(j->path/"height-pack-discovery.json")<<discovery.dump(2);};
    recordDiscovery();
-   repository.addWorldPackSource(Core::Path(root));
+   repository.addWorldPackSource(worldPath);
    {
-     auto* source=repository.getPackSourceFactory().getDirectoryPackSource(Core::Path(root/"behavior_packs"),PackType::Behavior);
+     auto* source=repository.getPackSourceFactory().getDirectoryPackSource(behaviorPath,PackType::Behavior);
      if(!source)throw std::runtime_error("Native world behavior-pack source is missing");
+     discovery["sourcePath"]=source->mPath->value;
      discovery["previouslyDiscovered"]=bool(source->mDiscovered);
      discovery["rediscoverable"]=bool(source->mIsRediscoverable);
      // 26.20.7 exposes the native directory-source discovery latch. Creation
@@ -359,7 +363,9 @@ LL_TYPE_INSTANCE_HOOK(CreateServer,ll::memory::HookPriority::Normal,WorldCreatio
      source->mDiscovered=false;
      discovery["discoveryRearmed"]=true;recordDiscovery();
    }
-   repository.addWorldResourcePacks(Core::Path(root));repository.refreshPacks();
+   // addWorldResourcePacks already binds the world source and refreshes the
+   // repository synchronously in the pinned client; do not scan it a third time.
+   repository.addWorldResourcePacks(worldPath);
    auto pack=repository.getResourcePackForPackId(id);
    discovery["phase"]="after-world-source-refresh";discovery["found"]=bool(pack);
    discovery["invalidBehaviorPacks"]=repository.getInvalidPacks(PackType::Behavior).size();recordDiscovery();

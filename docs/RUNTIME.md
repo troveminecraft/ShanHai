@@ -80,3 +80,11 @@ Windows 模组的 `diagnostics/world-session.json` 记录 `nativeWork`：原生�
 在这一步失败时，只将当前 Job 创建且与 prepared 数据逐文件一致的 `karma` 和标记文件移动到该任务的 `failed-attachment`。不删除世界、行为包目录或其他选择；任何 `level.dat`、LevelDB、额外文件或内容变化都会阻止此移动。允许重试仍通过原有 fresh-world 检查，而不是把任意旧标记当作可覆盖凭据。已有失败目录若已删除，不自动恢复。
 
 本版没有改变 BDS 或地形规则。BDS 启动成功不能证明 Windows 原生包扫描成功，离线文件回归也不能代替游戏内新建与重进。
+
+## 0.2.6 Windows 原生包路径
+
+0.2.5 实测三次创建均在 `height-pack-before-local-server` 阶段报 `Native world behavior-pack source is missing`；失败后回退和重试已实际生效。本次只读检查了该进程的原生代码与包来源：`RepositorySources::initializeWorldPackSource` 使用 `/` 拼接目录，`PackSourceFactory::getDirectoryPackSource` 按类型、字符串长度和字节相等查找，不把斜线视为等价。实际 Behavior 来源存在，`discovered=true`、`rediscoverable=false`。
+
+模组用 `filesystem::operator/` 拼接后，Windows 会产生末尾 `\behavior_packs`；SDK 的 `Core::Path(filesystem::path)` 直接保存 `u8string()`，不转为原生来源使用的 `/behavior_packs`。0.2.6 通过 `generic_u8string()` 统一传入仓库的 UTF-8 路径，并将 `lookupPath` 和 `sourcePath` 写入任务的 `height-pack-discovery.json`。没有往游戏进程写内存或调用游戏逻辑进行验证。
+
+Windows 回归覆盖混合分隔符以及含空格、中文的路径，保留接入/回退/旧世界保护测试。`addWorldResourcePacks` 已调用绑定与刷新，移除随后多余的刷新。最终是否发现高度包、进入世界和重进成功仍须游戏内验收；不得因路径测试通过而宣称创建已验收。
