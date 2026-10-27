@@ -165,6 +165,9 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
                 }
             }
         }
+        // Underground/native starts can have no plant reservation at all.
+        // Avoid rebuilding two identical vegetation buffers for those starts.
+        std::erase_if(groups,[](auto const& areas){return areas.empty();});
         if (!groups.empty()) {
             auto began = std::chrono::steady_clock::now();
             auto cleared = filterVegetationVolume(volume, cp, groups);

@@ -155,7 +155,16 @@ std::shared_ptr<JungleTree> jungleTree(int gx,int gz){return jungleShapes.get(ke
  // Ranking by a stable spatial hash samples middle and upper foliage fairly;
  // sorting by height previously spent the entire budget at the crown's roof.
  auto vineRank=[&](auto p){return hash01(p.x,p.z,terrainSeed^(14501+p.y*31));};
- std::sort(queue.begin(),queue.end(),[&](auto const&u,auto const&v){double U=vineRank(u),V=vineRank(v);return U==V?std::tie(u.x,u.y,u.z)<std::tie(v.x,v.y,v.z):U<V;});
+ // Only eligible leaf voxels can start a vine. The old sort hashed every
+ // trunk/leaf voxel at each comparison, then discarded over 95% of them.
+ // Filtering first preserves the exact total order of all eligible anchors.
+ std::erase_if(queue,[&](auto const&p){return p.block!=15||p.y<a.ground+a.h*.36||vineRank(p)>.05;});
+ std::vector<std::pair<double,JungleCell>> ranked;ranked.reserve(queue.size());
+ for(auto p:queue)ranked.emplace_back(vineRank(p),p);
+ std::sort(ranked.begin(),ranked.end(),[](auto const&u,auto const&v){
+  return u.first==v.first?std::tie(u.second.x,u.second.y,u.second.z)<std::tie(v.second.x,v.second.y,v.second.z):u.first<v.first;
+ });
+ queue.clear();for(auto const&[rank,p]:ranked)queue.push_back(p);
  std::vector<std::pair<int,int>> hung;
  for(auto p:queue){
   if(p.block!=15||p.y<a.ground+a.h*.36||strands>=strandLimit||vineRank(p)>.05)continue;
