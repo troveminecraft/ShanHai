@@ -85,16 +85,23 @@ void updatePlayerStreaming(Level& level){
     signature=(signature^uint64_t(c?int(c->getState().load())+1:0))*1099511628211ULL;
    }s.progress=signature;
   }
-  // Scan the actual view, including its outer rings. A fixed radius of 32
-  // left visible holes outside the scan until the player moved close to them.
+  // Observe the full view, but do not generate the unrequested frontier.
+  // Repair only stalled existing jobs or missing chunks enclosed by ready rows/columns.
   // Readiness always comes from BDS; never mark unfinished chunks as Loaded.
   if(ready&&seconds>=s.nextViewScan){
    s.nextViewScan=seconds+2.;s.viewRadius=terrain_runtime::recoveryViewRadius(int(player.getChunkRadius()));
-   int radius=s.viewRadius;s.visible.begin();
-   for(int dz=-radius;dz<=radius;++dz)for(int dx=-radius;dx<=radius;++dx){
-    if(dx*dx+dz*dz>radius*radius)continue;int x=cx+dx,z=cz+dz;if(!validChunk(x,z))continue;
-    auto c=dim->getChunkSource().getExistingChunk({x,z});s.visible.observe(x,z,c&&c->getState().load()==ChunkState::Loaded,seconds);
-   }s.visible.end();
+   int radius=s.viewRadius,side=radius*2+1;s.visible.begin();
+   std::vector<int> states(side*side,-2),rowMin(side,side),rowMax(side,-1),colMin(side,side),colMax(side,-1);
+   for(int z=0;z<side;++z)for(int x=0;x<side;++x){
+    int dx=x-radius,dz=z-radius;if(dx*dx+dz*dz>radius*radius||!validChunk(cx+dx,cz+dz))continue;
+    auto c=dim->getChunkSource().getExistingChunk({cx+dx,cz+dz});
+    int state=c?int(c->getState().load()):-1;states[z*side+x]=state;
+    if(state==int(ChunkState::Loaded)){rowMin[z]=std::min(rowMin[z],x);rowMax[z]=std::max(rowMax[z],x);colMin[x]=std::min(colMin[x],z);colMax[x]=std::max(colMax[x],z);}
+   }
+   for(int z=0;z<side;++z)for(int x=0;x<side;++x)if(states[z*side+x]!=-2)
+    s.visible.observe(cx+x-radius,cz+z-radius,states[z*side+x],
+      rowMin[z]<x&&x<rowMax[z]&&colMin[x]<z&&z<colMax[x],seconds);
+   s.visible.end();
    for(auto&patch:s.patches){
     if(patch.view){
      bool done=true;
@@ -117,7 +124,7 @@ void updatePlayerStreaming(Level& level){
    // Native publication sends newly completed chunks. Do not resend the entire
    // view per repaired patch: that amplifies bandwidth during normal flight.
   }
-  needsLaunch|=!s.visible.gaps.empty();
+  needsLaunch|=bool(s.patches[0].view);
   if(s.watchdog.poll(cx,cz,seconds,ready,s.arrival.active)){
    s.arrival.begin(seconds);++arrivalStarts;
    log().warn("[就近加载] {} ({},{}) 停留后近邻仍未就绪，启动一次有界恢复",name,cx,cz);
@@ -130,12 +137,12 @@ void updatePlayerStreaming(Level& level){
    default:break;
   }
   if(!unboundedWorld){ax=std::clamp(ax,-Half,Half-1);az=std::clamp(az,-Half,Half-1);}
-  if(terrain_runtime::allowSupplementalLoading(ready,worldSession->waitingCalculators.load(),nearPending,tickBusy)&&!s.patches[0].view&&!s.patches[1].view&&motion.allowAhead&&std::max(std::abs(ax-cx),std::abs(az-cz))>=3){
+  if(terrain_runtime::allowSupplementalLoading(ready,worldSession->waitingCalculators.load(),nearPending,tickBusy)&&!s.patches[0].view&&motion.allowAhead&&std::max(std::abs(ax-cx),std::abs(az-cz))>=3){
    if(!s.ahead||std::max(std::abs(ax-s.ax),std::abs(az-s.az))>=2){move(s.ahead,ax,az);s.ax=ax;s.az=az;}
   }else s.ahead.reset();
   if(!next->empty()){
    auto& f=next->back();f.repair=bool(s.patches[0].view);f.repairX=s.patches[0].x;f.repairZ=s.patches[0].z;
-   f.repair2=bool(s.patches[1].view);f.repair2X=s.patches[1].x;f.repair2Z=s.patches[1].z;
+   f.repair2=false;
   }
   return true;
  });

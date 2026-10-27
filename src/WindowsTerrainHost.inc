@@ -45,13 +45,16 @@ void clientRelease() {
     pendingLoads.clear();
 }
 void clientTick(Level& level) {
+    auto now=Clock::now();
+    if(lastTick!=Clock::time_point{})worldSession->tickGapLatency.observe(std::chrono::duration_cast<std::chrono::microseconds>(now-lastTick).count());
+    lastTick=now;
     updatePlayerStreaming(level);
     pollLoads(level);
     glacierWeatherTick(level);
 }
 terrain_runtime::BuildHeight clientHeight() { return buildHeight; }
 Json clientStatus() {
-    return {{"world",worldName},{"kernel",NativeRuntime::KernelVersion},
+    Json result={{"world",worldName},{"kernel",NativeRuntime::KernelVersion},
             {"generatedChunks",generated.load()},{"flatGeneratedChunks",flatGenerated.load()},
             {"voidGeneratedChunks",voidGenerated.load()},{"terrainErrors",errors.load()},
             {"buildMaxYExclusive",buildHeight.maxYExclusive},
@@ -60,6 +63,19 @@ Json clientStatus() {
             {"streaming",{{"loadRequests",loadRequests},{"ready",loadReady},
                 {"pending",pendingLoads.size()},{"gapRepairs",viewGapRepairs},
                 {"gapResolved",viewGapResolved},{"priorityBoosts",priorityBoosts.load()}}}};
+    result["latency"]={{"request",latencyJson(worldSession->requestLatency)},{"calculatorQueue",latencyJson(worldSession->queueLatency)},
+        {"compute",latencyJson(worldSession->computeLatency)},{"fill",latencyJson(worldSession->fillLatency)},
+        {"observedReady",latencyJson(worldSession->readyLatency)},{"tickInterval",latencyJson(worldSession->tickGapLatency)}};
+    result["streaming"].update({{"nearPending",nearPending},{"farPending",farPending},{"oldestPendingMs",oldestPendingMs},
+        {"calculatorWaiting",worldSession->waitingCalculators.load()},{"calculatorBusy",worldSession->busyCalculators.load()},
+        {"repairsPerPlayer",terrain_runtime::RepairSlots},{"stallSeconds",8},{"frontierRepair",false},
+        {"clientMeshMeasured",false},{"states",Json::array()}});
+    for(int i=0;i<14;++i)result["streaming"]["states"].push_back({{"name",loadStateName(i)},
+        {"pending",pendingByState[i]},{"residence",latencyJson(worldSession->stageLatency[i])}});
+    result["playerViews"]=Json::array();
+    for(auto const&[name,s]:playerStreams)result["playerViews"].push_back({{"name",name},{"chunk",{s.cx,s.cz}},
+        {"radius",s.viewRadius},{"unfinished",s.visible.gaps.size()},{"repairActive",bool(s.patches[0].view)}});
+    return result;
 }
 void clientHooks(terrain_runtime::HookTransaction& hooks) {
     calibrateStreamingPriority();
