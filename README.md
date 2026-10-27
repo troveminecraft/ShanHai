@@ -4,7 +4,7 @@
 
 English · [简体中文](README.zh-CN.md)
 
-[Download 0.2.1](https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.1) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
+[Download 0.2.2](https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.2) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
 
 ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows, powered by LeviLamina. Follow rivers through mountain ranges, rolling highlands, forests, deserts and coastlines; explore caves, glaciers and volcanic terrain. Vanilla structures are placed according to the surrounding landscape.
 
@@ -16,17 +16,17 @@ ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows,
 
 ## Install
 
-1. Download [ShanHai-Windows-0.2.1.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.1/ShanHai-Windows-0.2.1.zip).
+1. Download [ShanHai-Windows-0.2.2.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.2/ShanHai-Windows-0.2.2.zip).
 2. Save and fully close Minecraft. Import the ZIP into the matching instance through LeviLauncher’s mod manager.
 3. Enable the mod and create a new **normal** world with your chosen seed. Do not select a flat world.
 
 Use the release ZIP, rather than GitHub’s automatically generated source archive. Python and Node.js runtime dependencies are included; copying only the DLL is insufficient. The internal mod ID remains `karma-worldgen-client` for configuration and save compatibility.
 
-## Version 0.2.1
+## Version 0.2.2
 
-This update expands irregular basins, removes inland sand rings, cuts deeper and narrower canyons, raises jungle trees by 20–30 blocks and adds upper mountain cave networks. Lakes and village candidate sites are more frequent; rarer lava pools share water-pool placement rules and have stone borders. Sea level remains **Y100**, basin floors **Y60–100**, and the build range **Y-64 through Y511**. Keep the world's bundled height behavior pack enabled.
+This update addresses a Windows local-world loading failure: the height pack is registered with the new world's native pack source and selected in the in-memory startup settings. A missing or conflicting height resource is rejected before terrain generation starts. Failed native initialization retains its generation session until the engine closes the world.
 
-Visible-chunk recovery now covers the requested view up to 64 chunks and retains two bounded repair areas. Distant repair tasks no longer throttle follow-up by counting themselves as nearby backlog. Retry limits and native readiness checks remain. See [elevation and climate](docs/ELEVATION.md) for the generation rules.
+Terrain remains the **0.2.1 recipe**: sea level **Y100**, basin floors **Y60–100**, and build range **Y-64 through Y511**. Existing saves and generation rules are unchanged. BDS remains terrain **1.0.48** / structures **1.0.63**; Android is archived. Keep the world's bundled height behavior pack enabled.
 
 **This is a test release awaiting gameplay acceptance.** Offline generation tests and successful builds do not establish in-game correctness. Please report the version, world seed, coordinates, screenshots and reproduction steps when you encounter an issue.
 

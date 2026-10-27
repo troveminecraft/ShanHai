@@ -1,3 +1,15 @@
+## 0.2.2 — Windows local-world startup
+
+- Register the new world's pack source before loading its height behavior pack; include the exact height pack identity in native `LevelSettings` as well as the saved pack-selection file.
+- Read and validate the overworld resource selected by the native server pack manager before activating terrain generation. Missing/conflicting resources reject startup before native chunk jobs can begin.
+- Do not release the terrain session immediately after native initialization returns failure: native queued work still belongs to the level until engine teardown.
+- Add persistent startup-phase diagnostics and remove stale error text after successful initialization.
+- Correct the bundled installation README's stale version and sea-level text.
+
+Windows **0.2.2**; BDS remains terrain **1.0.48** / structures **1.0.63**; kernel **2.209** and generation recipes are unchanged. This is a Windows adapter fix, maintained in both source trees. No new BDS world is needed. Android remains archived.
+
+Evidence from the reported 0.2.1 failure: native height -64..319 vs saved -64..511, zero generated chunks/players/ticks, followed by `closed-world-request` after early session release. The same height behavior pack works in isolated BDS with experimental toggles both disabled and enabled. Native Windows creation/loading remains subject to gameplay acceptance; offline and build checks do not establish that it is resolved in-game.
+
 ## 0.2.1 — visible chunk recovery and inland landforms
 
 - Recovery scans the player's requested view (up to 64 chunks), instead of stopping at 32. Two disjoint 5×5 repair cores retain eight dependency rings each. Distant repairs no longer count as nearby player backlog and suppress their own follow-up. Repair lifetime is 45 seconds with bounded retries; no incomplete chunk is marked loaded.
