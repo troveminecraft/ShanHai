@@ -26,6 +26,8 @@
 #include "mc/deps/core/resource/ResourceLocation.h"
 #include "mc/deps/core/file/PathView.h"
 #include "WorldStartup.h"
+#include "HookTransaction.h"
+#include "CloudHeight.inc"
 
 namespace client {
 Level *current = nullptr;
@@ -76,6 +78,8 @@ void writeStatus(Level &level, bool closed = false) {
     status["ticks"] = sessionTicks;
     status["closed"] = closed;
     status["tickErrors"] = tickErrors;
+    status["clouds"]={{"targetY",clouds::Height},{"classicExtractions",clouds::extractions[0].load()},
+        {"vibrantExtractions",clouds::extractions[1].load()},{"gameplayTested",false}};
     status["players"] = Json::array();
     level.forEachPlayer([&](Player &p) {
         auto pos = p.getPosition();
@@ -237,6 +241,7 @@ class Mod {
         hooks.add<WorldClose>("WorldClose");
         terrain::clientHooks(hooks);
         lab::clientHooks(hooks);
+        clouds::install(hooks);
         creation::enable();
         hooks.onRollback([] { creation::disable(); });
         listener =
@@ -264,6 +269,7 @@ class Mod {
         ll::event::EventBus::getInstance().removeListener(listener);
         WorldOpen::unhook();
         WorldClose::unhook();
+        clouds::remove();
         terrain::clientUnhook();
         lab::clientUnhook();
         return true;

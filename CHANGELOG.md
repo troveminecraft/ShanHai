@@ -1,5 +1,14 @@
 ## 0.2.2 — Windows local-world startup
 
+## 0.2.3 — 2026-10-27
+
+- Recover stalled chunk jobs and enclosed holes without generating the untouched view frontier; keep one repair halo per player.
+- Add Windows queue, compute, fill, native stage and tick diagnostics. Mesh/network timings are not inferred from native chunk readiness.
+- Filter jungle vine candidates before sorting and skip empty structure vegetation reservations. Preserve terrain output.
+- Target Y500 clouds in both classic and Vibrant Visuals rendering for expanded Overworlds.
+- BDS terrain 1.0.49 / structures 1.0.64. Android remains archived. Offline checks/builds are not gameplay acceptance, and stable forest throughput improvement has not yet been demonstrated.
+
+
 - Register the new world's pack source before loading its height behavior pack; include the exact height pack identity in native `LevelSettings` as well as the saved pack-selection file.
 - Read and validate the overworld resource selected by the native server pack manager before activating terrain generation. Missing/conflicting resources reject startup before native chunk jobs can begin.
 - Do not release the terrain session immediately after native initialization returns failure: native queued work still belongs to the level until engine teardown.
