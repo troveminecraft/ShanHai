@@ -8,6 +8,8 @@
 #include "mc/client/gui/screens/interfaces/ISceneStack.h"
 #include "mc/client/gui/screens/models/IContentManager.h"
 #include "mc/resources/IResourcePackRepository.h"
+#include "mc/resources/ResourcePack.h"
+#include "mc/deps/core/resource/PackIdVersion.h"
 #include "mc/deps/core/file/Path.h"
 #include "mc/platform/UUID.h"
 #include "NewWorldFiles.h"
@@ -331,24 +333,52 @@ LL_TYPE_INSTANCE_HOOK(CreateServer,ll::memory::HookPriority::Normal,WorldCreatio
   // Re-merge here because the copy stage may have replaced the selection file.
   auto uuid=installPreparedHeightPack(root,j->path/"prepared");
   bool visibleInRepository=false;
+  bool selectedInSettings=false;
   if(!uuid.empty()){
    auto& repository=*mResourcePackRepository;
+   repository.addWorldPackSource(Core::Path(root));
    repository.addWorldResourcePacks(Core::Path(root));
    repository.refreshPacks();
-   // This is a repository snapshot, not completion of the native world-pack
-   // load. In 26.20 it can still be empty here for a newly attached pack.
-   // Let native startup build the selected world stack. WorldOpen checks the
-   // resulting dimension bounds and rejects it before joining if they differ.
-   visibleInRepository=repository.getResourcePackByUUID(mce::UUID::fromString(uuid))!=nullptr;
+   auto header=readCreationJson(root/"behavior_packs"/HeightPackFolder/"manifest.json").at("header");
+   auto v=header.at("version");
+   PackIdVersion id(uuid,std::to_string(v.at(0).get<int>())+"."+std::to_string(v.at(1).get<int>())+"."+std::to_string(v.at(2).get<int>()),PackType::Behavior);
+   auto pack=repository.getResourcePackForPackId(id);
+   visibleInRepository=bool(pack);
+   if(!pack)throw std::runtime_error("Height behavior pack could not be loaded into the native repository; local server was not started");
+   std::string definition;
+   if(!pack->getResource(Core::Path("dimensions/overworld.json"),definition,-1))
+    throw std::runtime_error("Native height pack has no overworld definition");
+   startup::requireHeightResource(definition,-64,512);
+   // Fresh worlds also carry an in-memory selection into local-server startup.
+   // Updating the file alone leaves this selection unchanged.
+   auto identities=*mLevelSettings->mNewWorldBehaviorPackIdentities;
+   for(auto const& entry:identities)if(*entry.mPackId->mId==*id.mId){
+    if(*entry.mPackId!=id)throw std::runtime_error("Conflicting native height pack version");
+    selectedInSettings=true;
+   }
+   if(!selectedInSettings)identities.emplace_back(id,"");
+   mLevelSettings->setNewWorldBehaviorPackIdentities(identities);
+   selectedInSettings=true;
   }
   j->trace("height_pack_prepared_before_server");
   std::ofstream(diagnostics/"new-world-height-pack.json")<<Json{{"world",root.string()},
    {"packUuid",uuid},{"filesAndSelectionVerified",!uuid.empty()},
    {"visibleInRepositorySnapshot",visibleInRepository},{"nativePackLoadPending",true},
+   {"selectedInNativeSettings",selectedInSettings},
    {"version",shanhai_release::Windows},{"stage","before-local-server"},
    {"runtimeHeightVerified",false}}.dump(2);
  }catch(std::exception const&e){
-  j->fail(std::string("主世界高度包接入失败：")+e.what());return false;
+  j->fail(std::string("主世界高度包接入失败：")+e.what());
+  awaitingServer.erase(this);prepared.erase(this);
+  for(auto it=jobs.begin();it!=jobs.end();){
+   if(it->second!=j){++it;continue;}
+   // This hook runs on the creation UI thread. Facet destruction removes its
+   // map entry, so only a still-owned facet can be reset here.
+   auto& facet=*it->first;
+   facet.getLevelDataBindings().mAdvanced->setGeneratorType(GeneratorType::Overworld);
+   facet.clearErrors();resetFacet(facet,j->phase);it=jobs.erase(it);
+  }
+  return false;
  }
  bool started=origin();
  if(started)awaitingServer.erase(this);

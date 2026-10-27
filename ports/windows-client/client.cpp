@@ -22,6 +22,10 @@
 #include "mc/server/ServerLevel.h"
 #include "mc/world/level/LevelSettings.h"
 #include "mc/deps/core/file/PathBuffer.h"
+#include "mc/resources/ResourcePackManager.h"
+#include "mc/deps/core/resource/ResourceLocation.h"
+#include "mc/deps/core/file/PathView.h"
+#include "WorldStartup.h"
 
 namespace client {
 Level *current = nullptr;
@@ -108,6 +112,14 @@ void bindWorld(Level &level, std::string const &name, LevelSettings const &setti
     if (marker.at("worldSeed").get<std::string>() != seed)
         throw std::runtime_error("World seed differs from its immutable Karma seed package");
     validateStoredGenerator(root, seed);
+    auto height=terrain_runtime::BuildHeight::read(marker);
+    if(height.maxYExclusive!=terrain_runtime::BuildHeight::LegacyMaxYExclusive){
+        auto manager=level.getServerResourcePackManager();
+        std::string definition;
+        if(!manager || !manager->load(ResourceLocation(Core::PathView("dimensions/overworld.json"),ResourceFileSystem::UserPackage),definition))
+            throw std::runtime_error("Height behavior pack is absent from the native server pack stack; world initialization was stopped before generation");
+        startup::requireHeightResource(definition,height.MinY,height.maxYExclusive);
+    }
     terrain::log().info("Karma client: world generator provenance validated; runtime generator={}",
                         int(settings.getGenerator()));
     current = &level;
@@ -132,15 +144,23 @@ using BiomeData = std::optional<std::reference_wrapper<
 LL_TYPE_INSTANCE_HOOK(WorldOpen, ll::memory::HookPriority::Normal, ServerLevel, &ServerLevel::$initialize,
                       bool, std::string const &name, LevelSettings const &settings,
                       Experiments const &experiments, std::string const *id, BiomeData biomes) {
+    auto startupStatus=[&](char const* phase,std::string const& error=std::string{}){
+        std::ofstream(diagnostics/"world-startup.json") << Json{
+            {"version",shanhai_release::Windows},{"world",name},
+            {"phase",phase},{"error",error},{"gameplayTested",false}}.dump(2);
+    };
+    startupStatus("preflight");
     try {
         bindWorld(*this, name, settings);
     } catch (std::exception const &e) {
         terrain::log().error("Karma world rejected before generation: {}", e.what());
         std::ofstream(diagnostics / "world-error.txt") << e.what();
+        startupStatus("rejected-before-native-initialize",e.what());
         if (current == this)
             clearWorld(this);
         return false;
     }
+    startupStatus("native-initialize");
     bool ok = origin(name, settings, experiments, id, biomes);
     if (ok && current == this) {
         try {
@@ -161,14 +181,19 @@ LL_TYPE_INSTANCE_HOOK(WorldOpen, ll::memory::HookPriority::Normal, ServerLevel, 
             // mark decoration complete. Missing templates must not silently omit villages.
             lab::clientWarmTemplates(*this);
             terrain::log().info("Karma client: vanilla village and fossil templates ready");
+            startupStatus("ready");
+            std::error_code ignored;
+            std::filesystem::remove(diagnostics/"world-error.txt",ignored);
         } catch (std::exception const &e) {
             terrain::log().error("Karma native templates unavailable: {}", e.what());
             std::ofstream(diagnostics / "world-error.txt") << e.what();
+            startupStatus("rejected-after-native-initialize",e.what());
             ok = false;
         }
     }
-    if (!ok && current == this)
-        clearWorld(this);
+    // A failed initialize() can still have native chunk tasks queued. The
+    // engine owns their teardown; keep their session alive until WorldClose.
+    // Only failures BEFORE origin() are safe to release immediately above.
     return ok;
 }
 LL_TYPE_INSTANCE_HOOK(WorldClose, ll::memory::HookPriority::Normal, ServerLevel, &ServerLevel::$dtor, void) {
