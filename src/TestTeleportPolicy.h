@@ -1,5 +1,6 @@
 #pragma once
 #include "StructureTestCatalog.h"
+#include "ReleaseVersions.h"
 #include <optional>
 #include <string>
 #include <algorithm>
@@ -59,15 +60,13 @@ inline std::optional<Destination> destination(int id, int biomeCount) {
 }
 struct Update { int id; char const* name; char const* content; };
 inline constexpr Update updates[]{
-    {133, "内陆盆地", "扩大盆底、打散规则轮廓，移除盆缘海滩环"},
-    {134, "小型峡谷", "134～136：深窄、不规则的三档地表峡谷"},
-    {113, "丛林", "树高增加 20～30 格"},
-    {114, "山地", "增加海平面以上的多层洞穴与下行连接"},
-    {1, "村庄", "增加候选密度；湖泊和带石边的稀有岩浆坑同步调整"}
-
+    {124, "超级冰川", "新配方恢复大冰刺高度，保留宽底座；旧世界不改写"},
+    {113, "丛林", "减少树形重复计算，补充加载耗时诊断"},
+    {109, "森林", "减少冠层重复计算；加载表现待实测"},
+    {116, "河流", "结构查询复用区域规划缓存，减少河湖重复勘测"}
 };
 inline std::string joinMessage() {
-    std::string result = "§9[山&海] 最近地形更新（0.2.1，待游戏内验收）";
+    std::string result = std::string("§9[山&海] 最近地形更新（") + shanhai_release::Windows + "，待游戏内验收）";
     for (auto const& u : updates)
         result += "\n§9[" + std::to_string(u.id) + "] " + u.name + "：" + u.content;
     return result + "\n§9/karma 查看全部群系/结构；/karma tp <序号> [模式]（1 创造 / 0 观察者；省略保持当前模式）。§r";
