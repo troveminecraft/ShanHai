@@ -290,6 +290,7 @@ void initialize() {
         rules["villageSizeClasses"] = true;
         kernelContext = std::make_shared<terrain_kernel::Context>();
         // Private to this host/world; never retain a previous world's directories.
+        kernelContext->storage(input, terrainFolder() / "regional-cache");
         field = std::make_unique<terrain_kernel::Field>(input, kernelContext);
         liveVillageSpacing.store(worldgen_rules::configuredVillageSpacing(input.at("config").value("villageSpacing",32)));
         rules["villageSpacing"] = liveVillageSpacing.load();
@@ -648,6 +649,7 @@ std::optional<IglooLayout> pendingIgloo;
 #include "MemoryStructureAudit.inc"
 #include "AcceptanceDiagnostics.inc"
 #include "AtlasCatalog.inc"
+#include "StructurePerformance.inc"
 #ifndef KARMA_CLIENT
 #include "TestTeleport.inc"
 #endif
@@ -732,6 +734,7 @@ class Mod {
                     tickStructureEntities(e.level());
                     tickInteractionAudit(e.level());
                     tickAtlasCatalog(e.level());
+                    writeStructurePerformance();
                 } catch (std::exception const &ex) {
                     ++stageErrors;
                     reportStructureFailure("structure tick", ex);

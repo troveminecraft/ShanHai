@@ -19,6 +19,7 @@ struct SmallTree {int x,z,h,type;double radius,ground;};
 class Engine {
  friend struct LandscapeRedoTest;
  friend struct ElevationVariantsTest;
+ friend struct IceSpireRegression;
  friend struct EngineBoundaryTest; // Offline regression exercises the production passes.
  std::vector<std::array<int,4>> nativeReservations;
  bool forestDesign=false,sealedFluidsEnabled=false,gradualIceEcotone=false;
@@ -125,7 +126,11 @@ public:
  oreProfilesEnabled=C.at("cave").value("oreProfiles",0)==1;
  // Optional platform adapter: reuse already planned giant anchors without
  // performing global layout work in every lightweight footprint engine.
- if(vegetationOnly){if(vegetationSource)sites=vegetationSource->sites;return;}
+ if(vegetationOnly){if(vegetationSource){sites=vegetationSource->sites;
+  // Shared Fields are already restricted to serial use. Do not share mutable
+  // caches across independent workers or mismatched recipes.
+  if(&field==&vegetationSource->field&&C==vegetationSource->C)jungleShapes=vegetationSource->jungleShapes;
+ }return;}
  auto const&q=C.at("giantForest");double reach=num(q,"outerRadius")+24,cx=32768+num(q,"centerX"),cz=32768+num(q,"centerZ"),grid=num(q,"grid");for(int i=0;i<num(q,"layoutAttempts");i++){double angle=rand(i,1)*6.283185307179586,d=std::sqrt(rand(i,2))*reach,r=num(q,"radiusMin")+rand(i,5)*(num(q,"radiusMax")-num(q,"radiusMin"));int x=int(std::floor(cx+std::cos(angle)*d)),z=int(std::floor(cz+std::sin(angle)*d)),gx=int(std::floor(x/grid)),gz=int(std::floor(z/grid));bool clear=true;for(int dz=-1;dz<=1&&clear;dz++)for(int dx=-1;dx<=1&&clear;dx++){auto it=sites.find(key2(gx+dx,gz+dz));if(it!=sites.end())for(auto const&b:it->second)if(std::hypot(x-b.x,z-b.z)<r+b.radius+num(q,"minGap")){clear=false;break;}}if(clear)sites[key2(gx,gz)].push_back({i,x,z,r});}
  }
  void setSealedFluidDiagnostics(bool enabled){sealedFluidsEnabled=enabled;}
@@ -137,6 +142,7 @@ public:
    rows.push_back({{"centre",{p->x-32768,p->y,p->z-32768}},{"ground",p->ground},{"fluid",p->fluid},{"columns",columns}});
   }return rows;
  }
+ std::array<double,4> forestMs{};
  double surfaceMs=0,columnMs=0,featureMs=0,undergroundMs=0;uint64_t columnNoise=0;
  J inspectForest(bool includeRuns=false,int limit=0,bool footprintsOnly=false) {
   J rows=J::array();std::vector<Site> ordered;for(auto const&[key,list]:sites)ordered.insert(ordered.end(),list.begin(),list.end());
@@ -221,7 +227,7 @@ public:
    if(x>1&&x<14&&z>1&&z<14)for(int dz=-1;dz<=1;++dz)for(int dx=-1;dx<=1;++dx){auto c=raw.data()+((z+dz)*16+x+dx)*Height;if(c[bottom+64]==0&&solid(c[bottom-1+64])&&solid(c[bottom-2+64]))c[bottom-1+64]=8;}
   }
  }
- std::vector<uint8_t> chunk(int cx,int cz){if(!(field.unbounded()?terrain_bounds::gameContainsChunk(cx,cz):terrain_bounds::containsChunk(cx,cz)))throw std::out_of_range("Native chunk bounds");surfaceMs=columnMs=featureMs=0;columnNoise=0;closedRiftColumns.fill({});if(landscapeDetails&&field.streamed()){detailVolcanoes.clear();for(auto const&v:field.inspectLocalVolcanoes(cx*16,cz*16))detailVolcanoes.push_back({v.at("x"),v.at("z"),v.at("crater"),v.at("outer")});}auto clock=[](){return std::chrono::steady_clock::now();};auto chunkBegin=clock();int x0=32768+cx*16,z0=32768+cz*16;std::array<Surface,256> surfaces;std::vector<uint16_t>raw(256*Height);std::vector<uint8_t>out{75,87,50,0};out.reserve(16384);for(int z=0;z<16;z++)for(int x=0;x<16;x++){auto began=clock();auto s=field.surface(x0+x,z0+z);surfaces[z*16+x]=s;surfaceMs+=std::chrono::duration<double,std::milli>(clock()-began).count();began=clock();auto beforeNoise=noiseSamples;out.push_back(uint8_t(field.elevationVariantsEnabled()&&s.snowCover>.70&&s.biome<29?29+s.biome:s.biome));int top=std::max({s.height+s.drip,s.water,s.lava});auto col=raw.data()+(z*16+x)*Height;std::fill(col,col+4,1);field.materialColumn(s,x0+x,z0+z,top,col);columnNoise+=noiseSamples-beforeNoise;columnMs+=std::chrono::duration<double,std::milli>(clock()-began).count();}
+ std::vector<uint8_t> chunk(int cx,int cz){if(!(field.unbounded()?terrain_bounds::gameContainsChunk(cx,cz):terrain_bounds::containsChunk(cx,cz)))throw std::out_of_range("Native chunk bounds");surfaceMs=columnMs=featureMs=0;forestMs.fill(0);columnNoise=0;closedRiftColumns.fill({});if(landscapeDetails&&field.streamed()){detailVolcanoes.clear();for(auto const&v:field.inspectLocalVolcanoes(cx*16,cz*16))detailVolcanoes.push_back({v.at("x"),v.at("z"),v.at("crater"),v.at("outer")});}auto clock=[](){return std::chrono::steady_clock::now();};auto chunkBegin=clock();int x0=32768+cx*16,z0=32768+cz*16;std::array<Surface,256> surfaces;std::vector<uint16_t>raw(256*Height);std::vector<uint8_t>out{75,87,50,0};out.reserve(16384);for(int z=0;z<16;z++)for(int x=0;x<16;x++){auto began=clock();auto s=field.surface(x0+x,z0+z);surfaces[z*16+x]=s;surfaceMs+=std::chrono::duration<double,std::milli>(clock()-began).count();began=clock();auto beforeNoise=noiseSamples;out.push_back(uint8_t(field.elevationVariantsEnabled()&&s.snowCover>.70&&s.biome<29?29+s.biome:s.biome));int top=std::max({s.height+s.drip,s.water,s.lava});auto col=raw.data()+(z*16+x)*Height;std::fill(col,col+4,1);field.materialColumn(s,x0+x,z0+z,top,col);columnNoise+=noiseSamples-beforeNoise;columnMs+=std::chrono::duration<double,std::milli>(clock()-began).count();}
  // Build the glacier landform before plants. Cave decoration still runs at
  // its old post-underground stage, so cave habitats keep their existing order.
  if(glacierEcologyEnabled){bool icy=false;for(auto const&s:surfaces)icy|=s.glacier>.18;
@@ -237,10 +243,10 @@ for(auto const&s:ss){if(field.surface(s.x,s.z,false).glacier>.15)continue;int x=
  for(bool leaves:{true,false})for(auto const&a:gs)for(auto const&r:a->runs){if(!forestTreeKept(a->x,a->z))continue;if((r.color==14)!=leaves)continue;int x=a->x+r.x-x0,z=a->z+r.z-z0;if(x<0||x>=16||z<0||z>=16)continue;auto col=raw.data()+(z*16+x)*Height;auto const&s=surfaces[z*16+x];if(s.river==0)std::fill(col+r.lo+64,col+r.lo+r.n+64,uint8_t(boxIds[r.color]));else for(int y=r.lo;y<r.lo+r.n;++y)if(y<=s.height||y>s.water)col[y+64]=uint8_t(boxIds[r.color]);}
  naturalFeatures(x0,z0,put,ss,ts);
  plainsEcology(x0,z0,raw,surfaces,ss);
- coniferEcology(x0,z0,raw,surfaces,ss,ts);
- broadleafForest(x0,z0,raw,surfaces);
- birchForest(x0,z0,raw,surfaces);
- jungleEcology(x0,z0,raw,surfaces);
+ {auto t=clock();coniferEcology(x0,z0,raw,surfaces,ss,ts);forestMs[0]=std::chrono::duration<double,std::milli>(clock()-t).count();}
+ {auto t=clock();broadleafForest(x0,z0,raw,surfaces);forestMs[1]=std::chrono::duration<double,std::milli>(clock()-t).count();}
+ {auto t=clock();birchForest(x0,z0,raw,surfaces);forestMs[2]=std::chrono::duration<double,std::milli>(clock()-t).count();}
+ {auto t=clock();jungleEcology(x0,z0,raw,surfaces);forestMs[3]=std::chrono::duration<double,std::milli>(clock()-t).count();}
  wetDryEcology(x0,z0,raw,surfaces);forestMushrooms(x0,z0,raw,surfaces);
  understory(x0,z0,raw,surfaces,ss,gs);
  oceanFeatures(x0,z0,raw,surfaces);

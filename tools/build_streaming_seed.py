@@ -20,6 +20,7 @@ def finish_recipe(data):
     data["config"].update(landscapeRevision=3,volcanoRevision=4,surfaceMoss=2,villageSpacing=16,lakeBasinsVersion=1)
     data["config"]["cave"].update(raisedCaveHeight=1,highMountainUnderground=1,uplandNetworks=1)
     data["config"]["smallPoolsVersion"]=3
+    data["config"]["tallIceSpires"]=True
     data['regionalGeneration']=dict(algorithm='regional-drainage-v3',coreBlocks=2048,haloBlocks=512,
                                     samplePitch=64,worldBounds=None,boundsMode='infinite',persistentPlans=True)
     data['rivers']=dict(algorithm='regional-drainage-v3',cutBanks=10,naturalBankSlope=1,sectionProfiles=1,

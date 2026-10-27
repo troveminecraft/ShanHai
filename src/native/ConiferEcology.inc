@@ -70,7 +70,10 @@ void coniferEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,2
    if(y<=woodTop)radius=std::max(radius,1.25);
    double drift=a.shape==2?.35*std::sin(t*3+a.phase)*(1-t):0;
    int n=int(std::ceil(radius*1.18));
-   for(int dz=-n;dz<=n;dz++)for(int dx=-n;dx<=n;dx++){
+   // Crown decisions are column-local. Clip before trigonometry, retaining the
+   // complete anchor/footprint checks above for chunk-border determinism.
+   for(int dz=std::max(-n,z0-a.z);dz<=std::min(n,z0+15-a.z);dz++)
+   for(int dx=std::max(-n,x0-a.x);dx<=std::min(n,x0+15-a.x);dx++){
     double angle=std::atan2(double(dz),double(dx));
     double edge=radius*(1+.09*std::sin(3*angle+a.phase)+.05*std::sin(5*angle-a.phase+y*.3));
     // Branch-shaped underside: inner foliage starts higher; outward

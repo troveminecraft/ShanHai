@@ -33,21 +33,29 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
   bool minimum=true;for(int dz=-1;dz<=1;++dz)for(int dx=-1;dx<=1;++dx)if(dx||dz)minimum&=refresh?s.height<=ground[(z+dz)*N+x+dx].height:s.height<ground[(z+dz)*N+x+dx].height;
   if(!minimum)continue;
   bool overlap=false;for(auto const&lake:lakes){double ax=lake.at("center").at(0),az=lake.at("center").at(1);overlap|=std::hypot(X-ax,Z-az)<192;}if(overlap)continue;
-  constexpr int Side=33;int Step=refresh?6:4;std::array<Ground,Side*Side> fine;int rim=maxSurfaceY+1;
-  for(int zz=0;zz<Side;++zz)for(int xx=0;xx<Side;++xx){auto q=sample(X+(xx-16)*Step,Z+(zz-16)*Step);fine[zz*Side+xx]=q;if(xx==0||zz==0||xx==Side-1||zz==Side-1)rim=std::min(rim,q.height);}
+  constexpr int Side=33;int Step=refresh?6:4;std::array<Ground,Side*Side> fine;std::array<bool,Side*Side> sampled{};int rim=maxSurfaceY+1;
+  // Refreshed lakes use a connected flood, not the unrelated outer rim. Most
+  // candidates only visit the central survey and a small flooded component.
+  // Evaluate exactly the requested samples once instead of all 1,089 columns.
+  auto fineAt=[&](int i)->Ground const&{if(!sampled[i]){
+   fine[i]=sample(X+(i%Side-16)*Step,Z+(i/Side-16)*Step);sampled[i]=true;
+  }return fine[i];};
+  if(!refresh)for(int zz=0;zz<Side;++zz)for(int xx=0;xx<Side;++xx){auto const& q=fineAt(zz*Side+xx);if(xx==0||zz==0||xx==Side-1||zz==Side-1)rim=std::min(rim,q.height);}
   int start=16*Side+16;
   // A 64-block coarse grid rarely lands on the bottom of a natural basin.
   // Refine the seed locally; a low point on an unrelated outer boundary must
   // not reject a basin whose own connected shoreline is fully enclosed.
-  if(refresh)for(int zz=8;zz<=24;++zz)for(int xx=8;xx<=24;++xx){int j=zz*Side+xx;if(eligible(fine[j])&&fine[j].height<fine[start].height)start=j;}
-  int low=fine[start].height,level=refresh?low+7:std::min(s.height+4,rim-1);
+  if(refresh)for(int zz=8;zz<=24;++zz)for(int xx=8;xx<=24;++xx){int j=zz*Side+xx;if(eligible(fineAt(j))&&fineAt(j).height<fineAt(start).height)start=j;}
+  int low=fineAt(start).height,level=refresh?low+7:std::min(s.height+4,rim-1);
   if(level<low+2)continue;
-  std::array<bool,Side*Side> wet{};std::vector<int> queue;bool accepted=false;
+  std::array<bool,Side*Side> wet{};std::vector<int> queue;std::array<int,Side*Side> frontier{};bool accepted=false;
   for(;level>=low+2;--level){
-   wet.fill(false);queue={start};wet[start]=true;bool open=false;
-   for(size_t k=0;k<queue.size();++k){int j=queue[k],xx=j%Side,zz=j/Side;
-    if(xx==0||zz==0||xx==Side-1||zz==Side-1||!eligible(fine[j])){open=true;break;}
-    for(auto[dx,dz]:{std::pair{1,0},{-1,0},{0,1},{0,-1}}){int a=(zz+dz)*Side+xx+dx;if(!wet[a]&&fine[a].height<level){wet[a]=true;queue.push_back(a);}}
+   wet.fill(false);queue={start};wet[start]=true;bool open=false;size_t pending=1;frontier[0]=start;
+   // Depth-first rejection reaches an escape sooner in open depressions.
+   // Closed components still visit the identical set and emit canonical rows.
+   for(size_t k=0;k<queue.size();++k){int j=refresh?frontier[--pending]:queue[k],xx=j%Side,zz=j/Side;
+    if(xx==0||zz==0||xx==Side-1||zz==Side-1||!eligible(fineAt(j))){open=true;break;}
+    for(auto[dx,dz]:{std::pair{1,0},{-1,0},{0,1},{0,-1}}){int a=(zz+dz)*Side+xx+dx;if(!wet[a]&&fineAt(a).height<level){wet[a]=true;queue.push_back(a);if(refresh)frontier[pending++]=a;}}
    }
    if(!open&&queue.size()>=32){accepted=true;break;}
    if(!refresh)break;

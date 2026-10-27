@@ -63,13 +63,14 @@ Json clientStatus() {
             {"streaming",{{"loadRequests",loadRequests},{"ready",loadReady},
                 {"pending",pendingLoads.size()},{"gapRepairs",viewGapRepairs},
                 {"gapResolved",viewGapResolved},{"priorityBoosts",priorityBoosts.load()}}}};
+    result["nativeWork"]=workReport();
     result["latency"]={{"request",latencyJson(worldSession->requestLatency)},{"calculatorQueue",latencyJson(worldSession->queueLatency)},
         {"compute",latencyJson(worldSession->computeLatency)},{"fill",latencyJson(worldSession->fillLatency)},
         {"observedReady",latencyJson(worldSession->readyLatency)},{"tickInterval",latencyJson(worldSession->tickGapLatency)}};
     result["streaming"].update({{"nearPending",nearPending},{"farPending",farPending},{"oldestPendingMs",oldestPendingMs},
         {"calculatorWaiting",worldSession->waitingCalculators.load()},{"calculatorBusy",worldSession->busyCalculators.load()},
         {"repairsPerPlayer",terrain_runtime::RepairSlots},{"stallSeconds",8},{"frontierRepair",false},
-        {"clientMeshMeasured",false},{"states",Json::array()}});
+        {"clientMeshMeasured",true},{"states",Json::array()}});
     for(int i=0;i<14;++i)result["streaming"]["states"].push_back({{"name",loadStateName(i)},
         {"pending",pendingByState[i]},{"residence",latencyJson(worldSession->stageLatency[i])}});
     result["playerViews"]=Json::array();
@@ -79,11 +80,13 @@ Json clientStatus() {
 }
 void clientHooks(terrain_runtime::HookTransaction& hooks) {
     calibrateStreamingPriority();
+    nativeTimingHooks(hooks);
     hooks.add<Generate>("terrain::Generate");
     hooks.add<GenerateVoid>("terrain::GenerateVoid");
     hooks.add<ObserveLoad>("terrain::ObserveLoad");
     hooks.add<StreamPriority>("terrain::StreamPriority");
 }
 void clientUnhook() {
+    nativeTimingUnhook();
     Generate::unhook(); GenerateVoid::unhook(); ObserveLoad::unhook(); StreamPriority::unhook();
 }

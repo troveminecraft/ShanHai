@@ -1,6 +1,7 @@
 #include <Windows.h>
 #ifdef KARMA_CLIENT
 #include "WindowsWorldHost.h"
+#include "mc/client/renderer/chunks/RenderChunkBuilder.h"
 #endif
 #include "NativeRuntime.h"
 #include "TerrainSession.h"
@@ -157,6 +158,7 @@ uint64_t observedDetached=0,observedCoalesced=0;std::atomic_uint64_t observation
 uint64_t oldestPendingMs=0;std::array<unsigned,15> pendingByState{};
 
 #include "PlayerStreaming.inc"
+#include "ChunkStageDiagnostics.inc"
 struct LoadEvent {int x,z;bool saved;Clock::time_point started;};
 struct PendingLoad {LoadEvent event;int state=-1;Clock::time_point changed=Clock::now();};
 std::mutex loadMutex;
@@ -429,6 +431,15 @@ LL_TYPE_INSTANCE_HOOK(GenerateVoid,ll::memory::HookPriority::Normal,VoidGenerato
 }
 #include "GlacierWeather.inc"
 Json latencyJson(terrain_runtime::Latency& latency){auto s=latency.snapshot();Json q={{"count",s.count},{"windowCount",s.windowCount},{"windowLimit",2048},{"totalMs",s.totalUs/1000.},{"maxMs",s.maxUs/1000.}};if(s.windowCount){q["p50Ms"]=s.p50/1000.;q["p95Ms"]=s.p95/1000.;q["p99Ms"]=s.p99/1000.;}else{q["p50Ms"]=nullptr;q["p95Ms"]=nullptr;q["p99Ms"]=nullptr;}return q;}
+Json workReport(){
+ static constexpr std::array names={"loadTask","structureTask","decorationTask","lightingTask","clientMeshBuild"};
+ Json r;for(size_t i=0;i<names.size();++i)r[names[i]]=latencyJson(worldSession->nativeWorkLatency[i]);
+ r["slowTasks"]=Json::array();{std::lock_guard lock(worldSession->slowWorkMutex);for(auto const& s:worldSession->slowWork)
+  r["slowTasks"].push_back({{"task",names[s.stage]},{"chunk",{s.x,s.z}},{"ms",s.us/1000.}});}
+ r["scope"]="function wall time; includes internal lock/dependency wait; not GPU publication";
+ if(worldSession->kernelContext)r["regionalPlans"]=worldSession->kernelContext->statistics();
+ return r;
+}
 void writeReport(){
  unsigned restarts=0;for(auto& runtime:worldSession->runtimes)restarts+=runtime.restarts.load();
  Json report={{"worldName",worldName},{"terrainSeed",metadata.at("terrainSeed")},{"totalChunks",Count},{"pendingLoads",pendingLoads.size()},{"loadRequests",loadRequests},{"loadsReady",loadReady},{"sha256",metadata.at("sha256")},{"generatedThisSession",generated.load()},{"calculationWaitMs",worldSession->calculationMs.load()},{"calculatorRestarts",restarts},{"calculatorWorkers",Workers},{"cacheMemoryHits",worldSession->cacheMemoryHits.load()},{"cacheDiskHits",worldSession->cacheDiskHits.load()},{"cacheComputed",worldSession->cacheComputed.load()},{"cacheInvalid",worldSession->cacheInvalid.load()},{"missingSavedChunks",missingSavedChunks},{"completedChunks",completed},{"checkedBlocks",checked},{"errors",errors.load()},{"mode","on-demand"},{"ready",active.load()},{"automaticPregen",false},{"probeRunning",requested}};
@@ -437,6 +448,7 @@ void writeReport(){
  report["arrivalRecovery"]={{"started",arrivalStarts},{"resends",arrivalResends},{"rebinds",arrivalRebinds},{"timeouts",arrivalTimeouts}};
  report["viewGapRecovery"]={{"repairs",viewGapRepairs},{"resolved",viewGapResolved},{"resends",viewGapResends},{"patchesPerPlayer",terrain_runtime::RepairSlots},{"patchRadius",terrain_runtime::RepairDependencyRadius},{"coreRadius",terrain_runtime::RepairCoreRadius},{"maximumViewRadius",64},{"scanSeconds",2},{"attemptLimit",3},{"retryBackoffSeconds",30}};
  report["playerViews"]=Json::array();for(auto const&[name,s]:playerStreams)report["playerViews"].push_back({{"name",name},{"chunk",{s.cx,s.cz}},{"radius",s.viewRadius},{"unfinished",s.visible.gaps.size()}});
+ report["nativeWork"]=workReport();
  report["latency"]={{"request",latencyJson(worldSession->requestLatency)},{"sameChunkWait",latencyJson(worldSession->gateLatency)},{"calculatorQueue",latencyJson(worldSession->queueLatency)},{"compute",latencyJson(worldSession->computeLatency)},{"derivedCacheRead",latencyJson(worldSession->cacheReadLatency)},{"fill",latencyJson(worldSession->fillLatency)},{"observedReady",latencyJson(worldSession->readyLatency)},{"tickInterval",latencyJson(worldSession->tickGapLatency)}};
  report["stageObservation"]={{"pollEveryTicks",10},{"oldestPendingMs",oldestPendingMs},{"detached",observedDetached},{"coalesced",observedCoalesced},{"dropped",observationDrops.load()},{"networkSendMeasured",false},{"note","State residence is sampled wall time; skipped states have no sample, not zero CPU time"}};
  report["stageObservation"]["states"]=Json::array();for(int i=0;i<14;i++)report["stageObservation"]["states"].push_back({{"name",loadStateName(i)},{"pending",pendingByState[i]},{"residence",latencyJson(worldSession->stageLatency[i])}});
@@ -527,6 +539,7 @@ bool Mod::load() {
         hooks.add<Generate>("terrain::Generate");
         hooks.add<GenerateVoid>("terrain::GenerateVoid");
         hooks.add<ObserveLoad>("terrain::ObserveLoad");
+        nativeTimingHooks(hooks);
         active = true;
         hooks.commit();
         return true;
@@ -579,7 +592,7 @@ bool Mod::disable(){
  if(testJoin)ll::event::EventBus::getInstance().removeListener(testJoin);if(testLeave)ll::event::EventBus::getInstance().removeListener(testLeave);
  requested=false;if(tickListener)ll::event::EventBus::getInstance().removeListener(tickListener);
  worldSession->close(); // Drain admitted callbacks before releasing native view state.
- active=false;glacierWeatherPlayers.clear();playerStreams.clear();streamingPolicy=nullptr;StreamPriority::unhook();view.reset();ObserveLoad::unhook();GenerateVoid::unhook();Generate::unhook();return true;
+ nativeTimingUnhook();active=false;glacierWeatherPlayers.clear();playerStreams.clear();streamingPolicy=nullptr;StreamPriority::unhook();view.reset();ObserveLoad::unhook();GenerateVoid::unhook();Generate::unhook();return true;
 }
 #ifdef KARMA_CLIENT
 #include "WindowsTerrainHost.inc"

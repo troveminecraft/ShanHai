@@ -29,6 +29,7 @@ using ContextPtr = std::shared_ptr<Context>;
 struct Metrics {
     double surfaceMs, columnMs, featureMs, undergroundMs;
     uint64_t columnNoise;
+    std::array<double,4> forestMs{};
 };
 class Generator;
 class Field {

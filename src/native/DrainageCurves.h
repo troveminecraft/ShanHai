@@ -116,9 +116,9 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
    auto p=curve[i].p;
    auto tangent=direction(curve[std::min(i+1,curve.size()-1)].p-curve[i?i-1:i].p);
    auto normal=RiverPoint{-tangent.z,tangent.x}*(radius[i]+2);
-   auto s=sample(roundJS(p.x),roundJS(p.z));
-   auto left=sample(roundJS(p.x+normal.x),roundJS(p.z+normal.z));
-   auto right=sample(roundJS(p.x-normal.x),roundJS(p.z-normal.z));
+   auto s=groundAt(roundJS(p.x),roundJS(p.z));
+   auto left=groundAt(roundJS(p.x+normal.x),roundJS(p.z+normal.z));
+   auto right=groundAt(roundJS(p.x-normal.x),roundJS(p.z-normal.z));
    if(!eligible(s)||!eligible(left)||!eligible(right)){bad=true;break;}
    water[i]=std::max(receiver,double(std::min({s.height,left.height,right.height})-1));
   }
@@ -153,7 +153,7 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
   // large last-segment waterfall just to reach a lake or existing tributary.
   for(size_t i=water.size()-1;i>0;--i)water[i-1]=std::min(water[i-1],water[i]+.75*(run[i]-run[i-1]));
   for(size_t i=1;i<water.size();++i)water[i]=std::min(water[i],water[i-1]);
-  for(size_t i=0;i<curve.size();++i){auto p=curve[i].p;auto s=sample(roundJS(p.x),roundJS(p.z));
+  for(size_t i=0;i<curve.size();++i){auto p=curve[i].p;auto s=groundAt(roundJS(p.x),roundJS(p.z));
    if(s.height-water[i]>12||water[i]-s.height>2){bad=true;break;}
   }
   if(bad)break;

@@ -16,6 +16,7 @@ void clientActivate() {
     stageCalls = 0; stageErrors = 0; structureStageFailed = false;
     prefillJobs=0; prefillComputeNanos=0; prefillLogRows=0; storageLogRows=0;
     savedStructureSkips=0; structurePlansRetired=0; structureCollections=0;
+    stageMutex.waitLatency.reset();stageMutex.holdLatency.reset();
     stageMutex.acquisitions=0; stageMutex.waitNanos=0; stageMutex.holdNanos=0;
     automaticStructures = true; smallFeaturesEnabled = true;
 }
@@ -110,7 +111,7 @@ void clientHooks(terrain_runtime::HookTransaction& hooks) {
 }
 void clientUnhook() { Mod::getInstance().disable(); }
 J clientStatus() {
-    J status{{"structureCalls",stageCalls.load()},{"structureErrors",stageErrors.load()},
+    J status{{"performance",structurePerformance()},{"regionalPlans",kernelContext?kernelContext->statistics():J{}},{"structureCalls",stageCalls.load()},{"structureErrors",stageErrors.load()},
              {"entityLedgerReady",entityLedgerReady.load()},{"structurePaused",structureStageFailed.load()},
              {"villageTemplatesReady",villageTemplatesReady},{"fossilTemplatesReady",fossilTemplatesReady},
              {"structureLock",{{"acquisitions",stageMutex.acquisitions.load()},

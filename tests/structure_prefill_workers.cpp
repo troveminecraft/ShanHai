@@ -11,8 +11,8 @@ int main(int argc, char **argv) {
         std::ifstream file(argv[1]);
         file >> data;
         using Areas = std::vector<std::array<int, 4>>;
-        std::vector<std::pair<int, int>> chunks{{0, 0}, {-1, -1}, {-594, -360}, {22, 177}};
-        Areas a{{32768 - 9515, 32768 - 5780, 32768 - 9440, 32768 - 5710}};
+        std::vector<std::pair<int, int>> chunks{{0, 0}, {-1, -1}, {-594, -360}, {22, 177}, {-32,-58}, {-31,-58}};
+        Areas a{{32768 - 9515, 32768 - 5780, 32768 - 9440, 32768 - 5710},{32768-530,32768-960,32768-480,32768-900}};
         Areas b{{32768 + 330, 32768 + 2820, 32768 + 390, 32768 + 2890}};
         auto sample = [&](bool independent) {
             nativegen::Field field(data);
@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
                 // like the worker; its Field remains local to the worker.
                 nativegen::Engine *active;
                 if (independent) {
-                    reserved = std::make_unique<nativegen::Engine>(data, areas, true, &field);
+                    reserved = std::make_unique<nativegen::Engine>(data, areas, true, &field, &normal);
                     active = reserved.get();
                 } else {
                     auto &cached = previousCache[areas];

@@ -8,7 +8,8 @@ IceSpireDescriptor iceSpireDescriptor(int gx,int gz,int X,int Z){return iceSpire
   if(snowRifts&&(closedIceRifts?riftSample(X,Z,riftNeighborhood(X,Z),false):riftAt(X,Z)).cut>.12)return out;
   bool grounded=field.elevationVariantsEnabled();
   double rx=large?(grounded?24+14*r(51307):11+9*r(51307)):3+3*r(51307),rz=rx*(.42+.35*r(51309));
-  int height=std::min(large?(grounded?48+int(40*r(51311)):88+int(72*r(51311))):16+int(27*r(51311)),Height-74-s.height);
+  bool tall=C.value("tallIceSpires",false);
+  int height=std::min(large?(grounded&&!tall?48+int(40*r(51311)):88+int(72*r(51311))):16+int(27*r(51311)),Height-74-s.height);
   if(height<=0)return out;
   double phase=r(51313)*6.283185307179586;
   std::array<double,7> vx{},vz{},nx{},nz{},distance{};

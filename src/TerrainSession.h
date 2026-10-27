@@ -29,6 +29,18 @@ template<unsigned Workers, size_t MemoryChunks> struct TerrainSession {
     std::atomic_uint busyCalculators=0,waitingCalculators=0;
     Latency queueLatency,computeLatency,fillLatency,cacheReadLatency,requestLatency,gateLatency,readyLatency,tickGapLatency;
     std::array<Latency,14> stageLatency;
+    // Actual function durations, distinct from coarse polling of state residence.
+    std::array<Latency,5> nativeWorkLatency;
+    struct SlowWork {int stage,x,z;uint64_t us;};
+    std::mutex slowWorkMutex;
+    std::deque<SlowWork> slowWork;
+    void recordWork(int stage,int x,int z,uint64_t us){
+        nativeWorkLatency[stage].observe(us);
+        if(us<100000)return;
+        std::lock_guard lock(slowWorkMutex);
+        if(slowWork.size()==32)slowWork.pop_front();
+        slowWork.push_back({stage,x,z,us});
+    }
 
     void bind(void const* level) {
         void const* expected=nullptr;

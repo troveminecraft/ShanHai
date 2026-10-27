@@ -4,7 +4,7 @@
 
 English · [简体中文](README.zh-CN.md)
 
-[Download 0.2.3](https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.3) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
+[Download 0.2.4](https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.4) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
 
 ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows, powered by LeviLamina. Follow rivers through mountain ranges, rolling highlands, forests, deserts and coastlines; explore caves, glaciers and volcanic terrain. Vanilla structures are placed according to the surrounding landscape.
 
@@ -16,21 +16,21 @@ ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows,
 
 ## Install
 
-1. Download [ShanHai-Windows-0.2.3.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.3/ShanHai-Windows-0.2.3.zip).
+1. Download [ShanHai-Windows-0.2.4.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.4/ShanHai-Windows-0.2.4.zip).
 2. Save and fully close Minecraft. Import the ZIP into the matching instance through LeviLauncher’s mod manager.
 3. Enable the mod and create a new **normal** world with your chosen seed. Do not select a flat world.
 
 Use the release ZIP, rather than GitHub’s automatically generated source archive. Python and Node.js runtime dependencies are included; copying only the DLL is insufficient. The internal mod ID remains `karma-worldgen-client` for configuration and save compatibility.
 
-## Version 0.2.3
+## Version 0.2.4
 
-Chunk recovery now distinguishes stalled interior holes from the unrequested view frontier. It waits for eight seconds without stage progress and keeps one repair halo per player. Windows diagnostics include generation, calculator-queue, fill, lighting-stage residence and tick timings. Jungle vine planning filters ineligible voxels before sorting; empty structure vegetation reservations skip redundant generation.
+Native structure queries now reuse terrain regional plans instead of repeating expensive drainage calculations under the shared structure lock. River and lake surveys perform fewer duplicate samples; forest passes avoid redundant crown calculations and jungle shape rebuilding. Native task, lock and Windows mesh-builder timings provide more precise loading diagnostics.
 
-Classic and Vibrant Visuals cloud extraction target **Y500** in expanded Overworld dimensions. This is a Windows renderer change, including connections to expanded BDS worlds; a server plugin alone cannot change a remote vanilla client's renderer.
+New worlds restore large glacier spires to their **88–159-block design height**, limited by the build ceiling, while keeping wider bases. Sea level remains **Y100**, basin floors **Y60–100**, and building range **Y-64 through Y511**. BDS versions are terrain **1.0.50** / structures **1.0.65**. Keep the world's bundled height behavior pack enabled.
 
-Terrain remains the **0.2.1 recipe**: sea level **Y100**, basin floors **Y60–100**, and build range **Y-64 through Y511**. Existing chunks are not rewritten. BDS runtime versions are terrain **1.0.49** / structures **1.0.64**. Android is archived. Keep the world's bundled height behavior pack enabled.
+Existing recipes keep their original terrain, including old ice-spire dimensions. Newly created worlds use kernel **2.210**. Classic and Vibrant Visuals clouds retain the Y500 target in expanded Overworlds.
 
-Offline chunk parity passes, but this does **not** establish that visible holes or forest loading stalls are resolved in-game. Sampled warm offline runs did not demonstrate a stable overall speedup. Both graphics modes and actual exploration remain awaiting user acceptance.
+Offline parity and cache checks do **not** establish that every visible hole or forest loading stall is resolved in-game. Diagnostics measure native functions and the mesh builder, not GPU upload or on-screen visibility.
 
 **This is a test release awaiting gameplay acceptance.** Offline generation tests and successful builds do not establish in-game correctness. Please report the version, world seed, coordinates, screenshots and reproduction steps when you encounter an issue.
 

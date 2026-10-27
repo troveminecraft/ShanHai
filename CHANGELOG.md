@@ -1,4 +1,11 @@
-## 0.2.2 — Windows local-world startup
+## 0.2.4 — regional planning stalls and tall glacier spires
+
+- Connect native structure queries to the same regional-plan disk cache as terrain generation. Exclude only structure policy fields from terrain cache identity; avoid repeating drainage planning while holding the shared structure lock.
+- Sample lake surveys on demand and reuse river survey columns. Clip conifer crowns before expensive per-voxel work, hoist repeated broadleaf/birch calculations, and reuse jungle shapes within each serial vegetation worker.
+- Restore new-world large glacier spires to the 88–159-block design range, retaining wider bases and the build ceiling. Existing recipes preserve their original spires.
+- Record actual native load, structure, decoration, lighting and Windows mesh-builder durations, separately from polled stage residence. Add structure-lock and regional-cache statistics. These timings do not measure GPU upload or visibility.
+
+Windows **0.2.4**, BDS terrain **1.0.50** / structures **1.0.65**, kernel **2.210**. Sea level Y100 and build range Y-64..511 are unchanged. This test release awaits gameplay acceptance; offline parity and local timing checks do not establish that all visible gaps or forest stalls have been eliminated.
 
 ## 0.2.3 — 2026-10-27
 
@@ -8,6 +15,8 @@
 - Target Y500 clouds in both classic and Vibrant Visuals rendering for expanded Overworlds.
 - BDS terrain 1.0.49 / structures 1.0.64. Android remains archived. Offline checks/builds are not gameplay acceptance, and stable forest throughput improvement has not yet been demonstrated.
 
+
+## 0.2.2 — Windows local-world startup
 
 - Register the new world's pack source before loading its height behavior pack; include the exact height pack identity in native `LevelSettings` as well as the saved pack-selection file.
 - Read and validate the overworld resource selected by the native server pack manager before activating terrain generation. Missing/conflicting resources reject startup before native chunk jobs can begin.

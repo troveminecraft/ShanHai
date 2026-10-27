@@ -10,6 +10,7 @@ struct LatencySnapshot {uint64_t count=0,windowCount=0,totalUs=0,maxUs=0,p50=0,p
 class Latency {
  std::mutex mutex;std::array<uint64_t,2048> samples{};uint64_t count=0,total=0,maximum=0;
 public:
+ void reset(){std::lock_guard lock(mutex);samples.fill(0);count=total=maximum=0;}
  void observe(uint64_t us){std::lock_guard lock(mutex);samples[count++%samples.size()]=us;total+=us;maximum=std::max(maximum,us);}
  LatencySnapshot snapshot(){
   std::lock_guard lock(mutex);size_t n=std::min<uint64_t>(count,samples.size());std::vector<uint64_t> v(samples.begin(),samples.begin()+n);std::sort(v.begin(),v.end());

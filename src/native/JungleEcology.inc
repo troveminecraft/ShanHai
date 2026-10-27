@@ -11,7 +11,10 @@ struct JungleTree{JungleSite site;std::vector<JungleCell> cells;std::vector<std:
  int primaryBranches=0,secondaryBranches=0,brokenBranches=0,attachedVines=0,epiphytes=0;};
 static int jungleKind(uint16_t b){return b==14?0:b==JungleWood?1:b==15?2:b==JungleMoss?3:b==37?4:5;}
 Cache<uint64_t,JungleSite> jungleSites{2048};
-Cache<uint64_t,std::shared_ptr<JungleTree>> jungleShapes{192};
+// Reservation checks happen at placement, not while constructing the shape.
+// Serial prefill variants sharing one Field can reuse these immutable trees.
+using JungleShapes=Cache<uint64_t,std::shared_ptr<JungleTree>>;
+std::shared_ptr<JungleShapes> jungleShapes=std::make_shared<JungleShapes>(192);
 bool jungleHabitat(Surface const&s)const{
  return s.biome==13&&s.giant<.01&&s.stone<.01&&s.barren<.01&&!s.kind&&!s.lake&&!s.river&&s.cliffLow==-32768&&s.height>33&&field.ecologyHeight(s)<235&&field.ecologyTreeWeight(s)>0;
 }
@@ -52,7 +55,7 @@ bool jungleAccepted(int gx,int gz,JungleSite const&a){
     (b.priority<a.priority||(b.priority==a.priority&&std::pair{b.x,b.z}<std::pair{a.x,a.z})))return false;
  }return true;
 }
-std::shared_ptr<JungleTree> jungleTree(int gx,int gz){return jungleShapes.get(key2(gx,gz),[&]{
+std::shared_ptr<JungleTree> jungleTree(int gx,int gz){return jungleShapes->get(key2(gx,gz),[&]{
  auto tree=std::make_shared<JungleTree>();auto a=jungleSite(gx,gz);tree->site=a;if(!jungleAccepted(gx,gz,a))return tree;
  auto r=[&](int salt){return hash01(gx,gz,terrainSeed^salt);};
  std::vector<JungleSite> neighbors;

@@ -13,7 +13,10 @@ J Context::statistics() const {
     std::lock_guard lock(impl->store.mutex);
     return {{"residentPlans", impl->store.plans.size()},
             {"pendingPlans", impl->store.pendingPlans.size()},
-            {"storageIdentities", impl->store.folders.size()}};
+            {"storageIdentities", impl->store.folders.size()},
+            {"memoryHits",impl->store.memoryHits.load()},{"diskHits",impl->store.diskHits.load()},
+            {"builds",impl->store.builds.load()},{"waits",impl->store.waits.load()},
+            {"buildMs",impl->store.buildUs.load()/1000.},{"waitMs",impl->store.waitUs.load()/1000.}};
 }
 struct Field::Impl {
     ContextPtr context;
@@ -50,7 +53,7 @@ Generator::~Generator() = default;
 Field& Generator::terrain() { return impl->field; }
 Metrics Generator::metrics() const {
     auto const& v = *impl->value;
-    return {v.surfaceMs, v.columnMs, v.featureMs, v.undergroundMs, v.columnNoise};
+    return {v.surfaceMs, v.columnMs, v.featureMs, v.undergroundMs, v.columnNoise, v.forestMs};
 }
 
 bool Field::highMountainUndergroundEnabled() const { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->highMountainUndergroundEnabled(); }

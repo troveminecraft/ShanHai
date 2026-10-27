@@ -19,6 +19,11 @@ target("world_startup")
     add_packages("nlohmann_json")
     add_files("world_startup.cpp")
 target_end()
+target("regional_host_cache")
+    set_kind("binary")
+    add_deps("terrain-kernel")
+    add_files("regional_host_cache.cpp")
+target_end()
 target("kernel_facade")
     set_kind("binary")
     add_deps("terrain-kernel")
@@ -34,7 +39,7 @@ target("terrain_session")
     add_files("terrain_session.cpp")
     add_syslinks("bcrypt")
 target_end()
-for _, name in ipairs({"landform_refresh", "elevation_variants", "elevation_profile", "volcano_natural", "volcano_magma", "client_image", "landscape_water", "landscape_redo", "regional_plateaus", "raised_caverns", "mountain_ecology", "high_mountain_underground", "glacier_weather_policy", "mega_cave_geometry", "shared_small_features","regional_plan_concurrency", "snow_loading", "runtime_stability", "terrain_boundaries", "terrain_revision", "badlands_regions", "build_height", "structure_height", "vegetation_columns", "mountain_height", "sea_level", "raised_terrain", "test_teleport_policy", "completed_biomes", "regional_waterways", "failure_record", "creation_status", "kernel_determinism", "kernel_bounds", "palette_contract", "structure_stage", "structure_plan_store", "structure_prefill_workers", "hook_transaction", "shared_structure_lifecycle",
+for _, name in ipairs({"tall_ice_spires", "landform_refresh", "elevation_variants", "elevation_profile", "volcano_natural", "volcano_magma", "client_image", "landscape_water", "landscape_redo", "regional_plateaus", "raised_caverns", "mountain_ecology", "high_mountain_underground", "glacier_weather_policy", "mega_cave_geometry", "shared_small_features","regional_plan_concurrency", "snow_loading", "runtime_stability", "terrain_boundaries", "terrain_revision", "badlands_regions", "build_height", "structure_height", "vegetation_columns", "mountain_height", "sea_level", "raised_terrain", "test_teleport_policy", "completed_biomes", "regional_waterways", "failure_record", "creation_status", "kernel_determinism", "kernel_bounds", "palette_contract", "structure_stage", "structure_plan_store", "structure_prefill_workers", "hook_transaction", "shared_structure_lifecycle",
                       "view_gap_recovery", "bds_structure_binding",
                       "world_scoped_cache"}) do
     target(name)

@@ -21,7 +21,7 @@ struct PrefillWorker {
             normal = std::make_unique<terrain_kernel::Generator>(input, ReservationAreas{}, true, field.get());
         }
         if (!reserved || areas != next) {
-            reserved = std::make_unique<terrain_kernel::Generator>(input, next, true, field.get());
+            reserved = std::make_unique<terrain_kernel::Generator>(input, next, true, field.get(),normal.get());
             areas = next;
         }
     }

@@ -104,14 +104,16 @@ static bool birchLitterGround(uint16_t b){return b==2||b==3||b==4||b==20||b==22|
 void birchForest(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>const&surfaces){
  auto trees=birches(x0,z0,16);
  // Crown overlap in denser stands must never replace another tree's trunk.
- for(int pass=0;pass<3;pass++)for(auto const&t:trees)for(auto const&p:t->cells){
+ for(int pass=0;pass<3;pass++)for(auto const&t:trees){
   if(nativeReserved(t->x,t->z)||!forestTreeKept(t->x,t->z))continue;
+  for(auto const&p:t->cells){
   bool solid=p.block!=66;
   int priority=!solid?2:(p.x==t->x&&p.z==t->z?0:1);if(priority!=pass)continue;
   int x=p.x-x0,z=p.z-z0;if(x<0||x>=16||z<0||z>=16||p.y>Height-65)continue;
   auto&b=raw[(z*16+x)*Height+p.y+64];
   bool leaves=b==11||b==13||b==15||b==17||b==66;
   if(b==0||(solid&&leaves))b=p.block;
+  }
  }
  std::array<float,256> oakLitter{};birchCompanions(x0,z0,raw,surfaces,trees,oakLitter);
  for(int z=0;z<16;z++)for(int x=0;x<16;x++){auto const&s=surfaces[z*16+x];if(s.height>=Height-65||s.water>=s.height||s.lava>=s.height)continue;auto col=raw.data()+(z*16+x)*Height;

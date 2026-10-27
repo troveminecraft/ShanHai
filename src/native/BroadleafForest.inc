@@ -52,9 +52,12 @@ void broadleafForest(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,
   auto crown=[&](double cx,double cy,double cz,double r,double ry){
    int xa=std::max(x0,int(std::floor(cx-r*1.2))),xb=std::min(x0+15,int(std::ceil(cx+r*1.2)));
    int za=std::max(z0,int(std::floor(cz-r*1.2))),zb=std::min(z0+15,int(std::ceil(cz+r*1.2)));
-   for(int z=za;z<=zb;z++)for(int x=xa;x<=xb;x++)for(int y=int(std::floor(cy-ry));y<=std::min(a.ground+a.h,int(std::ceil(cy+ry)));y++){
-    double dx=x-cx,dz=z-cz,dy=(y-cy)/ry,angle=std::atan2(dz,dx),R=r*(1+.13*std::sin(3*angle+a.phase)+.06*std::cos(5*angle-a.phase));
-    if((dx*dx+dz*dz)/(R*R)+dy*dy<=1)put(x,y,z,11);
+   for(int z=za;z<=zb;z++)for(int x=xa;x<=xb;x++){
+    double dx=x-cx,dz=z-cz,angle=std::atan2(dz,dx),R=r*(1+.13*std::sin(3*angle+a.phase)+.06*std::cos(5*angle-a.phase));
+    double radial=(dx*dx+dz*dz)/(R*R);
+    for(int y=int(std::floor(cy-ry));y<=std::min(a.ground+a.h,int(std::ceil(cy+ry)));y++){
+     double dy=(y-cy)/ry;if(radial+dy*dy<=1)put(x,y,z,11);
+    }
    }
   };
   auto wood=[&](OakPoint p,double thick){

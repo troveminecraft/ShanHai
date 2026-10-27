@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <utility>
 #include <span>
+#include "../RuntimeMetrics.h"
 
 namespace worldgen_rules {
 // Clang-cl x64 emits these two virtual-call thunks for the supported SDKs.
@@ -172,11 +173,13 @@ class StructureStageMutex {
 
   public:
     std::atomic_uint64_t acquisitions{0}, waitNanos{0}, holdNanos{0};
+    terrain_runtime::Latency waitLatency,holdLatency;
     void lock() {
         auto began = Clock::now();
         mutex.lock();
         acquired = Clock::now();
         waitNanos += std::chrono::duration_cast<std::chrono::nanoseconds>(acquired - began).count();
+        waitLatency.observe(std::chrono::duration_cast<std::chrono::microseconds>(acquired-began).count());
         ++acquisitions;
     }
     bool try_lock() {
@@ -187,6 +190,7 @@ class StructureStageMutex {
         return true;
     }
     void unlock() {
+        holdLatency.observe(std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-acquired).count());
         holdNanos += std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - acquired).count();
         mutex.unlock();
     }
