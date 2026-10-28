@@ -67,6 +67,7 @@ Json clientStatus() {
                 {"gapResolved",viewGapResolved},{"priorityBoosts",priorityBoosts.load()}}}};
     result["polarBears"]={{"allowed",polarBearAllowed.load()},{"rejected",polarBearRejected.load()}};
     result["nativeWork"]=workReport();
+    result["pipeline"]=pipelineReport();
     result["latency"]={{"request",latencyJson(worldSession->requestLatency)},{"calculatorQueue",latencyJson(worldSession->queueLatency)},
         {"compute",latencyJson(worldSession->computeLatency)},{"fill",latencyJson(worldSession->fillLatency)},
         {"observedReady",latencyJson(worldSession->readyLatency)},{"tickInterval",latencyJson(worldSession->tickGapLatency)}};

@@ -43,25 +43,33 @@ LL_TYPE_INSTANCE_HOOK(StreamPriority,ll::memory::HookPriority::Normal,ChunkBuild
  int score=streamingScore(cp.x,cp.z,*f);
  // Preserve native priorities elsewhere; bounded local promotion also covers
  // the neighbour stages and lighting, since BDS owns the same build policy.
- if(score>512)return base;
+ auto ages=readyAgeCredits.load();auto age=ages->find(terrain_runtime::streamingKey(cp.x,cp.z));
+ bool visible=std::any_of(f->begin(),f->end(),[&](auto const&p){return chunkDistance(cp.x,cp.z,p.x,p.z)<=p.radius+8;});
+ if(visible&&age!=ages->end())score=terrain_runtime::fairStreamingScore(score,age->second);
+ else if(score>512)return base;
  priorityBoosts.fetch_add(1,std::memory_order_relaxed);
  return priorityHigherFirst?std::max(base,1000000-score):std::min(base,-1000000+score);
 }
 void updatePlayerStreaming(Level& level){
+ auto wall=Clock::now();double wallSeconds=std::chrono::duration<double>(wall.time_since_epoch()).count();
+ streamingClock.tick(wallSeconds);worldSession->streamActiveMicros=uint64_t(streamingClock.seconds*1000000.);
  if(++streamTicks%4)return;
  auto dim=level.getDimension(0).lock();if(!dim)return;
  streamingPolicy.store(&dim->getChunkBuildOrderPolicy());
+ sampleNativeQueue(dim->getChunkSource());
  auto next=std::make_shared<std::vector<StreamFocus>>();std::unordered_set<std::string> seen;
- auto now=Clock::now();double seconds=std::chrono::duration<double>(now.time_since_epoch()).count();unsigned views=0;bool needsLaunch=false;
- static double previous=0,busyUntil=0;
- if(previous&&seconds-previous>.5)busyUntil=seconds+2.;
- previous=seconds;bool tickBusy=seconds<busyUntil;
+ auto now=Clock::now();double seconds=streamingClock.seconds;unsigned views=0;bool needsLaunch=false;
+ unsigned optionalViews=0;for(auto const&[_,s]:playerStreams)optionalViews+=bool(s.ahead)+bool(s.patches[0].view);
+ if(lastStreamingWall&&wallSeconds-lastStreamingWall>.5)streamingBusyUntil=seconds+2.;
+ lastStreamingWall=wallSeconds;bool tickBusy=seconds<streamingBusyUntil;
+ bool extrasAllowed=supplementalBudget.update(pipelinePressure,worldSession->waitingCalculators.load(),tickBusy);
+ if(!extrasAllowed)++supplementalThrottles;
  level.forEachPlayer([&](Player& player){
   if(static_cast<int>(player.getDimensionId())!=0)return true;
   auto name=player.getRealName();seen.insert(name);auto& s=playerStreams[name];auto p=player.getFeetPos();
   auto motion=s.planner.update(p.x,p.z,std::chrono::duration<double>(now.time_since_epoch()).count(),worldSession->waitingCalculators.load(),nearPending);
   int cx=int(std::floor(p.x/16)),cz=int(std::floor(p.z/16)),ax=int(std::floor(motion.aheadX/16)),az=int(std::floor(motion.aheadZ/16));
-  if(validChunk(cx,cz))next->push_back({p.x/16.0,p.z/16.0,motion.aheadX/16.0,motion.aheadZ/16.0,motion.speed});
+  if(validChunk(cx,cz)){next->push_back({p.x/16.0,p.z/16.0,motion.aheadX/16.0,motion.aheadZ/16.0,motion.speed});next->back().radius=terrain_runtime::recoveryViewRadius(int(player.getChunkRadius()));}
   bool arrival=motion.teleport||s.cx==100000;
   if(arrival){s.here.reset();s.ahead.reset();s.visible.gaps.clear();for(auto&v:s.patches)v.view.reset();s.gapResendPending=false;s.arrival.begin(seconds);++arrivalStarts;}
   else if(motion.turned)s.ahead.reset();
@@ -88,7 +96,7 @@ void updatePlayerStreaming(Level& level){
   // Observe the full view, but do not generate the unrequested frontier.
   // Repair only stalled existing jobs or missing chunks enclosed by ready rows/columns.
   // Readiness always comes from BDS; never mark unfinished chunks as Loaded.
-  if(ready&&seconds>=s.nextViewScan){
+  if(seconds>=s.nextViewScan){
    s.nextViewScan=seconds+2.;s.viewRadius=terrain_runtime::recoveryViewRadius(int(player.getChunkRadius()));
    int radius=s.viewRadius,side=radius*2+1;s.visible.begin();
    std::vector<int> states(side*side,-2),rowMin(side,side),rowMax(side,-1),colMin(side,side),colMax(side,-1);
@@ -113,12 +121,12 @@ void updatePlayerStreaming(Level& level){
      if(done||seconds-patch.started>=45||std::max(std::abs(patch.x-cx),std::abs(patch.z-cz))>radius)patch.view.reset();
     }
     std::vector<std::pair<int,int>> occupied;for(auto const&p:s.patches)if(p.view)occupied.emplace_back(p.x,p.z);
-    if(!patch.view&&terrain_runtime::allowSupplementalLoading(ready,worldSession->waitingCalculators.load(),nearPending,tickBusy))if(auto gap=s.visible.next(seconds,cx,cz,occupied)){
+    if(!patch.view&&optionalViews==0&&extrasAllowed&&terrain_runtime::allowSupplementalLoading(ready,worldSession->waitingCalculators.load(),nearPending,tickBusy))if(auto gap=s.visible.next(seconds,cx,cz,occupied)){
      patch.x=gap->x;patch.z=gap->z;patch.started=seconds;s.visible.requested(*gap,seconds);
      patch.view=std::make_unique<ChunkViewSource>(dim->getChunkSource(),ChunkSource::LoadMode::Deferred);
      // Keep eight dependency rings OUTSIDE the entire 5x5 repaired core.
      constexpr int halo=terrain_runtime::RepairDependencyRadius;
-     patch.view->move(BlockPos{(patch.x-halo)*16,0,(patch.z-halo)*16},BlockPos{(patch.x+halo+1)*16-1,0,(patch.z+halo+1)*16-1},false,ChunkSourceViewGenerateMode::GenerateAll,{},nullptr);++viewGapRepairs;
+     patch.view->move(BlockPos{(patch.x-halo)*16,0,(patch.z-halo)*16},BlockPos{(patch.x+halo+1)*16-1,0,(patch.z+halo+1)*16-1},false,ChunkSourceViewGenerateMode::GenerateAll,{},nullptr);++viewGapRepairs;++optionalViews;
     }
    }
    // Native publication sends newly completed chunks. Do not resend the entire
@@ -137,9 +145,9 @@ void updatePlayerStreaming(Level& level){
    default:break;
   }
   if(!unboundedWorld){ax=std::clamp(ax,-Half,Half-1);az=std::clamp(az,-Half,Half-1);}
-  if(terrain_runtime::allowSupplementalLoading(ready,worldSession->waitingCalculators.load(),nearPending,tickBusy)&&!s.patches[0].view&&motion.allowAhead&&std::max(std::abs(ax-cx),std::abs(az-cz))>=3){
-   if(!s.ahead||std::max(std::abs(ax-s.ax),std::abs(az-s.az))>=2){move(s.ahead,ax,az);s.ax=ax;s.az=az;}
-  }else s.ahead.reset();
+  if((s.ahead||optionalViews==0)&&extrasAllowed&&terrain_runtime::allowSupplementalLoading(ready,worldSession->waitingCalculators.load(),nearPending,tickBusy)&&!s.patches[0].view&&motion.allowAhead&&std::max(std::abs(ax-cx),std::abs(az-cz))>=3){
+   if(!s.ahead||std::max(std::abs(ax-s.ax),std::abs(az-s.az))>=2){if(!s.ahead)++optionalViews;move(s.ahead,ax,az);s.ax=ax;s.az=az;}
+  }else if(s.ahead){s.ahead.reset();if(optionalViews)--optionalViews;}
   if(!next->empty()){
    auto& f=next->back();f.repair=bool(s.patches[0].view);f.repairX=s.patches[0].x;f.repairZ=s.patches[0].z;
    f.repair2=false;
@@ -148,6 +156,31 @@ void updatePlayerStreaming(Level& level){
  });
  for(auto it=playerStreams.begin();it!=playerStreams.end();)if(!seen.contains(it->first))it=playerStreams.erase(it);else ++it;
  if(next->empty()&&requested)next->push_back({double(probeX),double(probeZ),double(probeX),double(probeZ),0});
+ pipelinePressure.postprocess=pipelinePressure.unfinished=0;
+ struct Stalled {int x,z,state;double age;};std::vector<Stalled> stalled;
+ for(auto const&[_,s]:playerStreams)for(auto const&[key,g]:s.visible.gaps){
+  ++pipelinePressure.unfinished;if(g.state>=2&&g.state<13)++pipelinePressure.postprocess;
+  if(seconds-g.since>=5)stalled.push_back({g.x,g.z,g.state,seconds-g.since});
+ }
+ std::sort(stalled.begin(),stalled.end(),[](auto const&a,auto const&b){return a.age>b.age;});
+ std::vector<uint64_t> watched;stalledChunkSample=Json::array();
+ for(size_t i=0;i<std::min<size_t>(16,stalled.size());++i){
+  auto const&c=stalled[i];watched.push_back(terrain_runtime::streamingKey(c.x,c.z));
+  Json queued=Json::array();for(auto const&q:nativeReadySample)if(q.x==c.x&&q.z==c.z)queued.push_back(q.state);
+  // Surrounding state evidence is explicitly a probe, not an invented engine
+  // dependency list. Failed native predicates are separately captured below.
+  Json neighbours=Json::array();for(int z=c.z-1;z<=c.z+1;++z)for(int x=c.x-1;x<=c.x+1;++x){
+   if(x==c.x&&z==c.z)continue;auto n=dim->getChunkSource().getExistingChunk({x,z});
+   neighbours.push_back({x,z,n?int(n->getState().load()):-1});
+  }
+  stalledChunkSample.push_back({{"chunk",{c.x,c.z}},{"state",c.state},{"activeStageSeconds",c.age},
+   {"queuedExpectedStates",queued},{"neighbourProbe",neighbours}});
+ }
+ worldSession->pipelineTrace.watch(watched);
  streamingFocus.store(std::shared_ptr<std::vector<StreamFocus> const>(next));
- if(needsLaunch)dim->getChunkSource().checkAndLaunchChunkGenerationTasks(false);
+ // A nonempty ready queue gets a bounded native pump even after the near
+ // 3x3 finishes. This never requests/rebuilds chunks or bypasses dependencies.
+ if(needsLaunch||(pipelinePressure.queueSampleValid&&pipelinePressure.queued)){
+  ++queuePumps;dim->getChunkSource().checkAndLaunchChunkGenerationTasks(false);
+ }
 }

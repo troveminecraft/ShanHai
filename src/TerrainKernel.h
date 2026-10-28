@@ -50,6 +50,9 @@ public:
     Surface bootstrapSurface(int x, int z);
     Surface surface(int x, int z, bool slope = true);
     Surface base(int x, int z);
+    // Populate immutable regional decisions using a worker-owned Field. Call
+    // outside native structure registry locks; this never writes world blocks.
+    void prepareRegions(int x,int z);
     double desertRegionWeight(int x, int z);
     double minimumNaturalTemperature(int x, int z);
     double vcont(double x, double z);

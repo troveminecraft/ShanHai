@@ -19,6 +19,8 @@
 #include "ChunkCodec.h"
 #include "BuildHeight.h"
 #include "StreamPlanner.h"
+#include "StreamingBudget.h"
+#include "mc/world/level/chunk/LevelChunkBuilderData.h"
 #include "ViewGapRecovery.h"
 #include "ll/api/event/player/PlayerJoinEvent.h"
 #include "ll/api/event/player/PlayerDisconnectEvent.h"
@@ -159,6 +161,7 @@ Clock::time_point lastTick{};
 uint64_t observedDetached=0,observedCoalesced=0;std::atomic_uint64_t observationDrops=0;
 uint64_t oldestPendingMs=0;std::array<unsigned,15> pendingByState{};
 
+#include "NativeQueueSnapshot.inc"
 #include "PlayerStreaming.inc"
 #include "ChunkStageDiagnostics.inc"
 struct LoadEvent {int x,z;bool saved;Clock::time_point started;};
@@ -231,7 +234,7 @@ void readData(){
  worldSession->close();
  worldSession=std::make_shared<Session>();
  publishedSession.store(worldSession);
- lastTick={};
+ lastTick={};resetStreamingPipeline();
 
  metadata=jsonFile(Base/"terrain.json");terrain_runtime::validatePaletteContract(metadata);activation=jsonFile(Base/"active-world.json");worldName=activation.at("worldName").get<std::string>();
  buildHeight=terrain_runtime::BuildHeight::read(metadata);
@@ -453,6 +456,7 @@ void writeReport(){
  report["playerViews"]=Json::array();for(auto const&[name,s]:playerStreams)report["playerViews"].push_back({{"name",name},{"chunk",{s.cx,s.cz}},{"radius",s.viewRadius},{"unfinished",s.visible.gaps.size()}});
  report["polarBears"]={{"allowed",polarBearAllowed.load()},{"rejected",polarBearRejected.load()}};
  report["nativeWork"]=workReport();
+ report["pipeline"]=pipelineReport();
  report["latency"]={{"request",latencyJson(worldSession->requestLatency)},{"sameChunkWait",latencyJson(worldSession->gateLatency)},{"calculatorQueue",latencyJson(worldSession->queueLatency)},{"compute",latencyJson(worldSession->computeLatency)},{"derivedCacheRead",latencyJson(worldSession->cacheReadLatency)},{"fill",latencyJson(worldSession->fillLatency)},{"observedReady",latencyJson(worldSession->readyLatency)},{"tickInterval",latencyJson(worldSession->tickGapLatency)}};
  report["stageObservation"]={{"pollEveryTicks",10},{"oldestPendingMs",oldestPendingMs},{"detached",observedDetached},{"coalesced",observedCoalesced},{"dropped",observationDrops.load()},{"networkSendMeasured",false},{"note","State residence is sampled wall time; skipped states have no sample, not zero CPU time"}};
  report["stageObservation"]["states"]=Json::array();for(int i=0;i<14;i++)report["stageObservation"]["states"].push_back({{"name",loadStateName(i)},{"pending",pendingByState[i]},{"residence",latencyJson(worldSession->stageLatency[i])}});

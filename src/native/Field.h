@@ -159,6 +159,7 @@ public:
   }return rows;
  }
  bool streamed()const{return streamingRegions;}
+ void prepareRegions(int x,int z){ensureStreamingRegions(x,z);ensureStreamingIce(x,z);}
  bool unbounded()const{return unboundedRegions;}
  Surface bootstrapSurface(int x,int z){return streamingRegions?naturalSamplingField().surface(x,z,false):surface(x,z,false);}
  // Read-only coarse habitat queries for searches. They do not prepare water

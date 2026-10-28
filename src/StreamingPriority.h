@@ -4,7 +4,7 @@
 #include <vector>
 
 namespace terrain {
-struct StreamFocus {double x,z,aheadX,aheadZ,speed;bool repair=false;double repairX=0,repairZ=0;bool repair2=false;double repair2X=0,repair2Z=0;};
+struct StreamFocus {double x,z,aheadX,aheadZ,speed;bool repair=false;double repairX=0,repairZ=0;bool repair2=false;double repair2X=0,repair2Z=0;int radius=64;};
 inline double chunkDistance(int x,int z,double px,double pz){return std::max(std::abs(x-px),std::abs(z-pz));}
 inline int streamingScore(int x,int z,std::vector<StreamFocus> const& f){
  double best=20000;

@@ -5,7 +5,10 @@ J structureLatency(terrain_runtime::Latency& value){
 J structurePerformance(){
  J result{{"lockWait",structureLatency(stageMutex.waitLatency)},{"lockHold",structureLatency(stageMutex.holdLatency)},
   {"adapterTotalMs",adapterNanos.load()/1000000.},{"adapterMaxMs",adapterPeakNanos.load()/1000000.},
-  {"prefillJobs",prefillJobs.load()},{"prefillComputeMs",prefillComputeNanos.load()/1000000.}};
+  {"prefillJobs",prefillJobs.load()},{"prefillComputeMs",prefillComputeNanos.load()/1000000.},
+  {"regionalWarmOutsideLock",structureLatency(regionalWarmLatency)},{"regionalWarmJobs",regionalWarmJobs.load()}};
+ result["slowLocks"]=J::array();for(auto const&s:stageMutex.slowSnapshot())
+  result["slowLocks"].push_back({{"phase",s[0]==0?"prefill":"decoration"},{"chunk",{s[1],s[2]}},{"waitMs",s[3]/1000.},{"holdMs",s[4]/1000.}});
  if(kernelContext)result["regionalPlans"]=kernelContext->statistics();return result;
 }
 void writeStructurePerformance(){

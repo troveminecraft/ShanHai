@@ -166,10 +166,20 @@ template <class Key, size_t Capacity> class BoundedHints {
 
 // Native structure caches are mutable. Keep their lock explicit, and measure
 // wait separately from ownership so time waiting is not called "generation".
+struct StructureStageSite {int phase,x,z;};
+inline thread_local std::optional<StructureStageSite> structureStageSite;
+struct StructureStageSiteScope {
+    std::optional<StructureStageSite> previous=structureStageSite;
+    StructureStageSiteScope(int phase,int x,int z){structureStageSite=StructureStageSite{phase,x,z};}
+    ~StructureStageSiteScope(){structureStageSite=previous;}
+};
 class StructureStageMutex {
     using Clock = std::chrono::steady_clock;
     std::mutex mutex;
     Clock::time_point acquired;
+    uint64_t currentWaitUs=0;
+    std::mutex slowMutex;
+    std::deque<std::array<int64_t,5>> slowSites;
 
   public:
     std::atomic_uint64_t acquisitions{0}, waitNanos{0}, holdNanos{0};
@@ -178,6 +188,7 @@ class StructureStageMutex {
         auto began = Clock::now();
         mutex.lock();
         acquired = Clock::now();
+        currentWaitUs=std::chrono::duration_cast<std::chrono::microseconds>(acquired-began).count();
         waitNanos += std::chrono::duration_cast<std::chrono::nanoseconds>(acquired - began).count();
         waitLatency.observe(std::chrono::duration_cast<std::chrono::microseconds>(acquired-began).count());
         ++acquisitions;
@@ -186,13 +197,22 @@ class StructureStageMutex {
         if (!mutex.try_lock())
             return false;
         acquired = Clock::now();
+        currentWaitUs=0;
         ++acquisitions;
         return true;
     }
     void unlock() {
+        auto holdUs=std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-acquired).count();
+        if((holdUs>=100000||currentWaitUs>=100000)&&structureStageSite){
+            auto c=*structureStageSite;std::lock_guard lock(slowMutex);
+            if(slowSites.size()==32)slowSites.pop_front();
+            slowSites.push_back({c.phase,c.x,c.z,int64_t(currentWaitUs),holdUs});
+        }
         holdLatency.observe(std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-acquired).count());
         holdNanos += std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - acquired).count();
         mutex.unlock();
     }
+    auto slowSnapshot(){std::lock_guard lock(slowMutex);return slowSites;}
+    void clearSlowSites(){std::lock_guard lock(slowMutex);slowSites.clear();}
 };
 } // namespace worldgen_rules

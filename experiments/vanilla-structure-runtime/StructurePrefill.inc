@@ -18,6 +18,8 @@ struct PrefillWorker {
     void prepare(ReservationAreas const &next) {
         if (!field) {
             field = std::make_unique<terrain_kernel::Field>(input, kernelContext);
+        }
+        if (!normal) {
             normal = std::make_unique<terrain_kernel::Generator>(input, ReservationAreas{}, true, field.get());
         }
         if (!reserved || areas != next) {
@@ -28,6 +30,18 @@ struct PrefillWorker {
 };
 std::array<PrefillWorker, 2> prefillWorkers;
 std::atomic_uint64_t prefillJobs = 0, prefillComputeNanos = 0;
+std::atomic_uint64_t regionalWarmJobs=0;
+terrain_runtime::Latency regionalWarmLatency;
+// This Field belongs to one worker. Only immutable regional plans are shared
+// with the registry's planning Field; native starts/pointers remain locked.
+void warmStructureRegions(std::vector<ChunkPos> const& points){
+    auto& worker=prefillWorkers[regionalWarmJobs.fetch_add(1)%prefillWorkers.size()];
+    terrain_runtime::Timer timer(regionalWarmLatency);
+    std::lock_guard lock(worker.mutex);
+    if(!worker.field)worker.field=std::make_unique<terrain_kernel::Field>(input,kernelContext);
+    for(auto cp:points)for(int dz:{-192,0,192})for(int dx:{-192,0,192})
+        worker.field->prepareRegions(cp.x*16+32768+dx,cp.z*16+32768+dz);
+}
 void clearPrefillWorkers() {
     for (auto &worker : prefillWorkers) {
         std::lock_guard lock(worker.mutex);
@@ -135,7 +149,11 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
         return;
     }
     try {
+        worldgen_rules::StructureStageSiteScope site(0,cp.x,cp.z);
         std::vector<ReservationAreas> groups;
+        std::vector<ChunkPos> warming=vc;warming.insert(warming.end(),sc.begin(),sc.end());
+        for(auto const& [type,c]:ec)warming.push_back(c);
+        warmStructureRegions(warming);
         {
             std::lock_guard guard(stageMutex);
             if (structureStageFailed)

@@ -4,7 +4,7 @@
 
 English · [简体中文](README.zh-CN.md)
 
-[Download 0.2.8](https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.8) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
+[Download 0.2.9](https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.9) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
 
 ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows, powered by LeviLamina. Follow rivers through mountain ranges, rolling highlands, forests, deserts and coastlines; explore caves, glaciers and volcanic terrain. Vanilla structures are placed according to the surrounding landscape.
 
@@ -16,17 +16,19 @@ ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows,
 
 ## Install
 
-1. Download [ShanHai-Windows-0.2.8.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.8/ShanHai-Windows-0.2.8.zip).
+1. Download [ShanHai-Windows-0.2.9.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.9/ShanHai-Windows-0.2.9.zip).
 2. Save and fully close Minecraft. Import the ZIP into the matching instance through LeviLauncher’s mod manager.
 3. Enable the mod and create a new **normal** world with your chosen seed. Do not select a flat world.
 
 Use the release ZIP, rather than GitHub’s automatically generated source archive. Python and Node.js runtime dependencies are included; copying only the DLL is insufficient. The internal mod ID remains `karma-worldgen-client` for configuration and save compatibility.
 
-## Version 0.2.8
+## Version 0.2.9
 
-New-world glacier spires regain slender bases and pronounced lean, correcting the incomplete height-only change in 0.2.4. Trees, shrubs and ground plants thin continuously toward super glaciers. Freezing a snowy wetland removes lilies whose water support becomes ice. Both hosts restrict natural polar-bear spawning to frozen oceans and glacier ice, excluding frozen lakes; commands, eggs, spawners and existing bears are unaffected.
+Dependency-ready chunks now gain priority as they wait, including visible chunks outside the former local-only boost. Native ready queues receive a bounded scheduling check even after the nearby 3×3 has loaded. Supplemental views share one budget and pause while native queues or postprocessing are backed up. Existing native dependency checks and chunk states remain authoritative.
 
-Generation changes require a new recipe/world; existing immutable recipes and saved chunks are preserved. Sea level Y100, building range Y-64..511 and the 0.2.7 Y500 cloud-rendering change remain. Chunk-loading stalls and visual/gameplay acceptance are still open; successful builds do not establish either.
+Cold regional water/ice planning runs on independent workers before acquiring the structure registry lock. Bounded diagnostics record queued stages, native dispatch results, failed neighbour-stage predicates and slow structure-lock sites. Stall timers discount long gaps between game ticks. The terrain recipe, saved chunks, sea level Y100, build range Y-64..511 and Y500 cloud changes are preserved; this runtime update also applies to existing supported worlds.
+
+This is a test release awaiting user gameplay acceptance. Offline tests verify scheduling policy and identical terrain output; they do not establish that every visible gap is fixed or quantify in-game loading speed.
 
 **This is a test release awaiting gameplay acceptance.** Offline generation tests and successful builds do not establish in-game correctness. Please report the version, world seed, coordinates, screenshots and reproduction steps when you encounter an issue.
 

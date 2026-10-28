@@ -1,3 +1,13 @@
+## 0.2.9 — chunk scheduling fairness and structure-lock latency
+
+Dependency-ready chunks now gain priority as they wait, including visible chunks outside the former local-only boost. Native ready queues receive a bounded scheduling check even after the nearby 3×3 has loaded. Supplemental views share one budget and pause while native queues or postprocessing are backed up. Existing native dependency checks and chunk states remain authoritative.
+
+Cold regional water/ice planning runs on independent workers before acquiring the structure registry lock. Bounded diagnostics record queued stages, native dispatch results, failed neighbour-stage predicates and slow structure-lock sites. Stall timers discount long gaps between game ticks. The terrain recipe, saved chunks, sea level Y100, build range Y-64..511 and Y500 cloud changes are preserved; this runtime update also applies to existing supported worlds.
+
+This is a test release awaiting user gameplay acceptance. Offline tests verify scheduling policy and identical terrain output; they do not establish that every visible gap is fixed or quantify in-game loading speed.
+
+Windows **0.2.9**, BDS terrain **1.0.52** / structures **1.0.67**, kernel **2.211** (unchanged). No world reset is required.
+
 ## 0.2.8 — glacier spire shape and cold-region ecology
 
 New-world glacier spires regain slender bases and pronounced lean, correcting the incomplete height-only change in 0.2.4. Trees, shrubs and ground plants thin continuously toward super glaciers. Freezing a snowy wetland removes lilies whose water support becomes ice. Both hosts restrict natural polar-bear spawning to frozen oceans and glacier ice, excluding frozen lakes; commands, eggs, spawners and existing bears are unaffected.

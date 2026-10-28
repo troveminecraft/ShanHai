@@ -15,8 +15,10 @@ void clientPrepare(std::filesystem::path const& root, std::string const& name, s
 void clientActivate() {
     stageCalls = 0; stageErrors = 0; structureStageFailed = false;
     prefillJobs=0; prefillComputeNanos=0; prefillLogRows=0; storageLogRows=0;
+    regionalWarmJobs=0;regionalWarmLatency.reset();
     savedStructureSkips=0; structurePlansRetired=0; structureCollections=0;
     stageMutex.waitLatency.reset();stageMutex.holdLatency.reset();
+    stageMutex.clearSlowSites();
     stageMutex.acquisitions=0; stageMutex.waitNanos=0; stageMutex.holdNanos=0;
     automaticStructures = true; smallFeaturesEnabled = true;
 }

@@ -544,6 +544,7 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
         if (!cp)
             throw std::runtime_error("No native center");
         failureChunk=std::array<int,2>{cp->x,cp->z};
+        worldgen_rules::StructureStageSiteScope site(1,cp->x,cp->z);
         auto center = view.$getExistingChunk(*cp);
         if (!center || center->getState().load() != ChunkState::DecorationPostProcessing)
             throw std::runtime_error("Unexpected center phase");
@@ -588,6 +589,11 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
             if (fossilPotential(*cp, seed))
                 ++fossilSavedSkips;
         }
+        std::vector<ChunkPos> warming=nearbyVillages;
+        for(auto const& [x,z]:nearby)warming.push_back({x,z});
+        for(auto const& [type,c]:extras)warming.push_back(c);
+        warming.push_back(*cp);
+        warmStructureRegions(warming);
         std::lock_guard guard(stageMutex);
         if (structureStageFailed)
             return false;

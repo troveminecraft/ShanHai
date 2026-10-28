@@ -64,6 +64,7 @@ bool Field::unbounded() const { nativegen::regional::StoreScope scope(impl->cont
 Surface Field::bootstrapSurface(int x, int z)  { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->bootstrapSurface(x, z); }
 Surface Field::surface(int x, int z, bool slope)  { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->surface(x, z, slope); }
 Surface Field::base(int x, int z)  { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->base(x, z); }
+void Field::prepareRegions(int x,int z) { nativegen::regional::StoreScope scope(impl->context->impl->store); impl->value->prepareRegions(x,z); }
 double Field::desertRegionWeight(int x, int z)  { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->desertRegionWeight(x, z); }
 double Field::minimumNaturalTemperature(int x, int z)  { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->minimumNaturalTemperature(x, z); }
 double Field::vcont(double x, double z)  { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->vcont(x, z); }
