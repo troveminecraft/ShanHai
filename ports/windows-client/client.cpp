@@ -73,7 +73,8 @@ void validateStoredGenerator(std::filesystem::path const &root, std::string cons
         std::string_view(nbt->at("FlatWorldLayers")).find("TheVoid") == std::string_view::npos)
         throw std::runtime_error("Karma saved world generator setting was changed");
 }
-void writeStatus(Level &level, bool closed = false) {
+void writeStatus(Level &level, bool closed = false) noexcept {
+    try {
     Json status = terrain::clientStatus();
     status.update(lab::clientStatus());
     status["seed"] = bedrock_compat::seed(level.getLevelData()).toUiString();
@@ -88,6 +89,11 @@ void writeStatus(Level &level, bool closed = false) {
         return true;
     });
     std::ofstream(diagnostics / "world-session.json") << status.dump(2);
+    } catch (std::exception const& error) {
+        // Status is optional. In particular, a rejected native world must still
+        // release both sessions and run the original ServerLevel destructor.
+        try { std::ofstream(diagnostics / "session-status-error.txt") << error.what(); } catch (...) {}
+    } catch (...) {}
 }
 
 void clearWorld(Level *level) {
@@ -169,6 +175,15 @@ LL_TYPE_INSTANCE_HOOK(WorldOpen, ll::memory::HookPriority::Normal, ServerLevel, 
     bool ok = origin(name, settings, experiments, id, biomes);
     if (ok && current == this) {
         try {
+            startupStatus("validating-native-world");
+            auto expectedSeed = bedrock_compat::seed(settings).toUiString();
+            auto nativeSeed = bedrock_compat::seed(getLevelData());
+            startup::requireSameSeed(expectedSeed, nativeSeed.toUiString());
+            std::ofstream(diagnostics / "world-seed.json") << Json{
+                {"version",shanhai_release::Windows},{"settings",expectedSeed},
+                {"native",nativeSeed.toUiString()},
+                {"structureSeed32",nativeSeed.to32BitRandomSeed()},
+                {"matched",true}}.dump(2);
             auto dimension = getOrCreateDimension(0).lock();
             if (!dimension)
                 throw std::runtime_error("Overworld dimension is unavailable after initialization");
@@ -190,7 +205,7 @@ LL_TYPE_INSTANCE_HOOK(WorldOpen, ll::memory::HookPriority::Normal, ServerLevel, 
             std::error_code ignored;
             std::filesystem::remove(diagnostics/"world-error.txt",ignored);
         } catch (std::exception const &e) {
-            terrain::log().error("Karma native templates unavailable: {}", e.what());
+            terrain::log().error("Karma world validation failed after native initialization: {}", e.what());
             std::ofstream(diagnostics / "world-error.txt") << e.what();
             startupStatus("rejected-after-native-initialize",e.what());
             ok = false;

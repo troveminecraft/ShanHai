@@ -12,5 +12,11 @@ int main(){
     for(auto max:{320,513}){auto bad=valid;bad["minecraft:dimension"]["components"]["minecraft:dimension_bounds"]["max"]=max;assert(rejected(bad.dump()));}
     auto bad=valid;bad["minecraft:dimension"]["components"]["minecraft:generation"]["generator_type"]="overworld";assert(rejected(bad.dump()));
     bad=valid;bad["minecraft:dimension"]["description"]["identifier"]="minecraft:nether";assert(rejected(bad.dump()));
+    for (auto seed : {"0", "-1", "2934997776556350534", "-9223372036854775808", "9223372036854775807"})
+        client::startup::requireSameSeed(seed,seed);
+    bool mismatch=false;
+    try { client::startup::requireSameSeed("2934997776556350534","0"); }
+    catch(std::runtime_error const&) { mismatch=true; }
+    assert(mismatch);
     std::cout<<"Native selected-height resource checks passed\n";
 }

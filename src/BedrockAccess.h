@@ -6,29 +6,11 @@
 #include "mc/world/level/LevelSeed64.h"
 #include "mc/world/level/storage/LevelDataValue.h"
 #include "mc/world/level/chunk/SubChunk.h"
-#include <bit>
+#include "BedrockSeed.h"
 #include <stdexcept>
 #include <limits>
 
 namespace bedrock_compat {
-inline std::string seedText(LevelSeed64 const& seed) {
-    return std::to_string(std::bit_cast<int64_t>(uint64_t(seed.mValue)));
-}
-struct Seed {
-    uint64_t value;
-    uint32_t to32BitRandomSeed() const { return uint32_t(value); }
-    std::string toUiString() const { return std::to_string(std::bit_cast<int64_t>(value)); }
-};
-template<class T> Seed seed(T const& value) {
-    if constexpr(requires { value.getSeed(); }) return {uint64_t(value.getSeed().mValue)};
-    else if constexpr(requires { value.mSeed; }) return {uint64_t(value.mSeed->mValue)};
-    else {
-        auto* entry=value._getValue(HashedString("RandomSeed"));
-        auto* native=entry?std::get_if<LevelSeed64>(&*entry->mValue):nullptr;
-        if(!native)throw std::runtime_error("Native RandomSeed property is missing or has a different type");
-        return {uint64_t(native->mValue)};
-    }
-}
 // These SDK fields exist on both pinned ABIs. Read the native state; never
 // synthesize completion to work around a missing accessor in newer headers.
 inline auto const& loadState(LevelChunk const& chunk) { return *chunk.mLoadState; }
