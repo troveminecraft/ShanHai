@@ -1,3 +1,9 @@
+## 0.2.7 — Windows cloud rendering at Y500
+
+Fixes clouds staying at their native altitude despite the old Y500 setting. The renderer recalculated cloud placement from the dimension getter, bypassing the cached value previously changed by the mod. This update shifts the actual cloud render translation to Y500 and adjusts upper/lower mesh selection at the same altitude for original graphics and Vibrant Visuals.
+
+Diagnostics now report the native and corrected output world heights separately for each graphics mode. Native surface bias and cloud thickness remain, so the cloud base is approximately Y500.33. This is a Windows rendering change; existing supported worlds can be used without regeneration. Terrain remains at kernel 2.210, sea level Y100 and building range Y-64..511; BDS stays at terrain 1.0.50 / structures 1.0.65. Visual acceptance is pending.
+
 ## 0.2.6 — Windows native pack-source path identity
 
 - Fix the mixed path separators that made Windows new-world creation report a missing native behavior-pack source. Bedrock registers forward-slash UTF-8 paths and compares them byte for byte; filesystem path joining produced a backslash before `behavior_packs`.

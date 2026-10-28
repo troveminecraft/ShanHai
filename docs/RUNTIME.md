@@ -88,3 +88,17 @@ Windows 模组的 `diagnostics/world-session.json` 记录 `nativeWork`：原生�
 模组用 `filesystem::operator/` 拼接后，Windows 会产生末尾 `\behavior_packs`；SDK 的 `Core::Path(filesystem::path)` 直接保存 `u8string()`，不转为原生来源使用的 `/behavior_packs`。0.2.6 通过 `generic_u8string()` 统一传入仓库的 UTF-8 路径，并将 `lookupPath` 和 `sourcePath` 写入任务的 `height-pack-discovery.json`。没有往游戏进程写内存或调用游戏逻辑进行验证。
 
 Windows 回归覆盖混合分隔符以及含空格、中文的路径，保留接入/回退/旧世界保护测试。`addWorldResourcePacks` 已调用绑定与刷新，移除随后多余的刷新。最终是否发现高度包、进入世界和重进成功仍须游戏内验收；不得因路径测试通过而宣称创建已验收。
+
+## 0.2.7 Windows cloud translation
+
+The previous `mCloudHeight=500` hook ran in both graphics modes, but that count was not proof of cloud placement. Offline inspection of the pinned 1.26.20.04 executable found:
+
+- `tickClouds` (RVA `0x3AD5180`) reads camera Y at `0x708` and the dimension getter (virtual slot `0xC0`) to choose upper/lower faces. It does not use the cached cloud height for this decision.
+- `_extractClouds` (RVA `0x3AD7E00`) writes `dimensionCloudY - cameraTargetY + 0.33` to `CloudRenderObject::mYTranslation` (`0x34`). Vibrant mode changes lighting, not this placement formula.
+- `renderClouds` (RVA `0x3ABBB60`) uses that extracted translation in both the draw matrix and the cloud frustum bounds. The original and Vibrant paths share this transform.
+
+The fix adds `500 - nativeHeight` to the extracted translation. During the synchronous mesh-side comparison only, an RAII scope offsets camera Y by the inverse amount and restores it on return or exception. In this pinned native method, camera Y is read only for that comparison; queued rebuilds capture the resulting side boolean and X/Z. It does not move the player, change camera target Y, force double-sided meshes or hook the ICF-shared dimension getter. SDK layout assertions and native instruction signatures guard the assumptions.
+
+`diagnostics/world-session.json` → `clouds.classic` / `clouds.vibrant` contain sampled `nativeHeight`, `cameraY`, `nativeWorldY`, `outputWorldY`, `hasMeshes` and extraction number. Missing samples are null; the counters and samples are process-scoped. At the extraction boundary the expected output base is about 500.33, retaining native bias and thickness. This is renderer output evidence, not a screenshot or gameplay acceptance. `gameplayTested` stays false. Non-finite samples are counted and left untouched. Sampling takes a lock once per 120 extractions, with no disk IO on the render path.
+
+Offline checks replay the measured translation/face decision below, inside and above the target layer and check normal/exception camera restoration. Image tests reject changed cloud instruction signatures. Existing world creation safeguards remain enabled. Gameplay checks remain: original graphics and Vibrant Visuals at Y100/Y250/Y499/Y505, crossing the layer without missing faces, and preserving weather/cloud settings. BDS has no cloud renderer; its plugins, test seed and generated chunks are unchanged.

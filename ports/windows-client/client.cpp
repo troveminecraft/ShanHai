@@ -78,8 +78,7 @@ void writeStatus(Level &level, bool closed = false) {
     status["ticks"] = sessionTicks;
     status["closed"] = closed;
     status["tickErrors"] = tickErrors;
-    status["clouds"]={{"targetY",clouds::Height},{"classicExtractions",clouds::extractions[0].load()},
-        {"vibrantExtractions",clouds::extractions[1].load()},{"gameplayTested",false}};
+    status["clouds"] = clouds::status();
     status["players"] = Json::array();
     level.forEachPlayer([&](Player &p) {
         auto pos = p.getPosition();

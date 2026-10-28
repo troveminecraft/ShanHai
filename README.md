@@ -4,7 +4,7 @@
 
 English · [简体中文](README.zh-CN.md)
 
-[Download 0.2.6](https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.6) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
+[Download 0.2.7](https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.7) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
 
 ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows, powered by LeviLamina. Follow rivers through mountain ranges, rolling highlands, forests, deserts and coastlines; explore caves, glaciers and volcanic terrain. Vanilla structures are placed according to the surrounding landscape.
 
@@ -16,17 +16,17 @@ ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows,
 
 ## Install
 
-1. Download [ShanHai-Windows-0.2.6.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.6/ShanHai-Windows-0.2.6.zip).
+1. Download [ShanHai-Windows-0.2.7.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.7/ShanHai-Windows-0.2.7.zip).
 2. Save and fully close Minecraft. Import the ZIP into the matching instance through LeviLauncher’s mod manager.
 3. Enable the mod and create a new **normal** world with your chosen seed. Do not select a flat world.
 
 Use the release ZIP, rather than GitHub’s automatically generated source archive. Python and Node.js runtime dependencies are included; copying only the DLL is insufficient. The internal mod ID remains `karma-worldgen-client` for configuration and save compatibility.
 
-## Version 0.2.6
+## Version 0.2.7
 
-Fixes Windows new-world creation failing to find its behavior-pack source because the mod and Bedrock used different path separators. Paths now match Bedrock's forward-slash UTF-8 keys, with both lookup and registered paths recorded for diagnosis. Height checks and safe failed-creation retry remain enabled.
+Fixes clouds staying at their native altitude despite the old Y500 setting. The renderer recalculated cloud placement from the dimension getter, bypassing the cached value previously changed by the mod. This update shifts the actual cloud render translation to Y500 and adjusts upper/lower mesh selection at the same altitude for original graphics and Vibrant Visuals.
 
-The path mismatch was confirmed in the failing 0.2.5 process without modifying it. Native world creation and re-entry still require gameplay acceptance. Terrain remains unchanged from **0.2.4**: sea level **Y100**, building range **Y-64 through Y511**, BDS terrain **1.0.50** / structures **1.0.65**.
+Diagnostics now report the native and corrected output world heights separately for each graphics mode. Native surface bias and cloud thickness remain, so the cloud base is approximately Y500.33. This is a Windows rendering change; existing supported worlds can be used without regeneration. Terrain remains at kernel 2.210, sea level Y100 and building range Y-64..511; BDS stays at terrain 1.0.50 / structures 1.0.65. Visual acceptance is pending.
 
 **This is a test release awaiting gameplay acceptance.** Offline generation tests and successful builds do not establish in-game correctness. Please report the version, world seed, coordinates, screenshots and reproduction steps when you encounter an issue.
 

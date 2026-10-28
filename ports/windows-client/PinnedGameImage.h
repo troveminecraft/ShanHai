@@ -4,12 +4,24 @@
 #include <cstring>
 #include <span>
 #include <string>
+#include <type_traits>
 
 namespace client::image {
 inline constexpr uint32_t FacetRva = 0x928b910;
 inline constexpr std::array<uint8_t, 24> FacetBytes{
     0x41,0x57,0x41,0x56,0x41,0x54,0x56,0x57,0x55,0x53,0x48,0x83,
     0xec,0x20,0x48,0x89,0xce,0x48,0x8b,0x89,0xf8,0x01,0,0};
+// Measured cloud camera/translation contract in 1.26.20.04. These are inside
+// the functions, away from the entry trampolines installed by LeviLamina.
+inline constexpr uint32_t CloudSideRva = 0x3ad52f6;
+inline constexpr std::array<uint8_t, 19> CloudSideBytes{
+    0xf3,0x44,0x0f,0x10,0x86,0x08,0x07,0,0,0x48,0x8b,0x01,0x48,0x8b,0x80,0xc0,0,0,0};
+inline constexpr uint32_t CloudTranslationRva = 0x3ad8074;
+inline constexpr std::array<uint8_t, 25> CloudTranslationBytes{
+    0xf3,0x0f,0x5c,0x86,0x14,0x07,0,0,0xf3,0x0f,0x58,0x05,0x14,0x11,0x33,0x07,
+    0x48,0x8b,0x45,0xb8,0xf3,0x0f,0x11,0x40,0x34};
+inline constexpr uint32_t CloudDrawRva = 0x3abbcec;
+inline constexpr std::array<uint8_t, 7> CloudDrawBytes{0x0f,0x10,0x96,0xc4,0,0,0};
 struct Result {
     bool supported = false;
     uint32_t timestamp = 0, imageSize = 0;
@@ -48,8 +60,15 @@ template<class Reader> Result inspect(Reader read) {
     std::array<uint8_t,FacetBytes.size()> bytes{};
     if (!read(FacetRva,bytes.data(),bytes.size()) || bytes != FacetBytes)
         return reject("CreateNewWorldFacet instruction signature mismatch");
+    auto matches = [&](uint32_t rva, auto const& expected) {
+        std::remove_cvref_t<decltype(expected)> actual{};
+        return read(rva, actual.data(), actual.size()) && actual == expected;
+    };
+    if (!matches(CloudSideRva, CloudSideBytes) || !matches(CloudTranslationRva, CloudTranslationBytes) ||
+        !matches(CloudDrawRva, CloudDrawBytes))
+        return reject("Cloud camera/translation instruction signature mismatch");
     result.supported = true;
-    result.reason = "Pinned 1.26.20.04 code and facet layout verified";
+    result.reason = "Pinned 1.26.20.04 code, facet and cloud layouts verified";
     return result;
 }
 }
