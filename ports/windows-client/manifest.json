@@ -1,8 +1,9 @@
 {
   "name": "karma-worldgen-client",
   "entry": "karma-worldgen-client.dll",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "type": "native",
   "platform": "client",
-  "description": "K-worldgen：Windows LL 主世界地形与结构生成"
+  "description": "mountains&seas（山&海）：Minecraft 基岩版主世界地形与结构生成",
+  "author": "troveminecraft"
 }

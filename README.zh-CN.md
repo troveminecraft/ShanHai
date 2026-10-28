@@ -1,23 +1,23 @@
-当前版本：0.3.1。修复 26.51 创建世界时生成器启用失败、出现原版地形的问题。探索中仍可能出现加载停顿或可见缺块。
+当前版本：0.3.2。修复 26.51 加载新世界时的崩溃。探索中的加载停顿或可见缺块仍是已知问题。
 
 <p align="center">
   <img src="docs/assets/shan-hai.png" alt="山&amp;海" width="720">
 </p>
 
 <p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.1"><img src="https://img.shields.io/badge/release-0.3.1-2ea44f" alt="0.3.1"></a>
+  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.2"><img src="https://img.shields.io/badge/release-0.3.2-2ea44f" alt="0.3.2"></a>
   <img src="https://img.shields.io/badge/Minecraft_Bedrock-1.26.51.01-62b47a" alt="Minecraft Bedrock 1.26.51.01">
   <img src="https://img.shields.io/badge/LeviLamina-26.51.9-00a896" alt="LeviLamina 26.51.9">
   <img src="https://img.shields.io/badge/Windows-x64-0078d4" alt="Windows x64">
 </p>
 
 <p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.1">下载安装</a> ·
+  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.2">下载安装</a> ·
   <a href="docs/BUILDING.md">从源码构建</a> ·
   <a href="https://github.com/troveminecraft/ShanHai/issues">反馈问题</a>
 </p>
 
-# 山&海
+# 山&海 · mountains&seas
 
 [English](README.md) · 简体中文
 
@@ -38,7 +38,7 @@
 
 需要 **Minecraft for Windows 1.26.51.01**、**LeviLamina 26.51.9 客户端版**和支持 AVX2 的 Windows x64 电脑。可通过 LeviLauncher 管理游戏实例和模组。
 
-1. 下载 [ShanHai-Windows-0.3.1.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.3.1/ShanHai-Windows-0.3.1.zip)。
+1. 下载 [ShanHai-Windows-0.3.2.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.3.2/ShanHai-Windows-0.3.2.zip)。
 2. 完全退出 Minecraft，在 LeviLauncher 对应实例的模组管理中导入 ZIP。
 3. 确认模组已启用，启动游戏，创建一个普通新世界；不要选择超平坦。
 
@@ -48,26 +48,26 @@
 
 本次更新见 [更新记录](CHANGELOG.md)，生成和存档机制见 [说明](docs/RUNTIME.md)。
 
-## 0.3.1 更新
+## 0.3.2 更新
 
-修复 0.3.0 中 DLL 显示已加载、生成器却启用失败，导致新世界生成原版地形的问题。创建世界接口现在先于云层补丁启用，避免把自身修改误判为不兼容的游戏程序。保留严格版本校验，并在日志与 `diagnostics/activation.json` 中区分 DLL 加载和生成器启用状态。
+修复 Minecraft **1.26.51.01** 加载新世界时的崩溃：地形生成器构造函数传入的是群系编号，旧钩子误将该数值作为指针读取。现在按原生调用约定传递编号，并校验对应游戏指令。保留 0.3.1 的生成器启用顺序修复。
 
-适用于 Minecraft **1.26.51.01** 与 LeviLamina **26.51.9 客户端版**。地形配方、内核 **2.211**、海平面 **Y100** 与建造范围 **Y-64..511** 不变。启用失败期间创建的世界仍是原版世界，更新后请创建普通新世界。
+英文名统一为 **mountains&seas**。完整 ZIP 的清单增加作者 **troveminecraft**，供 LeviLauncher 显示；原内部标识、存档路径和安装包文件名保持兼容。
 
-已知问题：首次进入与探索中仍可能出现加载停顿或可见缺块，本次更新不宣称解决这些独立的性能问题。
+适用于 LeviLamina **26.51.9 客户端版**、Windows x64 与 AVX2 CPU。地形配方、内核 **2.211**、海平面 **Y100**、建造范围 **Y-64..511** 不变。首次进入与探索中的加载停顿和可见缺块仍是已知问题。生成器未启用时创建的原版世界不会自动转换。
 
 ## 使用前
 
-**0.3.1 是公开测试版本。** 结构与复杂坡地的衔接仍可能出现异常，欢迎带上种子、坐标和截图反馈。建议备份存档，并用新世界体验；已经生成的原版区块不会自动变成新地形。
+**0.3.2 是公开测试版本。** 结构与复杂坡地的衔接仍可能出现异常，欢迎带上种子、坐标和截图反馈。建议备份存档，并用新世界体验；已经生成的原版区块不会自动变成新地形。
 
 继续游玩模组世界时，请保持模组启用。这个安装包仅用于上面列出的 Windows 客户端环境，不适用于 BDS、Android 或 Java 版。
 
 ## 源码
 
-本仓库包含 0.3.1 的地形内核、结构生成、Windows 接口和构建脚本。种子生成需要用到 Python 与 JavaScript，它们也是模组的一部分。构建方法见 [BUILDING.md](docs/BUILDING.md)。
+本仓库包含 0.3.2 的地形内核、结构生成、Windows 接口和构建脚本。种子生成需要用到 Python 与 JavaScript，它们也是模组的一部分。构建方法见 [BUILDING.md](docs/BUILDING.md)。
 
 第三方组件及许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。项目原创代码采用 [MIT 协议](LICENSE)；第三方组件及派生资源保留各自许可。安装包不包含 Minecraft 游戏本体或原版结构资源，结构模板从本机游戏读取。
 
 本系列基于 0.1.13 的源码重新实现：新世界海面 Y100、Y60～100 内陆盆地、海拔与覆雪变种、三档裂谷和火山海岸接触带。0.1.14/0.1.15 实验世界请使用留存的对应版本，不静默迁移。
 
-已有 0.1.16 模组世界保持原配方，不重写已有区块。日志应显示 `Karma Windows client 0.3.1; local world creation enabled`，随后模组启用成功；若启用失败，请连同日志与 `diagnostics/game-image.json` 反馈。
+已有 0.1.16 模组世界保持原配方，不重写已有区块。日志应显示 `Karma Windows client 0.3.2; local world creation enabled`，随后模组启用成功；若启用失败，请连同日志与 `diagnostics/game-image.json` 反馈。

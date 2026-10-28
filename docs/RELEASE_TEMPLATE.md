@@ -1,4 +1,4 @@
-# ShanHai VERSION
+# mountains&seas · 山&海 VERSION
 
 ## Changes
 

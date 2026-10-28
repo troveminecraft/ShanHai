@@ -1,12 +1,12 @@
-<p align="center"><img src="docs/assets/shan-hai.png" alt="ShanHai — Mountains & Seas" width="720"></p>
+<p align="center"><img src="docs/assets/shan-hai.png" alt="mountains&amp;seas — 山&amp;海" width="720"></p>
 
-# ShanHai · 山&海
+# mountains&seas · 山&海
 
 English · [简体中文](README.zh-CN.md)
 
-[Download 0.3.1](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.1) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
+[Download 0.3.2](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.2) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
 
-ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows, powered by LeviLamina. Follow rivers through mountain ranges, rolling highlands, forests, deserts and coastlines; explore caves, glaciers and volcanic terrain. Vanilla structures are placed according to the surrounding landscape.
+mountains&seas is an Overworld terrain generation mod for Minecraft Bedrock on Windows, powered by LeviLamina. Follow rivers through mountain ranges, rolling highlands, forests, deserts and coastlines; explore caves, glaciers and volcanic terrain. Vanilla structures are placed according to the surrounding landscape.
 
 ## Requirements
 
@@ -16,19 +16,19 @@ ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows,
 
 ## Install
 
-1. Download [ShanHai-Windows-0.3.1.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.3.1/ShanHai-Windows-0.3.1.zip).
+1. Download [ShanHai-Windows-0.3.2.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.3.2/ShanHai-Windows-0.3.2.zip).
 2. Save and fully close Minecraft. Import the ZIP into the matching instance through LeviLauncher’s mod manager.
 3. Enable the mod and create a new **normal** world with your chosen seed. Do not select a flat world.
 
 Use the release ZIP, rather than GitHub’s automatically generated source archive. Python and Node.js runtime dependencies are included; copying only the DLL is insufficient. The internal mod ID remains `karma-worldgen-client` for configuration and save compatibility.
 
-## Version 0.3.1
+## Version 0.3.2
 
-World creation now activates before cloud rendering patches are installed. This fixes 0.3.0 reporting the DLL as loaded but then rejecting its own patched executable, disabling the terrain hooks and creating vanilla worlds. Strict executable compatibility checks remain enabled. Startup diagnostics now distinguish a loaded DLL from a fully enabled generator.
+Fixes a crash while loading a new world on Minecraft **1.26.51.01**. The native terrain-generator constructor passes a biome number directly, but the previous hook interpreted it as a pointer. The adapter now preserves the native calling convention and validates the corresponding game instructions. The 0.3.1 activation-order fix is retained.
 
-Minecraft **1.26.51.01** and LeviLamina **26.51.9** are required. Terrain recipes, kernel **2.211**, sea level **Y100** and building range **Y-64..511** are unchanged. Worlds created while activation failed remain vanilla worlds; create a new normal world after updating.
+The English product name is **mountains&seas**. ZIP metadata now includes **troveminecraft** as the author for LeviLauncher. Existing internal IDs, save paths and package filenames remain compatible.
 
-Known issue: first entry and exploration can still show loading stalls or visible chunk gaps. This update addresses generator activation, not those separate performance problems.
+Requires LeviLamina **26.51.9**, Windows x64 and AVX2. Terrain recipes, kernel **2.211**, sea level **Y100** and building range **Y-64..511** are unchanged. Known issue: first entry and exploration may still show loading stalls or visible chunk gaps. Worlds created while the generator was disabled remain vanilla worlds.
 
 Please report the version, world seed, coordinates, screenshots and reproduction steps when you encounter an issue.
 

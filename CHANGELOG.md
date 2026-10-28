@@ -1,3 +1,13 @@
+## 0.3.2 — Windows world-loading crash
+
+Fixes a crash while loading a new world on Minecraft **1.26.51.01**. The native terrain-generator constructor passes a biome number directly, but the previous hook interpreted it as a pointer. The adapter now preserves the native calling convention and validates the corresponding game instructions. The 0.3.1 activation-order fix is retained.
+
+The English product name is **mountains&seas**. ZIP metadata now includes **troveminecraft** as the author for LeviLauncher. Existing internal IDs, save paths and package filenames remain compatible.
+
+Requires LeviLamina **26.51.9**, Windows x64 and AVX2. Terrain recipes, kernel **2.211**, sea level **Y100** and building range **Y-64..511** are unchanged. Known issue: first entry and exploration may still show loading stalls or visible chunk gaps. Worlds created while the generator was disabled remain vanilla worlds.
+
+This 26.51 update applies to Windows only.
+
 ## 0.3.1 — Windows generator activation
 
 World creation now activates before cloud rendering patches are installed. This fixes 0.3.0 reporting the DLL as loaded but then rejecting its own patched executable, disabling the terrain hooks and creating vanilla worlds. Strict executable compatibility checks remain enabled. Startup diagnostics now distinguish a loaded DLL from a fully enabled generator.
