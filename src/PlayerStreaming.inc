@@ -116,6 +116,7 @@ void updatePlayerStreaming(Level& level){
     if(!interior&&states[z*side+x]>=0&&states[z*side+x]<13)++s.frontierPending;
     s.visible.observe(cx+x-radius,cz+z-radius,states[z*side+x],enclosed,seconds,interior);
    }
+   s.visible.end();
    for(auto&patch:s.patches){
     if(patch.view){
      bool done=true;

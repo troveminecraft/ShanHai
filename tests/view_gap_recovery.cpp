@@ -31,6 +31,9 @@ int main(){using terrain_runtime::ViewGapRecovery;
  // Abandoned/outer-view observations are discarded, including retry history.
  v.begin();v.observe(45,0,-1,true,0);v.end();check(v.next(8,0,0));
  v.begin();v.observe(45,0,-1,false,9);v.end();check(v.gaps.empty());
+ // Flying completely away drops old pressure even without re-observing its chunks.
+ v.begin();v.observe(12,0,6,true,10);v.end();check(v.next(18,0,0));
+ v.begin();v.observe(200,0,13,false,19);v.end();check(v.gaps.empty());
  std::vector<terrain::StreamFocus> focus{{0,0,8,0,0,true,30,0}};
  check(terrain::streamingScore(0,0,focus)<terrain::streamingScore(30,0,focus));
  check(terrain::streamingScore(40,0,focus)<terrain::streamingScore(41,0,focus));
