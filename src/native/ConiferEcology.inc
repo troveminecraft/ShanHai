@@ -92,7 +92,7 @@ void coniferEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,2
  // validated before clipping, so adjacent chunks make identical decisions.
  for(int gz=int(std::floor((z0-10)/16.));gz<=int(std::floor((z0+25)/16.));gz++)for(int gx=int(std::floor((x0-10)/16.));gx<=int(std::floor((x0+25)/16.));gx++){
   auto r=[&](int salt){return hash01(gx,gz,terrainSeed^salt);};int x=gx*16+2+int(r(1921)*12),z=gz*16+2+int(r(1922)*12);
-  auto s=field.surface(x,z,false);if(!coniferHabitat(s)||r(1923)>(.18+.5*coniferPatch(x,z))*iceVegetation(s))continue;
+  auto s=field.surface(x,z,false);if(!glacierPlantKept(s,x,z)||!coniferHabitat(s)||r(1923)>(.18+.5*coniferPatch(x,z))*iceVegetation(s))continue;
   // Blockers are queried around the feature anchor, never around the output
   // chunk. Both halves of a log crossing a seam see the same neighbours.
   auto blockers=conifers(x-2,z-2,12);auto structuresHere=structures(x-2,z-2,12);auto others=smallTrees(x-2,z-2,12,structuresHere);
@@ -123,7 +123,7 @@ void coniferEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,2
   }
  }
  for(int z=0;z<16;z++)for(int x=0;x<16;x++){
-  auto const&s=surfaces[z*16+x];if(!coniferHabitat(s)||s.rock||nativeReserved(x0+x,z0+z))continue;
+  auto const&s=surfaces[z*16+x];if(!glacierPlantKept(s,x0+x,z0+z))continue;if(!coniferHabitat(s)||s.rock||nativeReserved(x0+x,z0+z))continue;
   auto col=raw.data()+(z*16+x)*Height;int h=s.height;
   // Continuous litter patches, leaving grass in the open parts of the stand.
   double litter=coniferPatch(x0+x,z0+z);

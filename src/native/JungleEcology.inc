@@ -254,7 +254,7 @@ void jungleEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,25
  for(int gz=int(std::floor((z0-9)/24.));gz<=int(std::floor((z0+24)/24.));gz++)for(int gx=int(std::floor((x0-9)/24.));gx<=int(std::floor((x0+24)/24.));gx++){
   auto r=[&](int k){return hash01(gx,gz,terrainSeed^k);};int x=gx*24+int(r(14601)*24),z=gz*24+int(r(14602)*24);
   if(r(14603)>.22+.18*junglePatch(x,z))continue;
-  auto s=field.surface(x,z);if(!jungleHabitat(s)||s.rock||blocked(x,z))continue;
+  auto s=field.surface(x,z);if(!glacierPlantKept(s,x,z)||!jungleHabitat(s)||s.rock||blocked(x,z))continue;
   bool stump=r(14604)<.28;double angle=r(14605)*6.283185307;int len=stump?0:3+int(r(14606)*5);
   std::vector<std::pair<int,int>> path{{x,z}};int px=x,pz=z;
   for(int i=1;i<=len;i++){int X=x+roundJS(std::cos(angle)*i),Z=z+roundJS(std::sin(angle)*i);
@@ -284,7 +284,7 @@ void jungleEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,25
  // is never a uniform carpet of collision blocks under the dense upper canopy.
  for(int gz=int(std::floor((z0-3)/9.));gz<=int(std::floor((z0+18)/9.));gz++)for(int gx=int(std::floor((x0-3)/9.));gx<=int(std::floor((x0+18)/9.));gx++){
   auto r=[&](int k){return hash01(gx,gz,terrainSeed^k);};int x=gx*9+int(r(12501)*9),z=gz*9+int(r(12502)*9);auto s=field.surface(x,z);
-  if(!jungleHabitat(s)||s.rock||blocked(x,z)||nearStem(x,z)||r(12503)>.12+.52*junglePatch(x,z))continue;
+  if(!glacierPlantKept(s,x,z)||!jungleHabitat(s)||s.rock||blocked(x,z)||nearStem(x,z)||r(12503)>.12+.52*junglePatch(x,z))continue;
   double radius=1.3+r(12504),phase=r(12505)*6.283185307;
   for(int dz=-2;dz<=2;dz++)for(int dx=-2;dx<=2;dx++){
    double rim=radius*(1+.13*std::sin(3*std::atan2(double(dz),double(dx))+phase)),q=(dx*dx+dz*dz)/(rim*rim);if(q>1||nearStem(x+dx,z+dz))continue;
@@ -295,7 +295,7 @@ void jungleEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,25
   }
  }
  for(int z=0;z<16;z++)for(int x=0;x<16;x++){
-  auto const&s=surfaces[z*16+x];if(!jungleHabitat(s)||s.rock||blocked(x0+x,z0+z))continue;int h=s.height,X=x0+x,Z=z0+z;auto col=raw.data()+(z*16+x)*Height;
+  auto const&s=surfaces[z*16+x];if(!glacierPlantKept(s,x0+x,z0+z))continue;if(!jungleHabitat(s)||s.rock||blocked(x0+x,z0+z))continue;int h=s.height,X=x0+x,Z=z0+z;auto col=raw.data()+(z*16+x)*Height;
   if(!soil(col[h+64])||col[h+65])continue;bool shade=false;
   for(int y=h+4;y<=std::min(Height-65,h+60);y++)if(col[y+64]==15){shade=true;break;}
   double patch=clamp(.5+.8*understoryNoise.at(X/19.,Z/19.),0.,1.);
@@ -319,7 +319,7 @@ void jungleEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,25
   for(int i=0;i<count;i++){
    int X=ax+int(r(14710+i*3)*(2*radius+1))-radius,Z=az+int(r(14711+i*3)*(2*radius+1))-radius;
    int x=X-x0,z=Z-z0;if(x<0||x>=16||z<0||z>=16)continue;
-   auto const&s=surfaces[z*16+x];int h=s.height;
+   auto const&s=surfaces[z*16+x];int h=s.height;if(!glacierPlantKept(s,X,Z))continue;
    if(!jungleHabitat(s)||s.rock||s.water>=h||s.lava>=h||nearStem(X,Z)||blocked(X,Z))continue;
    auto col=raw.data()+(z*16+x)*Height;int n=bamboo?4+int(r(14712+i*3)*6):1;
    if(h+n+1>Height-65||!soil(col[h+64]))continue;

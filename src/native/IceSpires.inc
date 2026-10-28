@@ -6,7 +6,7 @@ IceSpireDescriptor iceSpireDescriptor(int gx,int gz,int X,int Z){return iceSpire
   auto s=field.surface(X+32768,Z+32768,false);bool large=s.superGlacier>.65;
   if(s.glacier<.65||s.river||s.lake||s.water>=s.height||s.scarp>.01||s.cliffLow!=-32768||r(51305)>(large?.70:.35))return out;
   if(snowRifts&&(closedIceRifts?riftSample(X,Z,riftNeighborhood(X,Z),false):riftAt(X,Z)).cut>.12)return out;
-  bool grounded=field.elevationVariantsEnabled();
+  bool grounded=field.elevationVariantsEnabled()&&C.value("glacierEcologyRevision",0)<1;
   double rx=large?(grounded?24+14*r(51307):11+9*r(51307)):3+3*r(51307),rz=rx*(.42+.35*r(51309));
   bool tall=C.value("tallIceSpires",false);
   int height=std::min(large?(grounded&&!tall?48+int(40*r(51311)):88+int(72*r(51311))):16+int(27*r(51311)),Height-74-s.height);
@@ -34,7 +34,7 @@ KARMA_NOINLINE void refinedIceSpires(int x0,int z0,std::vector<uint16_t>&raw,std
  for(int gx=int(std::floor((x0-32768-halo)/double(grid)));gx<=int(std::floor((x0-32768+15+halo)/double(grid)));++gx){
   auto r=[&](int salt){return hash01(gx,gz,terrainSeed^salt);};
   int X=int(std::floor((gx+.18+.64*r(51301))*grid)),Z=int(std::floor((gz+.18+.64*r(51303))*grid));
-  if(slantedGlaciers&&!field.elevationVariantsEnabled()){double h=88+int(72*r(51311)),lean=h*(.40+.30*r(51341)),phase=r(51313)*6.283185307179586+.7;
+  if(slantedGlaciers&&(!field.elevationVariantsEnabled()||C.value("glacierEcologyRevision",0)>=1)){double h=88+int(72*r(51311)),lean=h*(.40+.30*r(51341)),phase=r(51313)*6.283185307179586+.7;
    double ax=lean*std::cos(phase),az=lean*std::sin(phase);
    if(X+std::max(22.,ax+2)<x0-32768||X+std::min(-22.,ax-2)>x0+15-32768||Z+std::max(22.,az+2)<z0-32768||Z+std::min(-22.,az-2)>z0+15-32768)continue;
   }else {int reach=field.elevationVariantsEnabled()?40:27;if(X+reach<x0-32768||X-reach>x0+15-32768||Z+reach<z0-32768||Z-reach>z0+15-32768)continue;}
@@ -49,7 +49,7 @@ KARMA_NOINLINE void refinedIceSpires(int x0,int z0,std::vector<uint16_t>&raw,std
    std::array<double,N> p{};bool inside=true,possible=true;
    for(int k=0;k<N;++k){p[k]=nx[k]*dx+nz[k]*dz;if(p[k]>distance[k])inside=false;if(p[k]>std::max(distance[k],q[k])+1.2)possible=false;}
    auto col=raw.data()+i*Height;
-   if(slantedGlaciers&&!field.elevationVariantsEnabled()){
+   if(slantedGlaciers&&(!field.elevationVariantsEnabled()||C.value("glacierEcologyRevision",0)>=1)){
     if(!possible)continue;
     // Sweep the whole cross-section sideways with height. Clip BOTH ends
     // of each column interval: filling down to the ground would straighten it.

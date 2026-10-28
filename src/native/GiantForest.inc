@@ -3,7 +3,7 @@ std::shared_ptr<Giant> giant(Site const& site) {
  return giantCache.get(site.id,[&]()->std::shared_ptr<Giant> {
   auto const& q=C.at("giantForest");auto s=field.surface(site.x,site.z,false);
   auto r=[&](int k){return rand(site.id,k);};
-  double weight=field.giantWeight(site.x,site.z,s);
+  double weight=field.giantWeight(site.x,site.z,s)*s.glacierVegetation;
   int height=std::min(int(num(q,"minHeight"))+int(r(3)*(num(q,"maxHeight")-num(q,"minHeight")+1)),Height-68-s.height);
   if(r(4)>=num(q,"chance")*weight||s.cliffLow!=-32768||height<num(q,"minHeight")||s.height<=36||blocked(site.x,site.z))return nullptr;
   // Check the whole trunk footprint, not just nine points. Ground range may

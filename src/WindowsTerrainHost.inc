@@ -24,9 +24,11 @@ void clientActivate() {
     viewGapRepairs=viewGapResolved=viewGapResends=0;
     priorityCalls=0; priorityBoosts=0;
     mainThread = GetCurrentThreadId();
+    startPolarBearSpawning();
     active = true;
 }
 void clientRelease() {
+    stopPolarBearSpawning();
     worldSession->close();
     active = false;
     unboundedWorld = false;
@@ -63,6 +65,7 @@ Json clientStatus() {
             {"streaming",{{"loadRequests",loadRequests},{"ready",loadReady},
                 {"pending",pendingLoads.size()},{"gapRepairs",viewGapRepairs},
                 {"gapResolved",viewGapResolved},{"priorityBoosts",priorityBoosts.load()}}}};
+    result["polarBears"]={{"allowed",polarBearAllowed.load()},{"rejected",polarBearRejected.load()}};
     result["nativeWork"]=workReport();
     result["latency"]={{"request",latencyJson(worldSession->requestLatency)},{"calculatorQueue",latencyJson(worldSession->queueLatency)},
         {"compute",latencyJson(worldSession->computeLatency)},{"fill",latencyJson(worldSession->fillLatency)},

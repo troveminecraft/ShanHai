@@ -129,7 +129,7 @@ void broadleafForest(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,
  }
 
  for(int z=0;z<16;z++)for(int x=0;x<16;x++){
-  auto const&s=surfaces[z*16+x];if(!broadleafHabitat(s)||s.rock)continue;int h=s.height,X=x0+x,Z=z0+z;auto col=raw.data()+(z*16+x)*Height;
+  auto const&s=surfaces[z*16+x];if(!glacierPlantKept(s,x0+x,z0+z))continue;if(!broadleafHabitat(s)||s.rock)continue;int h=s.height,X=x0+x,Z=z0+z;auto col=raw.data()+(z*16+x)*Height;
   if(col[h+64]!=4||col[h+65])continue;
   double patch=clamp(.5+understoryNoise.at(X/27.,Z/27.),0,1),pick=hash01(X,Z,terrainSeed^2451);bool shade=false;
   for(int y=h+3;y<=std::min(h+18,Height-65);y++)if(col[y+64]==11||col[y+64]==66){shade=true;break;}

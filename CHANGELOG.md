@@ -1,3 +1,11 @@
+## 0.2.8 — glacier spire shape and cold-region ecology
+
+New-world glacier spires regain slender bases and pronounced lean, correcting the incomplete height-only change in 0.2.4. Trees, shrubs and ground plants thin continuously toward super glaciers. Freezing a snowy wetland removes lilies whose water support becomes ice. Both hosts restrict natural polar-bear spawning to frozen oceans and glacier ice, excluding frozen lakes; commands, eggs, spawners and existing bears are unaffected.
+
+Generation changes require a new recipe/world; existing immutable recipes and saved chunks are preserved. Sea level Y100, building range Y-64..511 and the 0.2.7 Y500 cloud-rendering change remain. Chunk-loading stalls and visual/gameplay acceptance are still open; successful builds do not establish either.
+
+Windows **0.2.8**, BDS terrain **1.0.51** / structures **1.0.66**, kernel **2.211**. Offline regressions cover real-seed spire descriptors, voxel tip displacement, connectivity and chunk order, vegetation density, warm/frozen lily support, spawn policy and old-recipe output compatibility. User gameplay acceptance is pending.
+
 ## 0.2.7 — Windows cloud rendering at Y500
 
 Fixes clouds staying at their native altitude despite the old Y500 setting. The renderer recalculated cloud placement from the dimension getter, bypassing the cached value previously changed by the mod. This update shifts the actual cloud render translation to Y500 and adjusts upper/lower mesh selection at the same altitude for original graphics and Vibrant Visuals.
@@ -101,8 +109,6 @@ BDS terrain **1.0.46**, structures **1.0.61**; Windows **0.1.19**. Sea level Y64
 
 常见火山口缩小，少量保留大型个体；岩浆面靠近最低口缘，地下改为偏转、不对称的膨大与岩壁。Windows 取消原生加载完成前的包仓库误拦截，仍校验文件、选包及进入世界前的实际高度。本版仍待用户游戏内验收。
 
-# 更新记录
-
 ## 0.1.17 — volcano magma body and Windows loading
 
 - Volcanoes now have a broad lava mouth connected to one continuous magma body that widens towards the world bottom. The bedrock floor and a solid rock seal remain intact.
@@ -167,8 +173,6 @@ Historical packages and Git tags are retained for rollback. Version 0.1.16 resto
 - 共享修复覆盖 BDS 和 Windows LL；新世界启用新配方，旧存档不回填或删除区块。海面 Y=40、峰顶约 Y=480、建造上限 Y=511 保持，安卓封档。
 - 回归包含 BDS 种子 11 的四处反馈坐标及实际区块方块输出；游戏内流体更新、地形观感和探索稳定性仍由用户验收。
 
-## 0.1.9（待游戏内验收）
-
 - 修复探索期间结构缓存回收与待处理实体任务之间的失效指针风险；回收和引用清理统一在结构阶段锁内完成。
 - BDS `/karma tp <序号> [模式]`：模式可省略，省略时保持当前模式；1 为创造、0 为观察者。移除 `/karma back` 及退出时自动返回。
 - 新世界的水坑水面和坑底上升一格，部分水坑连成两至三个；每个水体共用水位，并检查岸边闭合。
@@ -177,19 +181,7 @@ Historical packages and Git tags are retained for rollback. Version 0.1.16 resto
 - BDS 与 Windows LL 共用生成与结构修复；海面 Y=40、峰顶约 Y=480、建造上限 Y=511 保持。旧世界沿用原生成配方；安卓封档。
 - 离线回归、双端编译和无人连接的 BDS 启动检查不代表游戏内验收。长距离探索稳定性、指令行为、流体更新和地形观感由用户验收。
 
-## 0.1.8
-
-- 修复探索或传送到新区域时，结构生成误读维度高度而导致退出的问题。
-- 恶地扩大为连续区域，外围以沙漠过渡，与海洋相接处生成红沙海岸和近岸红沙海床。
-- 保留恶地河湖水位、陶瓦条带、风蚀柱与疏林高原；旧世界继续使用原来的生成配方。
-- 新世界仍为海平面 Y=40、峰顶约 Y=480、建造上限 Y=511。
-
-## 0.1.7（待游戏内验收）
-
-- 新世界建造上限 Y=511、峰顶约 Y=480、海平面 Y=40。
-- 共享区块、植被和结构填充适配576格高度，河谷、溪流、湖泊与海岸按新高度衔接。
-- 世界附带高度行为包；旧档保留旧配方与高度。
-- BDS 与 Windows LL 同步实现；Windows仅交付，游戏内验收待完成。
+# 更新日志
 
 ## 0.1.6 / BDS 指令组件 1.0.48 — 2026-10-23
 
@@ -199,49 +191,47 @@ Historical packages and Git tags are retained for rollback. Version 0.1.16 resto
 - 隔离运行当前 BDS，确认维度配置可把范围从 -64..319 扩至 -64..511，正常重启后保持。仅为可行性实验，未加入发布包，放置、客户端和方块保存尚未验收。详见 [高度方案](docs/HEIGHT-FEASIBILITY.md)。
 - 指令、模式和进服显示仍待游戏内验收；安卓保持封档。
 
-## 0.1.4
+## Windows LL 0.1.0 — 2026-10-19
 
-- 新建世界使用区域河网 v2：以三次贝塞尔曲线平滑河道转折，保留汇流节点，限制曲线偏移和采样间距，并按实际地形检查河槽。
-- 补充山间细溪流和支流汇入，放宽适宜河源筛选；每个区域最多 6 条独立水系、14 条河源路线。支流沿已有水系汇入，共享连接点水位，沿程水位不升高。
-- 封闭盆地湖泊候选上限由每区 3 处增至 4 处，仍需通过实际盆地封闭检查，不保证每区生成固定数量。
-- 石峰林外缘直径约由 224 格增至 320 格，峰体半径范围从 16–22 格调至 19–26 格，间距随之增大；峰高与出现概率保持原值。
-- 新旧区域河网配方分开识别与缓存。既有 v1 世界继续使用原规则和存档内参数，已保存区块不重写；新内容请创建新世界体验。
-- 新增曲线转角、支流衔接、水位单调、干燥/火山排除、多种子实际河道取样和石峰林尺度回归。BDS 与 Windows LL 共用同一规则实现。
+- Windows 客户端启用独立版本号，当前版本定为 0.1.0；BDS 版本号不变。
+- 继承 Windows 1.0.40 的地形和结构规则，支持普通新世界、自定义种子与随探索生成。
+- 提供 LeviLauncher 可直接导入的完整 ZIP，包含种子生成运行文件、安装说明和依赖许可。
+- 兼容 Minecraft 1.26.20.04 / LeviLamina 26.20.7 客户端版；公开测试，游戏内效果仍由玩家验收。
 
-本版仍为公开测试；离线测试和构建不代表游戏内观感、流体更新或长距离运行已验收。安卓保持封档。
+## 1.0.42 — 2026-10-19（BDS 测试功能）
 
-## 0.1.3
+- 修复关闭命令反馈时 `/karma tp` 不显示列表的问题；结构和群系列表直接发给执行者，分批显示。
+- 控制台仍使用命令输出；传送编号、已保存坐标和世界生成规则不变。
 
-- 修复进入新世界时结构装饰中心取样返回空值后触发保护退出的问题；改为使用原版装饰任务传入的目标区块，并校验同一视图、邻域和区块身份。
-- 装饰任务上下文按线程与调用作用域隔离，嵌套或异常退出后恢复；新增缺失上下文、视图不匹配、邻域不完整及线程隔离回归。
-- BDS 与 Windows LL 同步安装任务桥接钩子，并沿用安装失败回滚和故障停止保护。
+## 1.0.41 — 2026-10-18（BDS 测试功能）
 
-本版仍为测试。游戏内新建、进入及重进后的结构生成待用户验收。
+- `/karma tp` 增加群系传送，每类一个位置，编号从 101 开始；原有结构编号保持不变。
+- 普通冰川、超级冰川、火山、小型石峰林、巨木森林单独列出。
+- 空服时分批搜索并保存进度，未找到的项目显示状态；支持 `/karma back`。
+- 本次仅更新 BDS 测试菜单，保留现有世界和种子，不改变生成规则。
 
-## 0.1.2
+## 1.0.40 — 2026-10-18（验收版）
 
-- 修复冰雪生成在世界顶越过列边界的问题，限制下游裂隙与冰池使用的高度；新增实际生成函数的边界回归。
-- 世界加载时校验完整方块名称、状态、编号和群系顺序；保留已有存档身份校验。
-- 增加内部派生区块缓存修订号，旧世界不再复用修复前的区块计算缓存；不重写已经保存的游戏区块。
-- 创建世界时显示准备进程的详细错误，对种子准备、出生点查询和整个创建准备设置超时并清理所属进程。
-- 地形与结构故障记录组件版本、种子、区块、阶段、原因及处理建议；保留防止不完整区块保存的停止保护。
-- 默认测试接入可重建的三种子输入、双计算器顺序一致性、植被预留对拍、进程超时和错误详情检查。主线推送自动执行 CI。
+- 修正入口附近坡地将整栋建筑抬高的问题，入口按自身地面定位，外围保留可通行坡度。
+- 栅栏门不再被识别为地面，修正围栏庭院下沉一格的问题。
+- BDS 与 Windows LL 使用相同规则。BDS 新测试世界使用种子 2，保留旧世界。
 
-本版为公开测试。未实现完整写块事务或自动修复半结构；新建、重进、结构连续性、实体恢复、玩家修改保留和长距离性能仍需游戏内验收。
+## 1.0.39 — 2026-10-18（验收版）
 
-## 0.1.1
+- BDS 与 Windows LL 使用同一结构规划流程；旧种子配置不再切回旧结构分支。
+- 村庄地基排除植被，建筑按可通行边沿适配地面，避免内部水坑抬高整栋建筑。
+- 篝火保留地面支撑；道路使用规划后的高度，移除依据放置结果再次降低路面的处理。
+- 修整操作按所属区块索引，保留房屋内部空气和结构方块。
 
-- 修复 Windows 客户端未启用区块加载观测和恢复的问题。
-- 结构阶段失败时明确报错并阻止继续接受未完成区块，避免后续结构悄悄停止生成。
-- 改用原版区块查询确定装饰中心，移除固定 `GridArea` 偏移读取。
-- 将植被预留计算移出结构全局锁，使用两个独立计算器；新增锁等待与计算耗时统计。
-- 增加结构布局检查点，重进后校验布局一致性；保留原有实体声明和化石记录。
-- 分批回收不再使用的结构缓存，保存并恢复尚未执行的实体任务，限制预留提示缓存。
-- 校验必要游戏钩子的安装结果，安装失败时回滚，避免适配层只启用一部分。
-- 整理结构生命周期代码、开发说明和第三方许可边界。
+已生成的区块不会自动重建；游戏内效果待验收。
 
-仍限定 README 中列出的游戏版本。原版结构对象的操作仍有同步保护，未宣称结构生成全面并行。旧世界升级的限制见 [生成与存档](docs/RUNTIME.md)。
+## [1.0.27-a](https://github.com/troveminecraft/karma-worldgen/releases/tag/v1.0.27-a) — 2026-10-16
 
-## 0.1.0
+首个 GitHub BDS 预发布包，包含地形生成、原版结构组件和新世界模板。
 
-首个公开的 Windows LL 测试版本，包含地形、种子创建流程与原版结构接入。
+- 山地、沙漠、火山、冰川、河流与湖泊，以及森林和地下洞穴。
+- 原版结构接入及道路、地基和周边地形适配。
+- 支持 BDS `1.26.20.5`、LeviLamina `26.20.7`，运行于支持 AVX2 的 Windows x64 设备。
+- 包内地形种子为 `288493980`，X/Z 范围为 `-20000` 至 `19999`。
+
+此包用于新世界，不包含 Windows 客户端或 Android 安装包。安装步骤见[安装指南](docs/INSTALL.md)，使用前请阅读[已知问题](docs/KNOWN_ISSUES.md)。

@@ -60,10 +60,10 @@ inline std::optional<Destination> destination(int id, int biomeCount) {
 }
 struct Update { int id; char const* name; char const* content; };
 inline constexpr Update updates[]{
-    {124, "超级冰川", "新配方恢复大冰刺高度，保留宽底座；旧世界不改写"},
-    {113, "丛林", "减少树形重复计算，补充加载耗时诊断"},
-    {109, "森林", "减少冠层重复计算；加载表现待实测"},
-    {116, "河流", "结构查询复用区域规划缓存，减少河湖重复勘测"}
+    {124, "超级冰川", "新世界恢复细长、明显倾斜的大冰刺；越靠近冰川植被越稀疏"},
+    {110, "沼泽", "覆雪结冰时移除失去水面支撑的睡莲"},
+    {117, "冰冻河流/湖泊", "禁止北极熊自然生成；冰川和冰洋保留"},
+    {109, "森林", "冰川周围统一降低树木、灌木和地表植被密度"}
 };
 inline std::string joinMessage() {
     std::string result = std::string("§9[山&海] 最近地形更新（") + shanhai_release::Windows + "，待游戏内验收）";

@@ -107,7 +107,7 @@ void birchCompanions(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,
  for(int gx=int(std::floor((x0-3)/6.));gx<=int(std::floor((x0+18)/6.));gx++){
   auto r=[&](int k){return hash01(gx,gz,terrainSeed^k);};
   int x=gx*6+int(r(11401)*6),z=gz*6+int(r(11402)*6);auto s=field.surface(x,z,false);
-  if(!birchHabitat(s))continue;s=field.surface(x,z);if(s.rock||blocked(x,z))continue;
+  if(!glacierPlantKept(s,x,z)||!birchHabitat(s))continue;s=field.surface(x,z);if(s.rock||blocked(x,z))continue;
   double patch=clamp(.52+.7*understoryNoise.at(x/25.,z/25.),.1,.95);
   if(r(11403)>.12+.42*patch)continue;
   bool nearStem=false;for(auto const&t:birchTrees)if(std::hypot(x-t->x,z-t->z)<2.3)nearStem=true;

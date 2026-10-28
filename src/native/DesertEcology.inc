@@ -3,7 +3,7 @@
 // against deterministic surfaces, including outside the current chunk.
 void desertEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>const&surfaces,std::vector<Structure>const&ss){
  for(int z=0;z<16;z++)for(int x=0;x<16;x++){
-  auto const&s=surfaces[z*16+x];int h=s.height,X=x0+x,Z=z0+z;
+  auto const&s=surfaces[z*16+x];if(!glacierPlantKept(s,x0+x,z0+z))continue;int h=s.height,X=x0+x,Z=z0+z;
   if(s.aridType||(!s.badlands&&s.desert<=.4)||s.oasis>.2||s.water>=h||s.lava>=h||s.kind||s.cliffLow!=-32768||s.scarp>.01||h>220)continue;
   auto col=raw.data()+(z*16+x)*Height;if(col[h+65]!=0)continue;
   if(!s.badlands&&s.desertSand>.55&&s.desertCrest>.5)continue;

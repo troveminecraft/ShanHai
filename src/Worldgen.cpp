@@ -61,6 +61,8 @@
 #include "ll/api/memory/Hook.h"
 #include "ll/api/event/EventBus.h"
 #include "ll/api/event/world/ServerLevelTickEvent.h"
+#include "ll/api/event/world/SpawnMobEvent.h"
+#include "PolarBearHabitat.h"
 #include "ll/api/command/CommandRegistrar.h"
 #include "ll/api/command/CommandHandle.h"
 #include "ll/api/command/runtime/RuntimeOverload.h"
@@ -430,6 +432,7 @@ LL_TYPE_INSTANCE_HOOK(GenerateVoid,ll::memory::HookPriority::Normal,VoidGenerato
  }catch(std::exception const& e){calculatorFailure(e,phase,std::array<int,2>{p.x,p.z});}
 }
 #include "GlacierWeather.inc"
+#include "PolarBearSpawning.inc"
 Json latencyJson(terrain_runtime::Latency& latency){auto s=latency.snapshot();Json q={{"count",s.count},{"windowCount",s.windowCount},{"windowLimit",2048},{"totalMs",s.totalUs/1000.},{"maxMs",s.maxUs/1000.}};if(s.windowCount){q["p50Ms"]=s.p50/1000.;q["p95Ms"]=s.p95/1000.;q["p99Ms"]=s.p99/1000.;}else{q["p50Ms"]=nullptr;q["p95Ms"]=nullptr;q["p99Ms"]=nullptr;}return q;}
 Json workReport(){
  static constexpr std::array names={"loadTask","structureTask","decorationTask","lightingTask","clientMeshBuild"};
@@ -448,6 +451,7 @@ void writeReport(){
  report["arrivalRecovery"]={{"started",arrivalStarts},{"resends",arrivalResends},{"rebinds",arrivalRebinds},{"timeouts",arrivalTimeouts}};
  report["viewGapRecovery"]={{"repairs",viewGapRepairs},{"resolved",viewGapResolved},{"resends",viewGapResends},{"patchesPerPlayer",terrain_runtime::RepairSlots},{"patchRadius",terrain_runtime::RepairDependencyRadius},{"coreRadius",terrain_runtime::RepairCoreRadius},{"maximumViewRadius",64},{"scanSeconds",2},{"attemptLimit",3},{"retryBackoffSeconds",30}};
  report["playerViews"]=Json::array();for(auto const&[name,s]:playerStreams)report["playerViews"].push_back({{"name",name},{"chunk",{s.cx,s.cz}},{"radius",s.viewRadius},{"unfinished",s.visible.gaps.size()}});
+ report["polarBears"]={{"allowed",polarBearAllowed.load()},{"rejected",polarBearRejected.load()}};
  report["nativeWork"]=workReport();
  report["latency"]={{"request",latencyJson(worldSession->requestLatency)},{"sameChunkWait",latencyJson(worldSession->gateLatency)},{"calculatorQueue",latencyJson(worldSession->queueLatency)},{"compute",latencyJson(worldSession->computeLatency)},{"derivedCacheRead",latencyJson(worldSession->cacheReadLatency)},{"fill",latencyJson(worldSession->fillLatency)},{"observedReady",latencyJson(worldSession->readyLatency)},{"tickInterval",latencyJson(worldSession->tickGapLatency)}};
  report["stageObservation"]={{"pollEveryTicks",10},{"oldestPendingMs",oldestPendingMs},{"detached",observedDetached},{"coalesced",observedCoalesced},{"dropped",observationDrops.load()},{"networkSendMeasured",false},{"note","State residence is sampled wall time; skipped states have no sample, not zero CPU time"}};
@@ -556,6 +560,7 @@ bool Mod::enable(){
  } catch (std::exception const& e) {
      calculatorFailure(e);
  }
+ startPolarBearSpawning();
  registerTestAssist();
  auto& cmd=ll::command::CommandRegistrar::getServerInstance().getOrCreateCommand("terrain","Fixed runtime terrain",CommandPermissionLevel::Owner);
  cmd.runtimeOverload().text("status").execute([](CommandOrigin const&,CommandOutput& out,ll::command::RuntimeCommand const&){writeReport();out.success("world={} mode=on-demand active={} seed={} 生成调用={} 自动全图预生成=false 加载请求={} 就绪={} 等待={} errors={}",worldName,active.load(),metadata.at("terrainSeed").get<std::string>(),generated.load(),loadRequests,loadReady,pendingLoads.size(),errors.load());});
@@ -589,6 +594,7 @@ bool Mod::enable(){
 }
 bool Mod::disable(){
  if(ll::getGamingStatus()==ll::GamingStatus::Running||ll::getGamingStatus()==ll::GamingStatus::Starting){log().error("按需地形生成器不能在运行中禁用，请正常停服后更新");return false;}
+ stopPolarBearSpawning();
  if(testJoin)ll::event::EventBus::getInstance().removeListener(testJoin);if(testLeave)ll::event::EventBus::getInstance().removeListener(testLeave);
  requested=false;if(tickListener)ll::event::EventBus::getInstance().removeListener(tickListener);
  worldSession->close(); // Drain admitted callbacks before releasing native view state.

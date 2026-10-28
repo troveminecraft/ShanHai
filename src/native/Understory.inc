@@ -16,7 +16,7 @@ void understory(int x0,int z0,std::vector<uint16_t>& raw,std::array<Surface,256>
  for(int gz=int(std::floor((z0-3)/7.));gz<=int(std::floor((z0+18)/7.));gz++)for(int gx=int(std::floor((x0-3)/7.));gx<=int(std::floor((x0+18)/7.));gx++){
   auto rnd=[&](int salt){return hash01(gx,gz,terrainSeed^salt);};
   int x=gx*7+int(rnd(811)*7),z=gz*7+int(rnd(812)*7);auto s=field.surface(x,z,false);
-  if(!eligible(s)||excluded(x,z)||rnd(813)>s.giant*(.22+.64*patch(x,z)))continue;
+  if(!glacierPlantKept(s,x,z)||!eligible(s)||excluded(x,z)||rnd(813)>s.giant*(.22+.64*patch(x,z)))continue;
   double radius=1.35+rnd(814)*.85,phase=rnd(815)*6.283185307179586;int n=int(std::ceil(radius));
   int lo=s.height,hi=s.height;for(auto [dx,dz]:{std::pair{-n,0},{n,0},{0,-n},{0,n}}){int h=field.surface(x+dx,z+dz,false).height;lo=std::min(lo,h);hi=std::max(hi,h);}
   if(hi-lo>3)continue;
@@ -33,7 +33,7 @@ void understory(int x0,int z0,std::vector<uint16_t>& raw,std::array<Surface,256>
   }
  }
  for(int z=0;z<16;z++)for(int x=0;x<16;x++){
-  auto const&s=surfaces[z*16+x];int X=x0+x,Z=z0+z;if(!eligible(s)||excluded(X,Z))continue;
+  auto const&s=surfaces[z*16+x];if(!glacierPlantKept(s,x0+x,z0+z))continue;int X=x0+x,Z=z0+z;if(!eligible(s)||excluded(X,Z))continue;
   auto col=raw.data()+(z*16+x)*Height;int h=s.height;
   if(!soil(col[h+64])||col[h+65]!=0)continue;
   double cover=patch(X,Z);if(hash01(X,Z,terrainSeed^821)>s.giant*(.06+.48*cover))continue;

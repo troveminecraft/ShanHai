@@ -17,6 +17,7 @@ inline double num(J const&j,char const*k){return j.at(k).get<double>();}
 struct ReliefNode{double v,relief,pos,corr;};
 struct Cliff{bool valid=false;double x=0,z=0,h=0,slope=0,nx=0,nz=0,crest=0;};
 class Field {
+ friend struct GlacierEcologyRegression;
  friend struct CompletedBiomesTest;
  friend struct TerrainRevisionTest;
  friend struct ElevationVariantsTest;
@@ -137,7 +138,7 @@ public:
  }
  double ecologyHeight(Surface const&s)const{if(elevatedLandscape)return mountainEcologyActive(s)?mountainClimateHeight(landscapeAltitude(s.height),mountainPeakY):landscapeAltitude(s.height);if(!mountainEcologyActive(s))return double(s.height);return s.height>=-64&&s.height<512?ecologyAltitudes[s.height+64]:mountainClimateHeight(s.height,mountainPeakY);}
  double ecologyTemperature(Surface const&s)const{return mountainEcologyActive(s)&&s.ecologyT>=0?s.ecologyT:s.T;}
- double ecologyTreeWeight(Surface const&s)const{return (mountainEcologyActive(s)?mountainEcologyTreeWeight(ecologyHeight(s),ecologyTemperature(s)):1.)*(1.-.5*s.upland);}
+ double ecologyTreeWeight(Surface const&s)const{return (mountainEcologyActive(s)?mountainEcologyTreeWeight(ecologyHeight(s),ecologyTemperature(s)):1.)*(1.-.5*s.upland)*s.glacierVegetation;}
  bool elevationVariantsEnabled()const{return elevationVariants;}
  bool landformRefreshEnabled()const{return landformRefresh;}
  J inspectElevationForms(int lo,int hi){return elevationInventory(lo,hi);}

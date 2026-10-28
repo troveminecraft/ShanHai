@@ -4,7 +4,7 @@ bool mushroomHabitat(Surface const&s)const{return (s.mushroom||(s.biome==9||s.bi
 ForestMushroom mushroomSite(int gx,int gz){return mushroomCache.get(key2(gx,gz),[&]{
  auto r=[&](int k){return hash01(gx,gz,terrainSeed^(52100+k));};ForestMushroom a{gx*24+5+int(r(1)*14),gz*24+5+int(r(2)*14),0,0,0,r(3)<.5};
  auto s=field.surface(a.x,a.z,false);
- if(!mushroomHabitat(s)||r(4)>(s.mushroom?.85:s.biome==10?.20:.11)||(!s.mushroom&&!treeGroundAllowed(s,a.x,a.z,false))||blocked(a.x,a.z,false))return a;
+ if(!glacierPlantKept(s,a.x,a.z)||!mushroomHabitat(s)||r(4)>(s.mushroom?.85:s.biome==10?.20:.11)||(!s.mushroom&&!treeGroundAllowed(s,a.x,a.z,false))||blocked(a.x,a.z,false))return a;
  a.r=a.red?2:3;int lo=s.height,hi=lo;
  for(int dz=-a.r;dz<=a.r;++dz)for(int dx=-a.r;dx<=a.r;++dx){auto b=field.surface(a.x+dx,a.z+dz,false);if(!mushroomHabitat(b)||(!b.mushroom&&!treeGroundAllowed(b,a.x+dx,a.z+dz,false))||nativeReserved(a.x+dx,a.z+dz))return ForestMushroom{};lo=std::min(lo,b.height);hi=std::max(hi,b.height);}
  if(hi-lo>1)return ForestMushroom{};a.g=s.height;a.h=(a.red?7:4)+int(r(5)*4);return a;
@@ -12,7 +12,7 @@ ForestMushroom mushroomSite(int gx,int gz){return mushroomCache.get(key2(gx,gz),
 void forestMushrooms(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>const&surfaces){
  if(!forestDesign)return;
  // Small mushrooms use the same island soil and reservations as the caps.
- for(int z=0;z<16;++z)for(int x=0;x<16;++x){auto const&s=surfaces[z*16+x];if(!s.mushroom||nativeReserved(x0+x,z0+z))continue;
+ for(int z=0;z<16;++z)for(int x=0;x<16;++x){auto const&s=surfaces[z*16+x];if(!glacierPlantKept(s,x0+x,z0+z))continue;if(!s.mushroom||nativeReserved(x0+x,z0+z))continue;
   int y=s.height+1;if(y>Height-65)continue;double q=hash01(x0+x,z0+z,terrainSeed^72311);
   auto&b=raw[(z*16+x)*Height+y+64];if(b==0&&q<.025)b=q<.0125?67:68;
  }

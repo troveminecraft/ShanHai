@@ -84,7 +84,7 @@ void wetDryEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,25
  auto soil=[](int b){return b==3||b==4||b==32||b==33||b==SwampMud;};
  bool wetMargin=forestInterior(x0+8,z0+8,5)>0,dryMargin=forestInterior(x0+8,z0+8,6)>0;
  for(int z=0;z<16;z++)for(int x=0;x<16;x++){
-  auto const&s=surfaces[z*16+x];int X=x0+x,Z=z0+z,h=s.height;
+  auto const&s=surfaces[z*16+x];if(!glacierPlantKept(s,x0+x,z0+z))continue;int X=x0+x,Z=z0+z,h=s.height;
   // Dry drainage deposits remain exposed, including their soil/rock reaches.
   // A neighbouring savanna must not repaint these as grassy ecotone columns.
   if(s.aridType)continue;

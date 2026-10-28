@@ -4,7 +4,7 @@
 void surfaceFlora(int x0,int z0,std::vector<uint16_t>& raw,std::array<Surface,256>const& surfaces,bool footprint=false){
  if(C.value("surfaceMoss",0)!=2)return;
  for(int z=0;z<16;++z)for(int x=0;x<16;++x){
-  auto const&s=surfaces[z*16+x];int X=x0+x,Z=z0+z,h=s.height;
+  auto const&s=surfaces[z*16+x];if(!glacierPlantKept(s,x0+x,z0+z))continue;int X=x0+x,Z=z0+z,h=s.height;
   if(h<-39||h>=Height-66||s.water>=h||s.lava>=h||s.iceHabitat>.05||s.desert>.1||s.badlands||s.mushroom||s.volcanic>.1||nativeReserved(X,Z))continue;
   auto col=raw.data()+(z*16+x)*Height;int ground=col[h+64];
   if((ground!=3&&ground!=4&&ground!=32&&ground!=33&&ground!=80)||col[h+65]!=0)continue;

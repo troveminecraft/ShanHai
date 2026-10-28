@@ -11,7 +11,7 @@ void applySnowVariant(Surface&s,int wx,int wz){
  double climate=surfaceTemperature(s,wx,wz);
  double regionalCold=1-smooth(.20,.34,climate);
  double altitudeCold=smooth(335+65*climate,410+65*climate,s.height);
- double halo=0;
+ double halo=0,vegetation=1;
  // The collar is measured OUTSIDE the ellipse, with 512 blocks of complete
  // snow and another 512 of gradual retreat. Owners are prepared before this.
  for(auto const&r:iceAtlas){
@@ -19,7 +19,11 @@ void applySnowVariant(Surface&s,int wx,int wz){
   double radius=1/std::hypot(std::cos(angle)/r.rx,std::sin(angle)/r.rz);
   double distance=std::hypot(x-r.x,z-r.z)-radius*1.08;
   halo=std::max(halo,1-smooth(512,1024,distance));
+  vegetation=std::min(vegetation,smooth(-256,1024,distance));
  }
+ // The snow collar is fully white for 512 blocks; vegetation still thins
+ // continuously through that collar and into the glacier interior.
+ if(C.value("glacierEcologyRevision",0)>=1)s.glacierVegetation=vegetation;
  s.glacierSnow=halo;s.snowCover=std::max({regionalCold,altitudeCold,halo});
  // Exposed hot ground cannot retain snow; cold volcanic outskirts can.
  s.snowCover*=1-smooth(.05,.35,s.volcanoHeat);

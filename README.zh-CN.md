@@ -1,18 +1,18 @@
-当前版本：0.2.7。修正扩展主世界云层的最终渲染位置和上下表面选择，普通画面与灵动视效均以 Y500 为基准，并记录实际输出高度。地形规则沿用 0.2.4；此次无需重新生成世界，云层画面仍待游戏内验收。
+当前版本：0.2.8。修复细长倾斜冰刺、冻结水面的睡莲、北极熊自然生成和冰川周边植被渐退。生成改动需新世界，加载问题仍未闭环，游戏内验收由用户完成。
 
 <p align="center">
   <img src="docs/assets/shan-hai.png" alt="山&amp;海" width="720">
 </p>
 
 <p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.7"><img src="https://img.shields.io/badge/release-0.2.7-2ea44f" alt="0.2.7"></a>
+  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.8"><img src="https://img.shields.io/badge/release-0.2.8-2ea44f" alt="0.2.8"></a>
   <img src="https://img.shields.io/badge/Minecraft_Bedrock-1.26.20.04-62b47a" alt="Minecraft Bedrock 1.26.20.04">
   <img src="https://img.shields.io/badge/LeviLamina-26.20.7-00a896" alt="LeviLamina 26.20.7">
   <img src="https://img.shields.io/badge/Windows-x64-0078d4" alt="Windows x64">
 </p>
 
 <p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.7">下载安装</a> ·
+  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.8">下载安装</a> ·
   <a href="docs/BUILDING.md">从源码构建</a> ·
   <a href="https://github.com/troveminecraft/ShanHai/issues">反馈问题</a>
 </p>
@@ -38,7 +38,7 @@
 
 需要 **Minecraft for Windows 1.26.20.04**、**LeviLamina 26.20.7 客户端版**和支持 AVX2 的 Windows x64 电脑。可通过 LeviLauncher 管理游戏实例和模组。
 
-1. 下载 [ShanHai-Windows-0.2.7.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.7/ShanHai-Windows-0.2.7.zip)。
+1. 下载 [ShanHai-Windows-0.2.8.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.8/ShanHai-Windows-0.2.8.zip)。
 2. 完全退出 Minecraft，在 LeviLauncher 对应实例的模组管理中导入 ZIP。
 3. 确认模组已启用，启动游戏，创建一个普通新世界；不要选择超平坦。
 
@@ -48,24 +48,24 @@
 
 本次更新见 [更新记录](CHANGELOG.md)，生成和存档机制见 [说明](docs/RUNTIME.md)。
 
-## 0.2.7 更新
+## 0.2.8 更新
 
-修复云层仍停留在原生高度的问题：旧实现只改了高度缓存，但原生渲染会重新读取维度高度，绕过该缓存。本版直接修正最终云位置，并同步调整云的上下表面选择，覆盖普通画面和灵动视效。
+新世界恢复细长、明显倾斜的大冰刺，纠正 0.2.4 只恢复高度而未恢复形态的问题；树木、灌木和地表植物向超级冰川连续变稀疏；覆雪湿地结冰时移除失去水面支撑的睡莲。双端限制北极熊自然生成于冰洋和冰川冰体，排除冰冻湖泊；不影响命令、刷怪蛋、刷怪笼或已有实体。
 
-诊断分别记录两种模式的原生高度与修正后的输出高度。保留原生表面偏移和云层厚度，云底约为 Y500.33。此次为 Windows 渲染改动，已有受支持世界可直接使用，无需重新生成。内核 2.210、海平面 Y100、建造范围 Y-64..511 及 BDS 地形 1.0.50 / 结构 1.0.65 不变；画面效果仍待游戏内验收。
+生成规则需要新配方/新世界，旧配方和已保存区块保留；旧世界更新 DLL 不会自动重造冰刺。海平面 Y100、建造范围 Y-64..511 和 0.2.7 的 Y500 云层渲染改动保留。加载停顿、缺块和游戏内效果仍待解决或验收，不以编译成功代替。
 
 ## 使用前
 
-**0.2.7 是公开测试版本。** 结构与复杂坡地的衔接仍可能出现异常，欢迎带上种子、坐标和截图反馈。建议备份存档，并用新世界体验；已经生成的原版区块不会自动变成新地形。
+**0.2.8 是公开测试版本。** 结构与复杂坡地的衔接仍可能出现异常，欢迎带上种子、坐标和截图反馈。建议备份存档，并用新世界体验；已经生成的原版区块不会自动变成新地形。
 
 继续游玩模组世界时，请保持模组启用。这个安装包仅用于上面列出的 Windows 客户端环境，不适用于 BDS、Android 或 Java 版。
 
 ## 源码
 
-本仓库包含 0.2.7 的地形内核、结构生成、Windows 接口和构建脚本。种子生成需要用到 Python 与 JavaScript，它们也是模组的一部分。构建方法见 [BUILDING.md](docs/BUILDING.md)。
+本仓库包含 0.2.8 的地形内核、结构生成、Windows 接口和构建脚本。种子生成需要用到 Python 与 JavaScript，它们也是模组的一部分。构建方法见 [BUILDING.md](docs/BUILDING.md)。
 
 第三方组件及许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。项目原创代码采用 [MIT 协议](LICENSE)；第三方组件及派生资源保留各自许可。安装包不包含 Minecraft 游戏本体或原版结构资源，结构模板从本机游戏读取。
 
 本系列基于 0.1.13 的源码重新实现：新世界海面 Y100、Y60～100 内陆盆地、海拔与覆雪变种、三档裂谷和火山海岸接触带。0.1.14/0.1.15 实验世界请使用留存的对应版本，不静默迁移。游戏内验收尚待用户完成。
 
-已有 0.1.16 模组世界保持原配方，不重写已有区块。日志应显示 `Karma Windows client 0.2.7; local world creation enabled`，随后模组启用成功；若启用失败，请连同日志与 `diagnostics/game-image.json` 反馈。
+已有 0.1.16 模组世界保持原配方，不重写已有区块。日志应显示 `Karma Windows client 0.2.8; local world creation enabled`，随后模组启用成功；若启用失败，请连同日志与 `diagnostics/game-image.json` 反馈。
