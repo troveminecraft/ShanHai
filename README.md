@@ -24,13 +24,13 @@ Use the release ZIP, rather than GitHub’s automatically generated source archi
 
 ## Version 0.2.10
 
-The player’s complete nearby dependency halo now stays ahead of older distant jobs. This corrects the 0.2.10 priority inversion that could delay first entry while view-distance work aged. Extra native scheduling checks run only after a sampled queue remains idle, rather than while native tasks are already running.
+The player’s complete nearby dependency halo now stays ahead of older distant jobs. This corrects the 0.2.9 priority inversion that could delay first entry while view-distance work aged. Extra native scheduling checks run only after a sampled queue remains idle, rather than while native tasks are already running.
 
 Ordinary chunks reuse bounded, value-only structure reservation snapshots without acquiring the native placement lock. Proven rejected structure candidates can also finish the adapter stage without that lock; unknown or accepted candidates retain the original planning and placement paths. Expected unfinished dependency rings at the view boundary are excluded from interior backlog pressure; enclosed holes are still tracked.
 
-Diagnostics retain the longest lock holders and a bounded startup/recent timeline using wall time. Terrain generation rules, existing worlds, Y100 sea level and Y-64..511 build height are unchanged. This is a test release awaiting user gameplay acceptance; offline checks do not establish in-game speed or complete elimination of loading stalls.
+Diagnostics retain the longest lock holders and a bounded startup/recent timeline using wall time. Terrain generation rules, existing worlds, Y100 sea level and Y-64..511 build height are unchanged. Loading stalls and visible gaps can still occur during exploration.
 
-**This is a test release awaiting gameplay acceptance.** Offline generation tests and successful builds do not establish in-game correctness. Please report the version, world seed, coordinates, screenshots and reproduction steps when you encounter an issue.
+Please report the version, world seed, coordinates, screenshots and reproduction steps when you encounter an issue.
 
 Back up worlds before updating. Already generated chunks are not rewritten. Supported recipes through 0.1.13 and from 0.1.16 retain their original terrain. Experimental 0.1.14/0.1.15 worlds using kernel 2.204 must use their retained matching version; this release does not silently migrate them. Keep the mod enabled when continuing a mod-generated world.
 

@@ -1,9 +1,12 @@
 """Package the Windows client and its verified, self-contained seed runtime."""
-import argparse,hashlib,json,zipfile
+import argparse,hashlib,json,zipfile,sys
 from pathlib import Path
 P=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(P/'tools'))
+from check_release_text import check as check_release_text
 
 def package(runtime,output,binary=None):
+    check_release_text(P/'ports/windows-client/README.md')
     bundle=json.loads((runtime/'bundle.json').read_bytes())
     for name,digest in bundle['files'].items():
         source=(runtime/name).resolve()

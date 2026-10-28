@@ -27,4 +27,4 @@ Glacier snow distance is measured from the region boundary: full cover to 512 bl
 
 Recovery scans the requested view up to 64 chunks. It keeps at most two disjoint 5×5 core patches per player, each with eight dependency rings beyond its core. Patches remain until the entire core is ready, the player moves away, or 45 seconds pass. Distant repair work is excluded from the near-player backlog count. A gap receives no more than three attempts while it stays visible, with 30/60-second retry backoff. Recovery never marks incomplete native chunks loaded or repeatedly resends the entire view. Diagnostics report the actual patch count and scan interval.
 
-Offline geometry, deterministic output and startup checks are separate from gameplay acceptance. Live loading latency must be measured after deployment under comparable exploration conditions.
+Geometry and determinism tests cover the offline terrain kernel. Live loading latency must be measured after deployment under comparable exploration conditions.

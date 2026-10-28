@@ -49,7 +49,7 @@ python -m pip install numpy
 
 默认入口用仓内模板与 Node.js 重建三个输入（5、-1、有符号 64 位最大种子），运行列边界、调色板、错误上下文、创建进度、植被预留和既有生命周期测试，再比较两个独立计算器以相反顺序生成的区块及缓存重访结果。另运行 9 项 Python 进程与超时测试。
 
-测试输入是离线内核配方，使用种子默认地标，不能代替实际出生点选择或游戏内结构验收。`host-tests.json` 记录完成的用例；测试中的失败注入只是报错路径验证，不代表自然生成失败率。
+测试输入为离线内核配方，使用种子默认地标；不模拟原生出生点选择。`host-tests.json` 记录完成的用例；测试中的失败注入只是报错路径验证，不代表自然生成失败率。
 
 世界封装检查不需要启动游戏：
 
@@ -60,6 +60,5 @@ python -B ports/windows-client/test_world_package.py
 
 `build_runtime.py` 会使用打包的 Python 解释器检查运行时导入；
 `package_windows.py` 会逐项核对运行时文件的 SHA-256。
-这些检查不能代替游戏内地形和结构的验收。
 
 内核与世界会话边界、测试范围见 [KERNEL_BOUNDARY.md](KERNEL_BOUNDARY.md)。

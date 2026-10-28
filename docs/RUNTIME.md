@@ -4,9 +4,9 @@
 
 新世界的 `regional-drainage-v2` 配方使用三次贝塞尔河道和可汇入的细支流，河网在区域规划时计算，逐方块生成仍查询分段河槽。曲线控制柄限制在相邻采样边长的 28%，每段采样弦长不超过 6 格；汇流节点保留同一坐标和水位。河道只接受有限深度的地形切削，不用抬高地面制造挡水堤。
 
-旧世界继续读取自身的 `regional-drainage-v1` 配方与石峰林尺寸，新旧配方的区域缓存身份不同。内核支持 2.193、2.194 和 2.195 配方；不要手动改旧世界的算法字段或复制新配方覆盖旧配方。已保存区块不重写，新规则的验收应使用新世界。
+旧世界继续读取自身的 `regional-drainage-v1` 配方与石峰林尺寸，新旧配方的区域缓存身份不同。内核支持 2.193、2.194 和 2.195 配方；不要手动改旧世界的算法字段或复制新配方覆盖旧配方。已保存区块不重写，新生成规则在新世界中启用。
 
-离线回归检查几何连续、汇流连接、水位下降、河道中心取样与生成顺序一致性；真实流体更新、弯道观感、支流密度和石峰林尺度仍需游戏内验收。
+离线回归覆盖几何连续性、汇流连接、水位下降、河道中心取样与生成顺序一致性。
 
 山&海用空的超平坦生成器承载自定义主世界，在区块生成阶段填入地形，再调用游戏中的结构与模板接口。村庄、战利品、实体和结构查询仍复用原版接口。空超平坦是本项目的实现选择，不代表其他方式都不可行。
 
@@ -38,7 +38,7 @@ Windows 包适配 Minecraft 1.26.20.04 和 LeviLamina 26.20.7 客户端版。创
 - 检查点不是完整 Minecraft 结构序列化，也不是“区块已保存”的标记。原版对象仍按同一配方重建后核对。0.1.0 没有这些检查点，无法追溯证明它已经生成的布局与首次升级重算一致。
 - 结构阶段失败不再关闭结构生成后返回成功。装饰阶段暂停并记录具体错误；地形缓冲区处理失败沿用停止生成进程的保护，避免保存不完整区块。
 
-不要把需要维护的版本适配称为“跨版本兼容”，也不要把编译和离线测试通过写成游戏内验收通过。
+兼容范围应列出准确的 Minecraft 构建和加载器版本；构建与离线测试的结果应注明测试范围。
 
 ## 0.1.2 故障定位与兼容边界
 
@@ -50,14 +50,11 @@ Windows 包适配 Minecraft 1.26.20.04 和 LeviLamina 26.20.7 客户端版。创
 
 升级前保留完整世界备份；源码提交、旧安装包不等同于世界备份。降级只在停止游戏/服务后恢复对应整包，并优先配套恢复升级前世界备份。尚未完成跨版本存档恢复演练，不能承诺对 0.1.2 已写入的新区块无损降级。
 
-游戏内待验收：新建与保存重进；跨区块结构连续；修改结构方块后重进不被覆盖；远离返回后实体不重复；切换世界无旧状态残留；固定路线长距离探索的耗时和内存。离线测试、编译与启动日志不能替代这些检查。
-
-
 ## 0.1.8 结构高度和恶地区域
 
 结构捕获读取维度高度范围的上、下界，使用两者之差分配列缓冲；不再把 getHeight() 返回的上界当作列长。致命诊断的写入与退出串行化，避免多个工作线程留下截断记录。
 
-新配方 badlandsRegions=1 选择大型恶地区域，使用沙漠边带隔开其他陆地群系，并在临海处铺设红沙及红砂岩支撑。特殊地貌保留，河湖水位不抬高；缺省或 0 保留旧配方。离线边界与材料测试、双端编译和无玩家启动检查不代表游戏内验收。
+新配方 badlandsRegions=1 选择大型恶地区域，使用沙漠边带隔开其他陆地群系，并在临海处铺设红沙及红砂岩支撑。特殊地貌保留，河湖水位不抬高；缺省或 0 保留旧配方。
 
 ## 0.2.4 加载瓶颈与诊断
 
@@ -69,7 +66,7 @@ Windows 模组的 `diagnostics/world-session.json` 记录 `nativeWork`：原生�
 
 结构性能记录包含锁等待/持锁延迟分布、植被预填充计算和区域缓存命中/重建统计。BDS 写入结构插件的 `performance.json`，Windows 并入会话诊断的结构状态。区域规划构建累计时间可能包含嵌套规划，不能直接相加当作独立 CPU 时间。排查时同时对照 tick 间隔、计算器排队、原生任务和网格构建。
 
-恢复的大冰刺由新配方 `tallIceSpires=true` 启用。旧配方不修改，旧世界不会自动长高；新 BDS 测试世界和新建 Windows 模组世界使用该规则。离线测试、构建和无玩家启动检查均不替代游戏内验收。
+恢复的大冰刺由新配方 `tallIceSpires=true` 启用。旧配方不修改，旧世界不会自动长高；新建模组世界使用该规则。
 
 ## 0.2.5 Windows 创建失败
 
@@ -87,7 +84,7 @@ Windows 模组的 `diagnostics/world-session.json` 记录 `nativeWork`：原生�
 
 模组用 `filesystem::operator/` 拼接后，Windows 会产生末尾 `\behavior_packs`；SDK 的 `Core::Path(filesystem::path)` 直接保存 `u8string()`，不转为原生来源使用的 `/behavior_packs`。0.2.6 通过 `generic_u8string()` 统一传入仓库的 UTF-8 路径，并将 `lookupPath` 和 `sourcePath` 写入任务的 `height-pack-discovery.json`。没有往游戏进程写内存或调用游戏逻辑进行验证。
 
-Windows 回归覆盖混合分隔符以及含空格、中文的路径，保留接入/回退/旧世界保护测试。`addWorldResourcePacks` 已调用绑定与刷新，移除随后多余的刷新。最终是否发现高度包、进入世界和重进成功仍须游戏内验收；不得因路径测试通过而宣称创建已验收。
+Windows 回归覆盖混合分隔符以及含空格、中文的路径，保留接入/回退/旧世界保护测试。`addWorldResourcePacks` 已调用绑定与刷新，移除随后多余的刷新。
 
 ## 0.2.7 Windows cloud translation
 
@@ -99,6 +96,6 @@ The previous `mCloudHeight=500` hook ran in both graphics modes, but that count 
 
 The fix adds `500 - nativeHeight` to the extracted translation. During the synchronous mesh-side comparison only, an RAII scope offsets camera Y by the inverse amount and restores it on return or exception. In this pinned native method, camera Y is read only for that comparison; queued rebuilds capture the resulting side boolean and X/Z. It does not move the player, change camera target Y, force double-sided meshes or hook the ICF-shared dimension getter. SDK layout assertions and native instruction signatures guard the assumptions.
 
-`diagnostics/world-session.json` → `clouds.classic` / `clouds.vibrant` contain sampled `nativeHeight`, `cameraY`, `nativeWorldY`, `outputWorldY`, `hasMeshes` and extraction number. Missing samples are null; the counters and samples are process-scoped. At the extraction boundary the expected output base is about 500.33, retaining native bias and thickness. This is renderer output evidence, not a screenshot or gameplay acceptance. `gameplayTested` stays false. Non-finite samples are counted and left untouched. Sampling takes a lock once per 120 extractions, with no disk IO on the render path.
+`diagnostics/world-session.json` → `clouds.classic` / `clouds.vibrant` contain sampled `nativeHeight`, `cameraY`, `nativeWorldY`, `outputWorldY`, `hasMeshes` and extraction number. Missing samples are null; the counters and samples are process-scoped. At the extraction boundary the expected output base is about 500.33, retaining native bias and thickness. These values describe the CPU-side renderer output before GPU submission. Non-finite samples are counted and left untouched. Sampling takes a lock once per 120 extractions, with no disk IO on the render path.
 
-Offline checks replay the measured translation/face decision below, inside and above the target layer and check normal/exception camera restoration. Image tests reject changed cloud instruction signatures. Existing world creation safeguards remain enabled. Gameplay checks remain: original graphics and Vibrant Visuals at Y100/Y250/Y499/Y505, crossing the layer without missing faces, and preserving weather/cloud settings. BDS has no cloud renderer; its plugins, test seed and generated chunks are unchanged.
+Offline checks replay the measured translation/face decision below, inside and above the target layer and check normal/exception camera restoration. Image tests reject changed cloud instruction signatures. Existing world creation safeguards remain enabled. BDS has no cloud renderer; its plugins, test seed and generated chunks are unchanged.

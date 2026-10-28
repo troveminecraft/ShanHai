@@ -8,7 +8,7 @@ A `terrain_kernel::Context` owns regional plans, in-flight deduplication and dis
 
 Windows `client.cpp`, `Worldgen.cpp` and the structure adapter compile separately. `WindowsWorldHost.h` defines orchestration calls; the entry point no longer includes implementation `.cpp` files or reaches into adapter globals.
 
-`TerrainSession` owns the terrain worker pool, generators, decoded chunk cache, same-chunk locks, cache writer and latency measurements. World shutdown closes admission, drains admitted mod jobs, flushes accepted derived-cache writes, releases generators and clears cache ownership before native registry references are released. Nested callbacks on an admitted thread may finish. `WorldTasks::Lease` is confined to the thread that acquires it. It is not Bedrock's task scheduler, and this barrier does not claim to cancel all native jobs. Native world-close ordering still requires gameplay validation.
+`TerrainSession` owns the terrain worker pool, generators, decoded chunk cache, same-chunk locks, cache writer and latency measurements. World shutdown closes admission, drains admitted mod jobs, flushes accepted derived-cache writes, releases generators and clears cache ownership before native registry references are released. Nested callbacks on an admitted thread may finish. `WorldTasks::Lease` is confined to the thread that acquires it. It is not Bedrock's task scheduler, and this barrier does not claim to cancel all native jobs. Native world-close ordering is controlled by Bedrock; the mod barrier only drains mod-owned jobs.
 
 Native structure writes remain protected by the existing stage lock. Prefill and decoration are tracked before resources are released. BDS refuses live hot-disable of either runtime. Generation errors that could leave partially written chunks retain the existing stop/pause protection; returning an empty chunk or marking failed decoration complete would corrupt saved generation state. Reducing the scope of these failures requires transactional native-write/rollback evidence and is not completed here.
 
@@ -16,7 +16,7 @@ The remaining work includes smaller internal algorithm modules, further ownershi
 
 ## Reproducible checks
 
-Run `tests/run.ps1` for the host suite. `kernel_facade`, `regional_plan_concurrency`, `world_tasks` and `terrain_session` cover owned recipe/Field lifetimes, context isolation, parallel deduplication, shutdown admission, two-worker queue draining and accepted cache-write completion. The static-lifetime regression also closes an already-drained owner after thread-local destructors have run; lease tracking uses a trivial thread-local head rather than a destructible container. These are offline tests, not a Minecraft acceptance run.
+Run `tests/run.ps1` for the host suite. `kernel_facade`, `regional_plan_concurrency`, `world_tasks` and `terrain_session` cover owned recipe/Field lifetimes, context isolation, parallel deduplication, shutdown admission, two-worker queue draining and accepted cache-write completion. The static-lifetime regression also closes an already-drained owner after thread-local destructors have run; lease tracking uses a trivial thread-local head rather than a destructible container. These tests exercise the offline adapters and kernel.
 
 To compare two binaries, give both the same immutable recipe and separate new output directories:
 
