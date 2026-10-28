@@ -1,3 +1,13 @@
+## 0.2.10 — first-entry priority and structure lock contention
+
+The player’s complete nearby dependency halo now stays ahead of older distant jobs. This corrects the 0.2.9 priority inversion that could delay first entry while view-distance work aged. Extra native scheduling checks run only after a sampled queue remains idle, rather than while native tasks are already running.
+
+Ordinary chunks reuse bounded, value-only structure reservation snapshots without acquiring the native placement lock. Proven rejected structure candidates can also finish the adapter stage without that lock; unknown or accepted candidates retain the original planning and placement paths. Expected unfinished dependency rings at the view boundary are excluded from interior backlog pressure; enclosed holes are still tracked.
+
+Diagnostics retain the longest lock holders and a bounded startup/recent timeline using wall time. Terrain generation rules, existing worlds, Y100 sea level and Y-64..511 build height are unchanged. This is a test release awaiting user gameplay acceptance; offline checks do not establish in-game speed or complete elimination of loading stalls.
+
+Windows **0.2.10**, BDS terrain **1.0.53** / structures **1.0.68**, kernel **2.211** (unchanged). Existing supported worlds can be used.
+
 ## 0.2.9 — chunk scheduling fairness and structure-lock latency
 
 Dependency-ready chunks now gain priority as they wait, including visible chunks outside the former local-only boost. Native ready queues receive a bounded scheduling check even after the nearby 3×3 has loaded. Supplemental views share one budget and pause while native queues or postprocessing are backed up. Existing native dependency checks and chunk states remain authoritative.

@@ -1,16 +1,19 @@
 // Main-thread, read-only samples. Never traverse the undocumented neighbour
 // grid or edit the engine's queues/state. A contended lock skips this sample.
 terrain_runtime::ReadyAges readyAges;
+terrain_runtime::IdleQueuePump idleQueuePump;
 terrain_runtime::SupplementalBudget supplementalBudget;
 terrain_runtime::ActiveStreamingClock streamingClock;
 terrain_runtime::PipelinePressure pipelinePressure;
 std::atomic<std::shared_ptr<std::unordered_map<uint64_t,int> const>> readyAgeCredits{
     std::make_shared<std::unordered_map<uint64_t,int> const>()};
 std::vector<terrain_runtime::ReadyChunk> nativeReadySample;
-unsigned nativeInFlight=0;
+unsigned nativeInFlight=0,frontierPendingTotal=0;
 uint64_t queueSampleSkips=0,queuePumps=0,supplementalThrottles=0;
 double lastStreamingWall=0,streamingBusyUntil=0;
-Json stalledChunkSample=Json::array();
+Json stalledChunkSample=Json::array(),pipelineTimeline=Json::array();
+double pipelineWallStart=-1,nextPipelineHistory=0,firstNearReadySeconds=-1;
+unsigned readyPlayers=0;
 void sampleNativeQueue(ChunkSource& source){
     auto* data=source.mLevelChunkBuilderData;
     pipelinePressure.queueSampleValid=false;
@@ -47,11 +50,26 @@ void sampleNativeQueue(ChunkSource& source){
         readyAges.update(nativeReadySample,streamingClock.seconds)));
 }
 void resetStreamingPipeline(){
-    readyAges.clear();supplementalBudget={};streamingClock={};pipelinePressure={};
+    readyAges.clear();idleQueuePump={};supplementalBudget={};streamingClock={};pipelinePressure={};
     readyAgeCredits.store(std::make_shared<std::unordered_map<uint64_t,int> const>());
-    nativeReadySample.clear();nativeInFlight=0;queueSampleSkips=queuePumps=supplementalThrottles=0;
+    nativeReadySample.clear();nativeInFlight=frontierPendingTotal=0;queueSampleSkips=queuePumps=supplementalThrottles=0;
     lastStreamingWall=streamingBusyUntil=0;
-    stalledChunkSample=Json::array();
+    stalledChunkSample=Json::array();pipelineTimeline=Json::array();
+    pipelineWallStart=-1;nextPipelineHistory=0;firstNearReadySeconds=-1;readyPlayers=0;
+}
+void recordPipelineHistory(double wall){
+    if(pipelineWallStart<0)pipelineWallStart=wall;
+    if(readyPlayers&&firstNearReadySeconds<0)firstNearReadySeconds=wall-pipelineWallStart;
+    if(wall<nextPipelineHistory)return;
+    nextPipelineHistory=wall+5.;
+    // Retain the first two minutes and a bounded recent tail. Wall time keeps
+    // long main-thread pauses visible instead of discounting them as inactivity.
+    if(pipelineTimeline.size()==64)pipelineTimeline.erase(pipelineTimeline.begin()+24);
+    pipelineTimeline.push_back({{"wallSeconds",wall-pipelineWallStart},{"queued",pipelinePressure.queued},
+        {"sampleValid",pipelinePressure.queueSampleValid},{"inFlight",nativeInFlight},{"nearReadyPlayers",readyPlayers},
+        {"generated",generated.load()},{"calculatorBusy",worldSession->busyCalculators.load()},
+        {"calculatorWaiting",worldSession->waitingCalculators.load()},{"interiorPending",pipelinePressure.unfinished},
+        {"frontierPending",frontierPendingTotal},{"queuePumps",queuePumps}});
 }
 Json pipelineReport(){
     Json events=Json::array();
@@ -59,11 +77,11 @@ Json pipelineReport(){
         {"kind",e.kind},{"chunk",{e.x,e.z}},{"stage",e.stage},{"otherChunk",{e.otherX,e.otherZ}},
         {"observedState",e.observed},{"result",e.result},{"activeUs",e.micros}});
     return {{"queued",pipelinePressure.queued},{"queueSampleValid",pipelinePressure.queueSampleValid},
-        {"inFlight",nativeInFlight},{"postprocessPending",pipelinePressure.postprocess},
-        {"visibleUnfinished",pipelinePressure.unfinished},{"supplementalOpen",supplementalBudget.open},
+        {"inFlight",nativeInFlight},{"frontierPending",frontierPendingTotal},{"postprocessPending",pipelinePressure.postprocess},
+        {"visibleUnfinished",pipelinePressure.unfinished},{"unfinishedScope","interior dependency halo or enclosed holes; frontier reported separately"},{"supplementalOpen",supplementalBudget.open},
         {"supplementalThrottles",supplementalThrottles},{"queuePumps",queuePumps},{"sampleSkips",queueSampleSkips},
         {"activeSeconds",streamingClock.seconds},{"excludedTickGapSeconds",streamingClock.excluded},
-        {"stalled",stalledChunkSample},{"trace",events},
+        {"stalled",stalledChunkSample},{"trace",events},{"timeline",pipelineTimeline},{"firstNearReadyWallSeconds",firstNearReadySeconds},
         {"traceKinds",{{"0","dispatch check returned"},{"1","native task began"},{"2","native task ended"},{"3","native neighbour stage predicate failed"}}},
         {"scope","bounded read-only engine queue/dependency trace; no GPU publication measurement"}};
 }

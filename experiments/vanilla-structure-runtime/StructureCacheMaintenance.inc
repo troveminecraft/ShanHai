@@ -39,6 +39,7 @@ void collectStructureCaches(Level &level) {
     if (++structureCollectionTicks % 20 || !automaticStructures || structureStageFailed ||
         level.getLevelData().getLevelName() != activeWorld)
         return;
+    worldgen_rules::StructureStageSiteScope site(3,0,0);
     std::unique_lock guard(stageMutex, std::try_to_lock);
     if (!guard.owns_lock())
         return;
@@ -145,6 +146,7 @@ void recoverLoadedStructurePlans(Level &level) {
         if (++populationRecoveryTicks % 20 || !automaticStructures || structureStageFailed ||
             !entityLedgerReady || level.getLevelData().getLevelName() != activeWorld)
             return;
+        worldgen_rules::StructureStageSiteScope site(2,0,0);
         std::unique_lock lock(stageMutex, std::try_to_lock);
         if (!lock.owns_lock())
             return;

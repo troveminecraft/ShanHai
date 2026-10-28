@@ -7,6 +7,11 @@
 namespace terrain_runtime {
 inline constexpr int RepairCoreRadius=2,RepairDependencyRadius=10,RepairSlots=1;
 inline int recoveryViewRadius(int requested){return std::clamp(requested,2,64);}
+inline bool interiorDependencyChunk(int dx,int dz,int radius,bool enclosed){
+ if(enclosed||std::max(std::abs(dx),std::abs(dz))<=2)return true;
+ // The complete square dependency halo must fit inside the circular view.
+ int x=std::abs(dx)+8,z=std::abs(dz)+8;return x*x+z*z<=radius*radius;
+}
 struct ViewGapRecovery {
  struct Gap {int x,z;double since,attempted=-1;unsigned seen=0,attempts=0;int state=-1;};
  std::unordered_map<uint64_t,Gap> gaps;unsigned epoch=0;
@@ -14,8 +19,8 @@ struct ViewGapRecovery {
  void begin(){++epoch;}
  // Missing/unstarted frontier chunks are normal streaming, not holes. An
  // absent chunk is eligible only when ready chunks enclose it on both axes.
- void observe(int x,int z,int state,bool enclosed,double now){
-  auto k=key(x,z);if(state==13||(state<=0&&!enclosed)){gaps.erase(k);return;}
+ void observe(int x,int z,int state,bool enclosed,double now,bool interior=true){
+  auto k=key(x,z);if(!interior||state==13||(state<=0&&!enclosed)){gaps.erase(k);return;}
   auto [it,inserted]=gaps.try_emplace(k,Gap{x,z,now});auto&g=it->second;
   if(inserted||g.state!=state){g.since=now;g.state=state;}
   g.seen=epoch;

@@ -22,8 +22,8 @@ public:
             auto& e=it->second;
             if(!added&&(e.state!=c.state||now-e.last>1.5))e={c.state,now,now};
             e.last=now;
-            // All visible ready tasks eventually outrank newly arriving local
-            // jobs. Age resets at each stage and when leaving the queue.
+            // Old noncritical tasks can outrank newly arriving noncritical
+            // jobs; the player dependency halo keeps its own priority band. Age resets at each stage and when leaving the queue.
             result[key]=int(std::clamp(now-e.since,0.,30.)*128.);
         }
         std::erase_if(entries,[&](auto const& e){return now-e.second.last>1.5;});
@@ -32,6 +32,20 @@ public:
     }
 };
 inline int fairStreamingScore(int distanceScore,int ageCredit){return std::min(distanceScore,2048)-ageCredit;}
+// An old view-distance job must not overtake the complete near dependency halo.
+// Fairness still applies between noncritical jobs; the halo moves with players.
+inline int scheduledStreamingScore(int distanceScore,int ageCredit,bool critical){
+    return critical ? -8192+std::min(distanceScore,2048) : fairStreamingScore(distanceScore,ageCredit);
+}
+struct IdleQueuePump {
+    double idleSince=-1,next=0;
+    bool poll(double now,bool valid,unsigned queued,unsigned inFlight){
+        if(!valid||!queued||inFlight){idleSince=-1;return false;}
+        if(idleSince<0)idleSince=now;
+        if(now-idleSince<.5||now<next)return false;
+        next=now+1.;return true;
+    }
+};
 struct PipelinePressure {
     unsigned queued=0,postprocess=0,unfinished=0;
     bool queueSampleValid=false;

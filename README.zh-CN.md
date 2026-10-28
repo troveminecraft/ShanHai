@@ -1,18 +1,18 @@
-当前版本：0.2.9。改进区块调度公平性、加载反压和结构锁等待；新增卡块依赖诊断。可用于现有受支持世界，游戏内加载效果待用户复验。
+当前版本：0.2.10。修正首次进入的任务优先级、结构锁争用和视距边缘反压。保留现有存档，加载效果待用户复验。
 
 <p align="center">
   <img src="docs/assets/shan-hai.png" alt="山&amp;海" width="720">
 </p>
 
 <p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.9"><img src="https://img.shields.io/badge/release-0.2.9-2ea44f" alt="0.2.9"></a>
+  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.10"><img src="https://img.shields.io/badge/release-0.2.10-2ea44f" alt="0.2.10"></a>
   <img src="https://img.shields.io/badge/Minecraft_Bedrock-1.26.20.04-62b47a" alt="Minecraft Bedrock 1.26.20.04">
   <img src="https://img.shields.io/badge/LeviLamina-26.20.7-00a896" alt="LeviLamina 26.20.7">
   <img src="https://img.shields.io/badge/Windows-x64-0078d4" alt="Windows x64">
 </p>
 
 <p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.9">下载安装</a> ·
+  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.10">下载安装</a> ·
   <a href="docs/BUILDING.md">从源码构建</a> ·
   <a href="https://github.com/troveminecraft/ShanHai/issues">反馈问题</a>
 </p>
@@ -38,7 +38,7 @@
 
 需要 **Minecraft for Windows 1.26.20.04**、**LeviLamina 26.20.7 客户端版**和支持 AVX2 的 Windows x64 电脑。可通过 LeviLauncher 管理游戏实例和模组。
 
-1. 下载 [ShanHai-Windows-0.2.9.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.9/ShanHai-Windows-0.2.9.zip)。
+1. 下载 [ShanHai-Windows-0.2.10.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.10/ShanHai-Windows-0.2.10.zip)。
 2. 完全退出 Minecraft，在 LeviLauncher 对应实例的模组管理中导入 ZIP。
 3. 确认模组已启用，启动游戏，创建一个普通新世界；不要选择超平坦。
 
@@ -48,26 +48,26 @@
 
 本次更新见 [更新记录](CHANGELOG.md)，生成和存档机制见 [说明](docs/RUNTIME.md)。
 
-## 0.2.9 更新
+## 0.2.10 更新
 
-原生依赖已满足、等待处理的区块会随等待时间提高优先级，覆盖原先近处提权范围外的可见区块；脚下 3×3 就绪后，只要原生队列仍有任务，也会有界地检查调度。额外预加载与缺块恢复共用预算，队列或后处理积压时暂停新增请求，原生依赖检查和区块状态机继续负责判断是否能执行。
+玩家近邻的完整依赖范围保持优先，修正 0.2.10 中远处旧任务等待提权后可能压过出生点任务的问题。额外原生调度检查只在队列持续空闲时触发，避免在原生任务运行期间继续追加调度检查。
 
-首次区域水系/冰川规划先由独立工作器在结构注册锁外完成，减少长规划对其他结构任务的阻塞。新增有界诊断，记录排队阶段、原生投递检查返回值、失败的邻区阶段条件及结构慢锁位置；停滞计时扣除过长的 tick 间隔。地形配方、已有区块、海平面 Y100、建造范围 Y-64..511 与 Y500 云层改动保持，本次运行时修复可用于受支持的旧世界。
+普通区块读取有界的结构范围快照，不再为读取已确定的植被预留范围等待原生结构放置总锁。已经确定没有结构的候选也可直接完成适配阶段；未知或有结构的候选仍走原来的规划和放置流程。视距边缘正常等待邻区的区块不再计入内部积压，周围已就绪的真实缺口仍会跟踪。
 
-这是待用户游戏内验收的测试版本。离线测试验证调度策略和地形输出一致性，不代表已消除全部可见缺块，也不能推算实际游戏加载提速比例。
+诊断保留耗时最长的持锁位置，以及按真实时间记录的首次加载与近期进展。地形生成规则、现有世界、海平面 Y100、建造范围 Y-64..511 不变。本版仍待用户游戏内验收，离线检查不能代表实际提速或已消除全部停顿。
 
 ## 使用前
 
-**0.2.9 是公开测试版本。** 结构与复杂坡地的衔接仍可能出现异常，欢迎带上种子、坐标和截图反馈。建议备份存档，并用新世界体验；已经生成的原版区块不会自动变成新地形。
+**0.2.10 是公开测试版本。** 结构与复杂坡地的衔接仍可能出现异常，欢迎带上种子、坐标和截图反馈。建议备份存档，并用新世界体验；已经生成的原版区块不会自动变成新地形。
 
 继续游玩模组世界时，请保持模组启用。这个安装包仅用于上面列出的 Windows 客户端环境，不适用于 BDS、Android 或 Java 版。
 
 ## 源码
 
-本仓库包含 0.2.9 的地形内核、结构生成、Windows 接口和构建脚本。种子生成需要用到 Python 与 JavaScript，它们也是模组的一部分。构建方法见 [BUILDING.md](docs/BUILDING.md)。
+本仓库包含 0.2.10 的地形内核、结构生成、Windows 接口和构建脚本。种子生成需要用到 Python 与 JavaScript，它们也是模组的一部分。构建方法见 [BUILDING.md](docs/BUILDING.md)。
 
 第三方组件及许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。项目原创代码采用 [MIT 协议](LICENSE)；第三方组件及派生资源保留各自许可。安装包不包含 Minecraft 游戏本体或原版结构资源，结构模板从本机游戏读取。
 
 本系列基于 0.1.13 的源码重新实现：新世界海面 Y100、Y60～100 内陆盆地、海拔与覆雪变种、三档裂谷和火山海岸接触带。0.1.14/0.1.15 实验世界请使用留存的对应版本，不静默迁移。游戏内验收尚待用户完成。
 
-已有 0.1.16 模组世界保持原配方，不重写已有区块。日志应显示 `Karma Windows client 0.2.9; local world creation enabled`，随后模组启用成功；若启用失败，请连同日志与 `diagnostics/game-image.json` 反馈。
+已有 0.1.16 模组世界保持原配方，不重写已有区块。日志应显示 `Karma Windows client 0.2.10; local world creation enabled`，随后模组启用成功；若启用失败，请连同日志与 `diagnostics/game-image.json` 反馈。

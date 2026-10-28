@@ -574,6 +574,15 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
                                       .count();
             return true;
         }
+        std::vector<worldgen_rules::StructureReservationCache::Key> snapshotKeys;
+        for(auto c:nearbyVillages)snapshotKeys.push_back({-2,c.x,c.z});
+        for(auto [x,z]:nearby)snapshotKeys.push_back({-1,x,z});
+        for(auto [type,c]:extras)snapshotKeys.push_back({type,c.x,c.z});
+        // Only proven rejected candidates can bypass the registry. Unknown or
+        // accepted plans always run their original placement/population paths.
+        if(!smallPotential(*cp,seed)&&!fossilPotential(*cp,seed)&&reservationCache.allAbsent(snapshotKeys)){
+            ++decorationSnapshotSkips;return true;
+        }
         std::string dbKey(8, '\0');
         std::memcpy(dbKey.data(), &cp->x, 4);
         std::memcpy(dbKey.data() + 4, &cp->z, 4);
@@ -597,7 +606,8 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
         std::lock_guard guard(stageMutex);
         if (structureStageFailed)
             return false;
-        bool alreadyFiltered = prefilteredChunks.erase({cp->x, cp->z}) > 0;
+        bool alreadyFiltered;
+        { std::lock_guard lock(prefilteredMutex); alreadyFiltered = prefilteredChunks.erase({cp->x, cp->z}) > 0; }
         // Bound startup diagnostics; do not open a log file for every ordinary chunk.
         if (storageLogRows++ < 128)
             std::ofstream(folder / "automatic-storage-checks.jsonl", std::ios::app)
@@ -747,6 +757,14 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
             if (smallPotential(*cp, seed))
                 placeSmallFeatures(center->getDimension(), blocks, *cp, seed, occupied);
         }
+        // Publish durable negative decisions after planning completed normally.
+        // Accepted plans' vegetation snapshots remain owned by prefill.
+        for(auto c:nearbyVillages)if(auto it=villages.find({c.x,c.z});it!=villages.end()&&!it->second.start)
+            reservationCache.put({-2,c.x,c.z},{});
+        for(auto [x,z]:nearby)if(auto it=automaticBlueprints.find({x,z});it!=automaticBlueprints.end()&&!it->second.start)
+            reservationCache.put({-1,x,z},{});
+        for(auto [type,c]:extras)if(auto it=extraPlans.find({type,c.x,c.z});it!=extraPlans.end()&&!it->second.start)
+            reservationCache.put({type,c.x,c.z},{});
     } catch (std::exception const &e) {
         ++stageErrors;
         reportStructureFailure("decoration", e, failureChunk);

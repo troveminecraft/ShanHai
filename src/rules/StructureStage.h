@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <utility>
 #include <span>
+#include <vector>
 #include "../RuntimeMetrics.h"
 
 namespace worldgen_rules {
@@ -180,6 +181,7 @@ class StructureStageMutex {
     uint64_t currentWaitUs=0;
     std::mutex slowMutex;
     std::deque<std::array<int64_t,5>> slowSites;
+    std::vector<std::array<int64_t,5>> longestHolds;
 
   public:
     std::atomic_uint64_t acquisitions{0}, waitNanos{0}, holdNanos{0};
@@ -207,12 +209,18 @@ class StructureStageMutex {
             auto c=*structureStageSite;std::lock_guard lock(slowMutex);
             if(slowSites.size()==32)slowSites.pop_front();
             slowSites.push_back({c.phase,c.x,c.z,int64_t(currentWaitUs),holdUs});
+            if(holdUs>=100000){
+                longestHolds.push_back({c.phase,c.x,c.z,int64_t(currentWaitUs),holdUs});
+                std::sort(longestHolds.begin(),longestHolds.end(),[](auto const&a,auto const&b){return a[4]>b[4];});
+                if(longestHolds.size()>16)longestHolds.resize(16);
+            }
         }
         holdLatency.observe(std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-acquired).count());
         holdNanos += std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - acquired).count();
         mutex.unlock();
     }
     auto slowSnapshot(){std::lock_guard lock(slowMutex);return slowSites;}
-    void clearSlowSites(){std::lock_guard lock(slowMutex);slowSites.clear();}
+    auto longestSnapshot(){std::lock_guard lock(slowMutex);return longestHolds;}
+    void clearSlowSites(){std::lock_guard lock(slowMutex);slowSites.clear();longestHolds.clear();}
 };
 } // namespace worldgen_rules

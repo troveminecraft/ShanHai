@@ -1,4 +1,5 @@
 #include "rules/StructureReservations.h"
+#include "rules/StructureReservationCache.h"
 #ifdef KARMA_CLIENT
 #include "WindowsWorldHost.h"
 #endif

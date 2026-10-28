@@ -16,7 +16,7 @@ struct PlayerStream {
  std::array<Patch,terrain_runtime::RepairSlots> patches;
  uint64_t progress=0;double nextProgressScan=0;
  terrain_runtime::ViewGapRecovery visible;
- int viewRadius=0;double nextViewScan=0,nextGapResend=0;bool gapResendPending=false;
+ int viewRadius=0;unsigned frontierPending=0;double nextViewScan=0,nextGapResend=0;bool gapResendPending=false;
 };
 std::unordered_map<std::string,PlayerStream> playerStreams;
 bool arrivalReady(ChunkViewSource& source,int cx,int cz){
@@ -45,7 +45,9 @@ LL_TYPE_INSTANCE_HOOK(StreamPriority,ll::memory::HookPriority::Normal,ChunkBuild
  // the neighbour stages and lighting, since BDS owns the same build policy.
  auto ages=readyAgeCredits.load();auto age=ages->find(terrain_runtime::streamingKey(cp.x,cp.z));
  bool visible=std::any_of(f->begin(),f->end(),[&](auto const&p){return chunkDistance(cp.x,cp.z,p.x,p.z)<=p.radius+8;});
- if(visible&&age!=ages->end())score=terrain_runtime::fairStreamingScore(score,age->second);
+ bool critical=std::any_of(f->begin(),f->end(),[&](auto const&p){return chunkDistance(cp.x,cp.z,p.x,p.z)<=8;});
+ if(critical)score=terrain_runtime::scheduledStreamingScore(score,0,true);
+ else if(visible&&age!=ages->end())score=terrain_runtime::scheduledStreamingScore(score,age->second,false);
  else if(score>512)return base;
  priorityBoosts.fetch_add(1,std::memory_order_relaxed);
  return priorityHigherFirst?std::max(base,1000000-score):std::min(base,-1000000+score);
@@ -57,8 +59,9 @@ void updatePlayerStreaming(Level& level){
  auto dim=level.getDimension(0).lock();if(!dim)return;
  streamingPolicy.store(&dim->getChunkBuildOrderPolicy());
  sampleNativeQueue(dim->getChunkSource());
+ readyPlayers=0;
  auto next=std::make_shared<std::vector<StreamFocus>>();std::unordered_set<std::string> seen;
- auto now=Clock::now();double seconds=streamingClock.seconds;unsigned views=0;bool needsLaunch=false;
+ auto now=Clock::now();double seconds=streamingClock.seconds;unsigned views=0;
  unsigned optionalViews=0;for(auto const&[_,s]:playerStreams)optionalViews+=bool(s.ahead)+bool(s.patches[0].view);
  if(lastStreamingWall&&wallSeconds-lastStreamingWall>.5)streamingBusyUntil=seconds+2.;
  lastStreamingWall=wallSeconds;bool tickBusy=seconds<streamingBusyUntil;
@@ -81,7 +84,7 @@ void updatePlayerStreaming(Level& level){
    v->move(BlockPos{(x-8)*16,0,(z-8)*16},BlockPos{(x+9)*16-1,0,(z+9)*16-1},false,ChunkSourceViewGenerateMode::GenerateAll,{},nullptr);
   };
   if(!s.here||cx!=s.cx||cz!=s.cz){s.arrival.readySince=-1;move(s.here,cx,cz);s.cx=cx;s.cz=cz;}
-  bool ready=arrivalReady(*s.here,cx,cz);needsLaunch|=!ready;
+  bool ready=arrivalReady(*s.here,cx,cz);if(ready)++readyPlayers;
   for(auto&patch:s.patches)if(patch.view&&(seconds-patch.started>=45||
      std::max(std::abs(patch.x-cx),std::abs(patch.z-cz))>terrain_runtime::recoveryViewRadius(int(player.getChunkRadius()))))patch.view.reset();
   // Track the entire dependency halo, not just the final central state. A
@@ -106,10 +109,13 @@ void updatePlayerStreaming(Level& level){
     int state=c?int(c->getState().load()):-1;states[z*side+x]=state;
     if(state==int(ChunkState::Loaded)){rowMin[z]=std::min(rowMin[z],x);rowMax[z]=std::max(rowMax[z],x);colMin[x]=std::min(colMin[x],z);colMax[x]=std::max(colMax[x],z);}
    }
-   for(int z=0;z<side;++z)for(int x=0;x<side;++x)if(states[z*side+x]!=-2)
-    s.visible.observe(cx+x-radius,cz+z-radius,states[z*side+x],
-      rowMin[z]<x&&x<rowMax[z]&&colMin[x]<z&&z<colMax[x],seconds);
-   s.visible.end();
+   s.frontierPending=0;
+   for(int z=0;z<side;++z)for(int x=0;x<side;++x)if(states[z*side+x]!=-2){
+    bool enclosed=rowMin[z]<x&&x<rowMax[z]&&colMin[x]<z&&z<colMax[x];
+    bool interior=terrain_runtime::interiorDependencyChunk(x-radius,z-radius,radius,enclosed);
+    if(!interior&&states[z*side+x]>=0&&states[z*side+x]<13)++s.frontierPending;
+    s.visible.observe(cx+x-radius,cz+z-radius,states[z*side+x],enclosed,seconds,interior);
+   }
    for(auto&patch:s.patches){
     if(patch.view){
      bool done=true;
@@ -132,7 +138,6 @@ void updatePlayerStreaming(Level& level){
    // Native publication sends newly completed chunks. Do not resend the entire
    // view per repaired patch: that amplifies bandwidth during normal flight.
   }
-  needsLaunch|=bool(s.patches[0].view);
   if(s.watchdog.poll(cx,cz,seconds,ready,s.arrival.active)){
    s.arrival.begin(seconds);++arrivalStarts;
    log().warn("[就近加载] {} ({},{}) 停留后近邻仍未就绪，启动一次有界恢复",name,cx,cz);
@@ -156,7 +161,8 @@ void updatePlayerStreaming(Level& level){
  });
  for(auto it=playerStreams.begin();it!=playerStreams.end();)if(!seen.contains(it->first))it=playerStreams.erase(it);else ++it;
  if(next->empty()&&requested)next->push_back({double(probeX),double(probeZ),double(probeX),double(probeZ),0});
- pipelinePressure.postprocess=pipelinePressure.unfinished=0;
+ pipelinePressure.postprocess=pipelinePressure.unfinished=0;frontierPendingTotal=0;
+ for(auto const&[_,s]:playerStreams)frontierPendingTotal+=s.frontierPending;
  struct Stalled {int x,z,state;double age;};std::vector<Stalled> stalled;
  for(auto const&[_,s]:playerStreams)for(auto const&[key,g]:s.visible.gaps){
   ++pipelinePressure.unfinished;if(g.state>=2&&g.state<13)++pipelinePressure.postprocess;
@@ -176,11 +182,12 @@ void updatePlayerStreaming(Level& level){
   stalledChunkSample.push_back({{"chunk",{c.x,c.z}},{"state",c.state},{"activeStageSeconds",c.age},
    {"queuedExpectedStates",queued},{"neighbourProbe",neighbours}});
  }
+ recordPipelineHistory(wallSeconds);
  worldSession->pipelineTrace.watch(watched);
  streamingFocus.store(std::shared_ptr<std::vector<StreamFocus> const>(next));
- // A nonempty ready queue gets a bounded native pump even after the near
- // 3x3 finishes. This never requests/rebuilds chunks or bypasses dependencies.
- if(needsLaunch||(pipelinePressure.queueSampleValid&&pipelinePressure.queued)){
+ // Native task completion already launches successors. Only wake a sampled
+ // queue that remains idle; never add another pump while tasks are in flight.
+ if(idleQueuePump.poll(seconds,pipelinePressure.queueSampleValid,pipelinePressure.queued,nativeInFlight)){
   ++queuePumps;dim->getChunkSource().checkAndLaunchChunkGenerationTasks(false);
  }
 }

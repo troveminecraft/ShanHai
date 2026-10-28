@@ -1,6 +1,9 @@
 // Snapshot native footprints under the registry lock. Pure vegetation work
 // uses two independent Fields and only touches the caller-owned block buffer.
 // Neither the shared planning Field nor native StructureStart escapes the lock.
+worldgen_rules::StructureReservationCache reservationCache;
+std::mutex prefilteredMutex;
+std::atomic_uint64_t prefillSnapshotHits=0,prefillSnapshotMisses=0,decorationSnapshotSkips=0;
 worldgen_rules::BoundedHints<std::pair<int, int>, 4096> prefilteredChunks;
 unsigned prefillLogRows = 0;
 using ReservationAreas = std::vector<std::array<int, 4>>;
@@ -43,6 +46,7 @@ void warmStructureRegions(std::vector<ChunkPos> const& points){
         worker.field->prepareRegions(cp.x*16+32768+dx,cp.z*16+32768+dz);
 }
 void clearPrefillWorkers() {
+    reservationCache.clear();prefillSnapshotHits=0;prefillSnapshotMisses=0;decorationSnapshotSkips=0;
     for (auto &worker : prefillWorkers) {
         std::lock_guard lock(worker.mutex);
         worker.clear();
@@ -151,36 +155,40 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
     try {
         worldgen_rules::StructureStageSiteScope site(0,cp.x,cp.z);
         std::vector<ReservationAreas> groups;
-        std::vector<ChunkPos> warming=vc;warming.insert(warming.end(),sc.begin(),sc.end());
-        for(auto const& [type,c]:ec)warming.push_back(c);
-        warmStructureRegions(warming);
-        {
-            std::lock_guard guard(stageMutex);
-            if (structureStageFailed)
-                throw std::runtime_error("Structure generation paused");
-            if (!storedChunk(dim, cp)) {
-                auto intersects = [&](BoundingBox b) {
-                    return !(b.max.x + 28 < cp.x * 16 || b.min.x - 28 > cp.x * 16 + 15 ||
-                             b.max.z + 28 < cp.z * 16 || b.min.z - 28 > cp.z * 16 + 15);
+        std::vector<worldgen_rules::StructureReservationCache::Key> keys;
+        for(auto c:vc)keys.push_back({-2,c.x,c.z});
+        for(auto c:sc)keys.push_back({-1,c.x,c.z});
+        for(auto [type,c]:ec)keys.push_back({type,c.x,c.z});
+        if (!storedChunk(dim,cp)) {
+            if(reservationCache.get(keys,cp.x,cp.z,groups)) ++prefillSnapshotHits;
+            else {
+                ++prefillSnapshotMisses;
+                std::vector<ChunkPos> warming=vc;warming.insert(warming.end(),sc.begin(),sc.end());
+                for(auto const& [type,c]:ec)warming.push_back(c);
+                warmStructureRegions(warming);
+                std::lock_guard guard(stageMutex);
+                if (structureStageFailed) throw std::runtime_error("Structure generation paused");
+                auto save=[&](auto key,StructureStart const* start,bool scattered=false){
+                    worldgen_rules::StructureReservationCache::Entry e;
+                    if(start){
+                        auto b=*start->boundingBox;e.bounds=std::array{b.min.x,b.min.z,b.max.x,b.max.z};
+                        if(scattered){
+                            if(start->getStructureName()!="minecraft:desert_pyramid")
+                                e.areas={{b.min.x+32756,b.min.z+32756,b.max.x+32780,b.max.z+32780}};
+                        }else e.areas=pieceReservations(*start);
+                        if(!(b.max.x+28<cp.x*16||b.min.x-28>cp.x*16+15||b.max.z+28<cp.z*16||b.min.z-28>cp.z*16+15)&&!e.areas.empty())
+                            groups.push_back(e.areas);
+                    }
+                    reservationCache.put(key,std::move(e));
                 };
-                for (auto c : vc) {
-                    auto &p = villagePlan(dim, c, seed);
-                    if (p.start && intersects(*p.start->boundingBox))
-                        groups.push_back(pieceReservations(*p.start));
+                for(auto c:vc){
+                    auto& p=villagePlan(dim,c,seed);
+                    // "Templates not ready" is transient, not a negative plan.
+                    if(villageTemplatesReady)save(std::array{-2,c.x,c.z},p.start);
                 }
-                for (auto c : sc) {
-                    auto &p = autoBlueprint(dim, c, seed);
-                    if (!p.start || p.start->getStructureName() == "minecraft:desert_pyramid" ||
-                        !intersects(*p.start->boundingBox))
-                        continue;
-                    auto b = *p.start->boundingBox;
-                    groups.push_back({{b.min.x + 32756, b.min.z + 32756, b.max.x + 32780, b.max.z + 32780}});
-                }
-                for (auto [type, c] : ec) {
-                    auto &p = extraPlan(dim, type, c);
-                    if (p.start && intersects(*p.start->boundingBox))
-                        groups.push_back(pieceReservations(*p.start));
-                }
+                for(auto c:sc)save(std::array{-1,c.x,c.z},autoBlueprint(dim,c,seed).start,true);
+                for(auto [type,c]:ec){auto& p=extraPlan(dim,type,c);
+                    if(type!=7||(mansionHabitatAvailable&&mansionTemplatesReady))save(std::array{type,c.x,c.z},p.start);}
             }
         }
         // Underground/native starts can have no plant reservation at all.
@@ -189,7 +197,7 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
         if (!groups.empty()) {
             auto began = std::chrono::steady_clock::now();
             auto cleared = filterVegetationVolume(volume, cp, groups);
-            std::lock_guard guard(stageMutex);
+            std::lock_guard guard(prefilteredMutex);
             if (structureStageFailed)
                 throw std::runtime_error("Structure generation paused during prefill");
             prefilteredChunks.insert({cp.x, cp.z});

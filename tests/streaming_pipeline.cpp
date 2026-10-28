@@ -20,6 +20,18 @@ int main(){
     queue[0].state=4;assert(ages.update(queue,40.2).at(key)==0);
     ages.update({},40.4);assert(ages.update(queue,43).at(key)==0);
     ages.clear();assert(ages.update(queue,1).at(key)==0);
+    // Reproduce 0.2.9 inversion: a 30-second-old view-edge job beats the
+    // newly eligible centre even though the player's initial halo is blocked.
+    assert(fairStreamingScore(1024,3840)<fairStreamingScore(0,0));
+    for(int d=0;d<=2048;d+=16)for(int age=0;age<=3840;age+=128)
+        assert(scheduledStreamingScore(256,0,true)<scheduledStreamingScore(d,age,false));
+    assert(scheduledStreamingScore(1024,3840,false)<scheduledStreamingScore(256,0,false));
+    IdleQueuePump pump;
+    assert(!pump.poll(0,true,8,0));assert(!pump.poll(.4,true,8,0));
+    assert(pump.poll(.6,true,8,0));assert(!pump.poll(.8,true,8,0));
+    assert(!pump.poll(1.8,true,8,1));assert(!pump.poll(2,true,8,0));
+    assert(pump.poll(2.6,true,8,0));assert(!pump.poll(4,false,8,0));
+    assert(!pump.poll(5,true,0,0));assert(!pump.poll(6,true,8,0));
     SupplementalBudget budget;PipelinePressure p{0,0,0,true};
     assert(budget.update(p,0,false));
     p.postprocess=200;assert(!budget.update(p,0,false)); // CPU workers idle, decoration backed up

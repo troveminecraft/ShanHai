@@ -4,7 +4,7 @@
 
 English · [简体中文](README.zh-CN.md)
 
-[Download 0.2.9](https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.9) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
+[Download 0.2.10](https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.10) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
 
 ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows, powered by LeviLamina. Follow rivers through mountain ranges, rolling highlands, forests, deserts and coastlines; explore caves, glaciers and volcanic terrain. Vanilla structures are placed according to the surrounding landscape.
 
@@ -16,19 +16,19 @@ ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows,
 
 ## Install
 
-1. Download [ShanHai-Windows-0.2.9.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.9/ShanHai-Windows-0.2.9.zip).
+1. Download [ShanHai-Windows-0.2.10.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.10/ShanHai-Windows-0.2.10.zip).
 2. Save and fully close Minecraft. Import the ZIP into the matching instance through LeviLauncher’s mod manager.
 3. Enable the mod and create a new **normal** world with your chosen seed. Do not select a flat world.
 
 Use the release ZIP, rather than GitHub’s automatically generated source archive. Python and Node.js runtime dependencies are included; copying only the DLL is insufficient. The internal mod ID remains `karma-worldgen-client` for configuration and save compatibility.
 
-## Version 0.2.9
+## Version 0.2.10
 
-Dependency-ready chunks now gain priority as they wait, including visible chunks outside the former local-only boost. Native ready queues receive a bounded scheduling check even after the nearby 3×3 has loaded. Supplemental views share one budget and pause while native queues or postprocessing are backed up. Existing native dependency checks and chunk states remain authoritative.
+The player’s complete nearby dependency halo now stays ahead of older distant jobs. This corrects the 0.2.10 priority inversion that could delay first entry while view-distance work aged. Extra native scheduling checks run only after a sampled queue remains idle, rather than while native tasks are already running.
 
-Cold regional water/ice planning runs on independent workers before acquiring the structure registry lock. Bounded diagnostics record queued stages, native dispatch results, failed neighbour-stage predicates and slow structure-lock sites. Stall timers discount long gaps between game ticks. The terrain recipe, saved chunks, sea level Y100, build range Y-64..511 and Y500 cloud changes are preserved; this runtime update also applies to existing supported worlds.
+Ordinary chunks reuse bounded, value-only structure reservation snapshots without acquiring the native placement lock. Proven rejected structure candidates can also finish the adapter stage without that lock; unknown or accepted candidates retain the original planning and placement paths. Expected unfinished dependency rings at the view boundary are excluded from interior backlog pressure; enclosed holes are still tracked.
 
-This is a test release awaiting user gameplay acceptance. Offline tests verify scheduling policy and identical terrain output; they do not establish that every visible gap is fixed or quantify in-game loading speed.
+Diagnostics retain the longest lock holders and a bounded startup/recent timeline using wall time. Terrain generation rules, existing worlds, Y100 sea level and Y-64..511 build height are unchanged. This is a test release awaiting user gameplay acceptance; offline checks do not establish in-game speed or complete elimination of loading stalls.
 
 **This is a test release awaiting gameplay acceptance.** Offline generation tests and successful builds do not establish in-game correctness. Please report the version, world seed, coordinates, screenshots and reproduction steps when you encounter an issue.
 

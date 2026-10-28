@@ -8,6 +8,17 @@ int main(){using terrain_runtime::ViewGapRecovery;
  ViewGapRecovery frontier;frontier.begin();
  for(int x=-64;x<=64;++x)for(int z=-64;z<=64;++z)frontier.observe(x,z,-1,false,0);
  frontier.end();check(frontier.gaps.empty()&&!frontier.next(100,0,0));
+ // Existing unfinished outer dependency rings are also expected frontier,
+ // not permanent pressure that closes the budget while the queue is idle.
+ frontier.begin();unsigned excluded=0;
+ for(int x=-52;x<=52;++x)for(int z=-52;z<=52;++z){
+  if(x*x+z*z>52*52)continue;
+  bool interior=terrain_runtime::interiorDependencyChunk(x,z,52,false);
+  if(!interior){++excluded;frontier.observe(x,z,6,false,0,interior);}
+ }
+ frontier.end();check(excluded>512&&frontier.gaps.empty());
+ check(terrain_runtime::interiorDependencyChunk(48,0,52,true));
+ frontier.begin();frontier.observe(48,0,6,true,0,true);frontier.end();check(frontier.next(9,0,0));
  ViewGapRecovery v;v.begin();v.observe(12,0,-1,true,0);v.end();check(!v.next(7.9,0,0));
  auto g=v.next(8,0,0);check(g&&g->x==12);v.requested(*g,8);check(!v.next(37,0,0));
  g=v.next(38,0,0);check(g);v.requested(*g,38);check(!v.next(97,0,0));
