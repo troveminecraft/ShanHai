@@ -1,3 +1,5 @@
+#include "BedrockStructure.h"
+#include "BedrockAccess.h"
 #include "rules/StructureReservations.h"
 #include "rules/StructureReservationCache.h"
 #ifdef KARMA_CLIENT
@@ -28,7 +30,11 @@
 #include "rules/CityPlan.h"
 #include "rules/CityEnvironment.h"
 #include "rules/CityExecution.h"
+#ifdef SHANHAI_MC_26_51
+#include "mc/world/level/levelgen/v2/PoolElementStructureSection.h"
+#else
 #include "mc/world/level/levelgen/v2/StructureSection.h"
+#endif
 #include "rules/FrozenTemplates.h"
 #include "rules/FrozenCapture.h"
 #include "rules/FrozenGround.h"
@@ -106,13 +112,21 @@
 #include "mc/world/level/levelgen/v2/GenerationContext.h"
 #include "mc/world/level/levelgen/v2/ChunkAccessor.h"
 #include "mc/world/level/levelgen/v2/StructureInstance.h"
+#ifdef SHANHAI_MC_26_51
+#include "mc/world/level/levelgen/v2/PoolElementStructureSection.h"
+#else
 #include "mc/world/level/levelgen/v2/StructureSection.h"
+#endif
 #include "mc/world/level/levelgen/structure/BuriedTreasureFeature.h"
 #include "mc/world/level/levelgen/structure/OceanMonumentFeature.h"
 #include "mc/world/level/levelgen/structure/StrongholdFeature.h"
 #include "mc/world/level/levelgen/structure/WoodlandMansionFeature.h"
 #include "mc/world/level/levelgen/structure/AncientCityFeature.h"
 #include "mc/world/level/levelgen/structure/MineshaftStart.h"
+#ifdef SHANHAI_MC_26_51
+#include "mc/world/level/levelgen/structure/MineshaftFeature.h"
+#include "mc/world/Minecraft.h"
+#endif
 #include "mc/world/level/levelgen/structure/MineshaftCorridor.h"
 #include "mc/world/level/levelgen/structure/registry/JigsawStructureRegistry.h"
 #include "mc/world/level/levelgen/structure/PoolElementStructurePiece.h"
@@ -253,14 +267,14 @@ thread_local std::optional<uint> auditPlanningSeed;
 thread_local std::vector<std::unique_ptr<StructureStart>> *auditPlanningStarts = nullptr;
 thread_local VillageFeature *auditVillageDelegate = nullptr;
 uint structureSeed(Dimension &d) {
-    return auditPlanningSeed ? *auditPlanningSeed : d.getLevel().getLevelData().getSeed().to32BitRandomSeed();
+    return auditPlanningSeed ? *auditPlanningSeed : bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed();
 }
 
 Dimension &dimension(CommandOrigin const &origin) {
     if (origin.getOriginType() != CommandOriginType::DedicatedServer)
         throw std::runtime_error("Console only");
-    auto level = origin.getLevel();
-    if (!level || level->getLevelData().getLevelName() != activeWorld)
+    auto level = bedrock_compat::level(origin);
+    if (!level || bedrock_compat::levelName(level->getLevelData()) != activeWorld)
         throw std::runtime_error("Structure world does not match activation");
     return *level->getOrCreateDimension(0).lock();
 }
@@ -275,7 +289,7 @@ void ensureLoaded(Dimension &dim, BoundingBox const &b) {
     for (int z = chunk(b.min.z); z <= chunk(b.max.z); ++z)
         for (int x = chunk(b.min.x); x <= chunk(b.max.x); ++x) {
             auto c = dim.getChunkSource().getExistingChunk({x, z});
-            if (!c || c->getState().load() != ChunkState::Loaded)
+            if (!c || bedrock_compat::loadState(*c).load() != ChunkState::Loaded)
                 throw std::runtime_error("Required local chunks are not yet loaded");
         }
 }
@@ -324,6 +338,9 @@ class TerrainPointBiomes final : public FixedBiomeSource {
     }
 };
 thread_local bool adaptHeightMap = false;
+#ifdef SHANHAI_MC_26_51
+thread_local BlockPos const* frozenMansionOrigin=nullptr;
+#endif
 thread_local unsigned heightMapCalls = 0;
 thread_local std::map<std::pair<int, int>, std::vector<short>> *planningHeights = nullptr;
 std::vector<short> terrainHeightMap(ChunkPos cp) {
@@ -353,16 +370,19 @@ bool structureGeneratorMatches(void const *generator) {
     // An ICF stub may belong to unrelated classes too: compare the known
     // generator pointer before reading any member through the incoming this.
     auto level=ll::service::getLevel();
-    if (!level || level->getLevelData().getLevelName() != activeWorld)
+    if (!level || bedrock_compat::levelName(level->getLevelData()) != activeWorld)
         return false;
     auto dimension=level->getDimension(0).lock();
-    return dimension && dimension->getWorldGenerator() == generator;
+    return dimension && bedrock_compat::generator(*dimension) == generator;
 }
 // The hook type is the common base because an ICF target can be entered with
 // either generator's this pointer. Never read derived Flat-only fields here.
 LL_TYPE_INSTANCE_HOOK(VillageHeightProbe, ll::memory::HookPriority::Normal, WorldGenerator,
                       ll::memory::unchecked(&FlatWorldGenerator::$prepareHeights), void, BlockVolume &volume, ChunkPos const &cp,
                       std::vector<short> *heights, bool flag) {
+#ifdef SHANHAI_MC_26_51
+    if(frozenMansionOrigin)return; // Native factory's already-air scratch volume, no chunk requests.
+#endif
     origin(volume, cp, heights, flag);
     if (adaptHeightMap && heights && structureGeneratorMatches(this))
         *heights = terrainHeightMap(cp);
@@ -391,7 +411,7 @@ J scanCandidates(Dimension &dim, int mode) {
     FixedBiomeSource fixed(*biome);
     TerrainPointBiomes actual(dim, *biome);
     BiomeSource const &biomes = mode >= 5 ? static_cast<BiomeSource const &>(actual) : fixed;
-    auto worldSeed = dim.getLevel().getLevelData().getSeed();
+    auto worldSeed = bedrock_compat::seed(bedrock_compat::level(dim).getLevelData());
     uint seed = worldSeed.to32BitRandomSeed();
     RandomScatteredLargeFeature feature(seed);
     Random random(seed, true);
@@ -399,7 +419,7 @@ J scanCandidates(Dimension &dim, int mode) {
     unsigned candidates = 0;
     provider.calls = 0;
     provider.samples = J::array();
-    auto testBiome = StructureFeature::getBiomeForFeatureGeneration(biomes, ChunkPos{200, -442}, provider);
+    auto testBiome = bedrock_compat::featureBiome(biomes, ChunkPos{200, -442}, provider);
     std::ofstream(folder / "selection-initialization.json")
         << J{{"spacing", feature.mSpacing},
              {"separation", feature.mMinSeparation},
@@ -479,7 +499,7 @@ void plan(Dimension &dim, int x, int z) {
     provider.calls = 0;
     provider.samples = J::array();
     auto t = std::chrono::steady_clock::now();
-    pending = std::make_unique<Start>(biomes, field->seaLevel(), chunk(x), chunk(z), provider);
+    pending = bedrock_compat::scatteredStart(dim,biomes, field->seaLevel(), chunk(x), chunk(z), provider);
     double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t).count();
     if (!pending->isValid() || pending->pieces->empty())
         throw std::runtime_error("Vanilla blueprint returned no structure");
@@ -503,7 +523,7 @@ void naturalPlan(Dimension &dim, int x, int z) {
     if (!b)
         throw std::runtime_error("No desert");
     TerrainPointBiomes biomes(dim, *b);
-    uint seed = dim.getLevel().getLevelData().getSeed().to32BitRandomSeed();
+    uint seed = bedrock_compat::seed(bedrock_compat::level(dim).getLevelData()).to32BitRandomSeed();
     RandomScatteredLargeFeature feature(seed);
     Random random(seed, true);
     ChunkPos requested{chunk(x), chunk(z)};
@@ -521,7 +541,7 @@ void naturalPlan(Dimension &dim, int x, int z) {
     plan(dim, candidate.x * 16, candidate.z * 16);
     report["automaticSelection"] = true;
     report["selection"] = {{"engine", "RandomScatteredLargeFeature"},
-                           {"worldSeed", dim.getLevel().getLevelData().getSeed().toUiString()},
+                           {"worldSeed", bedrock_compat::seed(bedrock_compat::level(dim).getLevelData()).toUiString()},
                            {"legacySeed", seed},
                            {"spacing", int(feature.mSpacing)},
                            {"separation", int(feature.mMinSeparation)},
@@ -554,7 +574,7 @@ void place(Dimension &dim) {
                   {"ms",
                    std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t).count()}});
         }
-    pending->calculateBoundingBox();
+    bedrock_compat::calculateBoundingBox(*pending);
     report["box"] = boxJson(*pending->boundingBox);
     report["phase"] = "placed";
     report["placementChunks"] = timings;
@@ -678,8 +698,8 @@ class Mod {
                                                   entity_store::read(worldFolder() / "karma-worldgen.json"));
         if (auto level = ll::service::getLevel();
             level &&
-            (level->getLevelData().getLevelName() != activeWorld ||
-             level->getLevelData().getSeed().toUiString() != activation.at("worldSeed").get<std::string>()))
+            (bedrock_compat::levelName(level->getLevelData()) != activeWorld ||
+             bedrock_compat::seed(level->getLevelData()).toUiString() != activation.at("worldSeed").get<std::string>()))
             throw std::runtime_error("Running world does not match structure terrain activation");
         ll::mod::NativeMod::current()->getLogger().info(
             "Structures follow terrain world={} seed={}; automatic={} (legacy config worldName is ignored)",
@@ -697,11 +717,18 @@ class Mod {
         hooks.add<ModernGround>("ModernGround");
         hooks.add<VillageBuilderDepth>("VillageBuilderDepth");
         hooks.add<VillageBuilderBudget>("VillageBuilderBudget");
+#ifdef SHANHAI_MC_26_51
+        hooks.add<RuinPieceScope>("RuinPieceScope");
+        hooks.add<MansionOrigin>("MansionOrigin");
+#else
         hooks.add<ShipGround>("ShipGround");
         hooks.add<ShipGroundLegacy>("ShipGroundLegacy");
+#endif
         hooks.add<PortalGround>("PortalGround");
         hooks.add<RuinGround>("RuinGround");
+#ifndef SHANHAI_MC_26_51
         hooks.add<MineSupport>("MineSupport");
+#endif
         hooks.add<MineWeb>("MineWeb");
         hooks.add<SeededStructureRead>("SeededStructureRead");
         hooks.add<SeededStructureLayer>("SeededStructureLayer");
@@ -713,7 +740,9 @@ class Mod {
         installStructureGeneratorHooks(hooks);
         smallFeaturesEnabled = marker.value("smallFeatures", false);
         hooks.add<SmallWrite>("SmallWrite");
+#ifndef SHANHAI_MC_26_51
         hooks.add<SmallWriteSimple>("SmallWriteSimple");
+#endif
         hooks.add<SmallWriteFast>("SmallWriteFast");
         hooks.add<FossilHeightXZ>("FossilHeightXZ");
         hooks.add<FossilHeightPos>("FossilHeightPos");
@@ -940,7 +969,7 @@ class Mod {
                 try {
                     auto &d = dimension(o);
                     std::lock_guard guard(stageMutex);
-                    actorAudit(d.getLevel());
+                    actorAudit(bedrock_compat::level(d));
                     out.success("LAB actor audit");
                 } catch (std::exception const &e) {
                     out.error("LAB error {}", e.what());
@@ -954,7 +983,7 @@ class Mod {
                 try {
                     std::lock_guard guard(stageMutex);
                     auto &d = dimension(o);
-                    uint seed = d.getLevel().getLevelData().getSeed().to32BitRandomSeed();
+                    uint seed = bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed();
                     ChunkPos anchor{chunk(std::get<int>(*c["x"].as_ptr())),
                                     chunk(std::get<int>(*c["z"].as_ptr()))};
                     auto &p = villagePlan(d, anchor, seed);
@@ -979,7 +1008,7 @@ class Mod {
                 try {
                     std::lock_guard guard(stageMutex);
                     auto &d = dimension(o);
-                    uint seed = d.getLevel().getLevelData().getSeed().to32BitRandomSeed();
+                    uint seed = bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed();
                     std::map<std::string, int> counts;
                     J rows = J::array();
                     for (int z = structureCell(-terrain_bounds::HalfChunks);
@@ -1038,12 +1067,12 @@ class Mod {
                     auto &d = dimension(o);
                     auto &p = autoBlueprint(
                         d, {chunk(std::get<int>(*c["x"].as_ptr())), chunk(std::get<int>(*c["z"].as_ptr()))},
-                        d.getLevel().getLevelData().getSeed().to32BitRandomSeed());
+                        bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed());
                     if (!p.igloo)
                         throw std::runtime_error("No igloo");
                     auto rows = iglooActors(d, p.igloo->bounds);
                     unsigned removed = 0;
-                    for (auto *a : d.getLevel().getRuntimeActorList())
+                    for (auto *a : bedrock_compat::level(d).getRuntimeActorList())
                         for (auto const &r : rows)
                             if (r["type"].get<std::string>().find("zombie_villager") != std::string::npos &&
                                 a->getOrCreateUniqueID().rawID == r["id"].get<int64_t>()) {
@@ -1065,7 +1094,7 @@ class Mod {
                     auto &d = dimension(o);
                     auto &p = autoBlueprint(
                         d, {chunk(std::get<int>(*c["x"].as_ptr())), chunk(std::get<int>(*c["z"].as_ptr()))},
-                        d.getLevel().getLevelData().getSeed().to32BitRandomSeed());
+                        bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed());
                     if (!p.igloo)
                         throw std::runtime_error("No igloo");
                     J result{{"actors", iglooActors(d, p.igloo->bounds)}, {"ledger", entityLedger}};
@@ -1103,7 +1132,7 @@ class Mod {
                     auto &d = dimension(o);
                     auto &p = villagePlan(
                         d, {chunk(std::get<int>(*c["x"].as_ptr())), chunk(std::get<int>(*c["z"].as_ptr()))},
-                        d.getLevel().getLevelData().getSeed().to32BitRandomSeed());
+                        bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed());
                     if (!p.start)
                         throw std::runtime_error("No village");
                     inspectVillage(d, p, 64);
@@ -1122,7 +1151,7 @@ class Mod {
                     auto &d = dimension(o);
                     auto &p = villagePlan(
                         d, {chunk(std::get<int>(*c["x"].as_ptr())), chunk(std::get<int>(*c["z"].as_ptr()))},
-                        d.getLevel().getLevelData().getSeed().to32BitRandomSeed());
+                        bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed());
                     if (!p.start)
                         throw std::runtime_error("No village");
                     inspectVillage(d, p);
@@ -1142,7 +1171,7 @@ class Mod {
                     auto &d = dimension(o);
                     auto &p = villagePlan(
                         d, {chunk(std::get<int>(*c["x"].as_ptr())), chunk(std::get<int>(*c["z"].as_ptr()))},
-                        d.getLevel().getLevelData().getSeed().to32BitRandomSeed());
+                        bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed());
                     if (!p.start)
                         throw std::runtime_error("No village");
                     auto b = *p.start->boundingBox;
@@ -1171,8 +1200,7 @@ class Mod {
                             count += n;
                             if (n && apply) {
                                 auto ch = d.getChunkSource().getExistingChunk({x, z});
-                                ch->setUnsaved();
-                                ch->markSaveNonActorDataIfDirty();
+                                bedrock_compat::requestSave(*ch);
                             }
                         }
                     std::ofstream(folder / "grass-validation.json")
@@ -1188,7 +1216,7 @@ class Mod {
                 try {
                     std::lock_guard guard(stageMutex);
                     auto &d = dimension(o);
-                    uint seed = d.getLevel().getLevelData().getSeed().to32BitRandomSeed();
+                    uint seed = bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed();
                     J rows = J::array();
                     for (int biomeId : {5, 6, 7, 11, 12}) {
                         auto name = villageBiome(biomeId);
@@ -1197,7 +1225,7 @@ class Mod {
                         VillageFeature f(seed, 32, 8, d.getBiomeRegistry());
                         Random rng(seed, true);
                         ChunkPos cp{169, -595};
-                        StructureFeature::setRandomSeedFor(rng, cp.x, cp.z, 10387312, seed);
+                        bedrock_compat::seedStructure(rng, cp.x, cp.z, 10387312, seed);
                         std::map<std::pair<int, int>, std::vector<short>> h;
                         planningHeights = &h;
                         adaptHeightMap = true;
@@ -1241,7 +1269,7 @@ class Mod {
                     if (!s)
                         throw std::runtime_error("Family not enabled");
                     int gx = spacingCell(chunk(wx), s->spacing), gz = spacingCell(chunk(wz), s->spacing);
-                    uint seed = d.getLevel().getLevelData().getSeed().to32BitRandomSeed();
+                    uint seed = bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed();
                     J rows = J::array();
                     for (int z = gz - 2; z <= gz + 2; ++z)
                         for (int x = gx - 2; x <= gx + 2; ++x) {
@@ -1261,7 +1289,7 @@ class Mod {
                 try {
                     std::lock_guard guard(stageMutex);
                     auto &d = dimension(o);
-                    uint seed = d.getLevel().getLevelData().getSeed().to32BitRandomSeed();
+                    uint seed = bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed();
                     J rows = J::array();
                     for (auto const &s : extraSpecs)
                         for (int z = spacingCell(-terrain_bounds::HalfChunks, s.spacing);
@@ -1344,7 +1372,7 @@ class Mod {
                     auto *s = extraSpec(type);
                     if (!s)
                         throw std::runtime_error("Family not enabled");
-                    uint seed = d.getLevel().getLevelData().getSeed().to32BitRandomSeed();
+                    uint seed = bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed();
                     std::vector<ChunkPos> candidates;
                     for (int z = spacingCell(-terrain_bounds::HalfChunks, s->spacing);
                          z <= spacingCell(terrain_bounds::HalfChunks - 1, s->spacing); ++z)
@@ -1376,7 +1404,7 @@ class Mod {
                 try {
                     std::lock_guard guard(stageMutex);
                     auto &d = dimension(o);
-                    uint seed = d.getLevel().getLevelData().getSeed().to32BitRandomSeed();
+                    uint seed = bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed();
                     J rows = J::array();
                     for (int z = villageCell(-terrain_bounds::HalfChunks);
                          z <= villageCell(terrain_bounds::HalfChunks - 1); ++z)
@@ -1401,7 +1429,7 @@ class Mod {
                 try {
                     std::lock_guard guard(stageMutex);
                     auto &d = dimension(o);
-                    uint seed = d.getLevel().getLevelData().getSeed().to32BitRandomSeed();
+                    uint seed = bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed();
                     ChunkPos cp{chunk(std::get<int>(*c["x"].as_ptr())),
                                 chunk(std::get<int>(*c["z"].as_ptr()))};
                     auto &p = villagePlan(d, cp, seed);
@@ -1419,18 +1447,14 @@ class Mod {
                         for (int xx = chunk(area.min.x); xx <= chunk(area.max.x); ++xx) {
                             reserveVillageTrees(blocks, {xx, zz}, p);
                             auto ch = d.getChunkSource().getExistingChunk({xx, zz});
-                            ch->setUnsaved();
-                            ch->markSaveIfNeverSaved();
-                            ch->markSaveNonActorDataIfDirty();
+                            bedrock_compat::requestSave(*ch);
                         }
                     unsigned n = 0;
                     for (int z = chunk(b.min.z - 6); z <= chunk(b.max.z + 6); ++z)
                         for (int x = chunk(b.min.x - 6); x <= chunk(b.max.x + 6); ++x) {
                             n += placeVillage(blocks, {x, z}, p, seed);
                             auto c = d.getChunkSource().getExistingChunk({x, z});
-                            c->setUnsaved();
-                            c->markSaveIfNeverSaved();
-                            c->markSaveNonActorDataIfDirty();
+                            bedrock_compat::requestSave(*c);
                         }
                     report = J{{"box", boxJson(b)}, {"village", p.diagnostics}};
                     inspect(d);
@@ -1447,7 +1471,7 @@ class Mod {
                 try {
                     std::lock_guard guard(stageMutex);
                     auto &d = dimension(o);
-                    auto &registry = d.getLevel().getJigsawStructureRegistry();
+                    auto &registry = bedrock_compat::level(d).getJigsawStructureRegistry();
                     J pools = J::array();
                     for (auto const &[name, pool] : *registry.mJigsawPoolLookupMap)
                         if (name.find("village") != std::string::npos)
@@ -1456,14 +1480,14 @@ class Mod {
                              {"poolCount", registry.mJigsawPoolLookupMap->size()},
                              {"blocksWritten", false}};
                     if (!pools.empty()) {
-                        uint seed = d.getLevel().getLevelData().getSeed().to32BitRandomSeed();
+                        uint seed = bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed();
                         VillageFeature feature(seed, 32, 8, d.getBiomeRegistry());
                         auto biome = d.getBiomeRegistry().lookupByName("minecraft:plains");
                         FixedBiomeSource bs(*biome);
                         Random rng(seed, true);
                         ChunkPos cp{chunk(std::get<int>(*c["x"].as_ptr())),
                                     chunk(std::get<int>(*c["z"].as_ptr()))};
-                        StructureFeature::setRandomSeedFor(rng, cp.x, cp.z, 10387312, seed);
+                        bedrock_compat::seedStructure(rng, cp.x, cp.z, 10387312, seed);
                         adaptHeightMap = true;
                         struct Reset {
                             ~Reset() {
@@ -1518,7 +1542,7 @@ class Mod {
                                 chunk(std::get<int>(*c["z"].as_ptr()))};
                     int floor = field->surface(cp.x * 16 + 32768, cp.z * 16 + 32768).height;
                     pendingIgloo =
-                        planIgloo(d, cp, d.getLevel().getLevelData().getSeed().to32BitRandomSeed(), floor);
+                        planIgloo(d, cp, bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed(), floor);
                     J parts = J::array();
                     for (auto const &p : pendingIgloo->parts)
                         parts.push_back(J{{"box", boxJson(p.bounds)}, {"pos", {p.pos.x, p.pos.y, p.pos.z}}});
@@ -1555,7 +1579,7 @@ class Mod {
                     for (int z = b.min.z; z <= b.max.z; ++z)
                         for (int x = b.min.x; x <= b.max.x; ++x)
                             for (int y = b.min.y; y <= b.max.y; ++y)
-                                blocks.setBlockNoUpdate({x, y, z}, *air);
+                                bedrock_compat::setBlockNoUpdate(blocks,{x, y, z}, *air);
                     if (order == 2)
                         placeIgloo(blocks, *pendingIgloo, b);
                     else
@@ -1563,7 +1587,7 @@ class Mod {
                             placeIgloo(blocks, *pendingIgloo,
                                        {{cp.x * 16, -64, cp.z * 16}, {cp.x * 16 + 15, (field->generationHeight()-65), cp.z * 16 + 15}});
                     for (auto cp : chunks)
-                        d.getChunkSource().getExistingChunk(cp)->setUnsaved();
+                        bedrock_compat::markUnsaved(*d.getChunkSource().getExistingChunk(cp));
                     inspect(d);
                     pendingIgloo.reset();
                     out.success("LAB igloo placed {}", report.dump());
@@ -1591,7 +1615,7 @@ class Mod {
             .execute([](CommandOrigin const &o, CommandOutput &out, ll::command::RuntimeCommand const &) {
                 try {
                     auto &d = dimension(o);
-                    auto manager = d.getLevel().getStructureManager();
+                    auto manager = bedrock_compat::level(d).getStructureManager();
                     J rows = J::array();
                     for (auto const &name :
                          {Igloo::STRUCTURE_LOCATION_IGLOO_NO_TRAPDOOR(),
@@ -1676,7 +1700,7 @@ class Mod {
                     auto &d = dimension(o);
                     auto &p = autoBlueprint(
                         d, {chunk(std::get<int>(*c["x"].as_ptr())), chunk(std::get<int>(*c["z"].as_ptr()))},
-                        d.getLevel().getLevelData().getSeed().to32BitRandomSeed());
+                        bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed());
                     if (!p.start)
                         throw std::runtime_error("No accepted native structure at anchor");
                     report =
@@ -1692,7 +1716,7 @@ class Mod {
                 try {
                     std::lock_guard guard(stageMutex);
                     auto &d = dimension(o);
-                    uint seed = d.getLevel().getLevelData().getSeed().to32BitRandomSeed();
+                    uint seed = bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed();
                     J items = J::array();
                     auto t = std::chrono::steady_clock::now();
                     for (int z = structureCell(-terrain_bounds::HalfChunks);
@@ -1823,7 +1847,9 @@ class Mod {
         VillageBuilderDepth::unhook();
         VillageBuilderBudget::unhook();
         SmallWrite::unhook();
+#ifndef SHANHAI_MC_26_51
         SmallWriteSimple::unhook();
+#endif
         SmallWriteFast::unhook();
         FossilHeightXZ::unhook();
         FossilHeightPos::unhook();
@@ -1841,11 +1867,18 @@ class Mod {
         recentSmallChunks.clear();
         recentSmallOrder.clear();
         ModernGround::unhook();
+#ifdef SHANHAI_MC_26_51
+        RuinPieceScope::unhook();
+        MansionOrigin::unhook();
+#else
         ShipGround::unhook();
         ShipGroundLegacy::unhook();
+#endif
         PortalGround::unhook();
         RuinGround::unhook();
+#ifndef SHANHAI_MC_26_51
         MineSupport::unhook();
+#endif
         MineWeb::unhook();
         SeededStructureRead::unhook();
         SeededStructureLayer::unhook();
@@ -1874,7 +1907,7 @@ class Mod {
         // The registry owns our polymorphic records. Remove them before DLL unload.
         if (auto level = ll::service::getLevel())
             if (auto dim = level->getDimension(0).lock()) {
-                auto &entries = *dim->getWorldGenerator()->mStructureFeatureRegistry->mStructureFeatures;
+                auto &entries = *bedrock_compat::generator(*dim)->mStructureFeatureRegistry->mStructureFeatures;
                 std::erase_if(entries, [](auto const &p) { return ownedNativeFeatures.contains(p.get()); });
             }
         ownedNativeFeatures.clear();

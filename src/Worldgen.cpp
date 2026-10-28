@@ -1,3 +1,4 @@
+#include "BedrockStreaming.h"
 #include <Windows.h>
 #ifdef KARMA_CLIENT
 #include "WindowsWorldHost.h"
@@ -34,6 +35,7 @@
 #include "mc/world/effect/MobEffectInstance.h"
 #include "mc/world/level/GameType.h"
 #include "mc/world/actor/player/PlayerInventory.h"
+#include "mc/world/actor/player/Inventory.h"
 #include "mc/deps/shared_types/legacy/actor/ArmorSlot.h"
 #include <list>
 #include <deque>
@@ -85,6 +87,11 @@
 #include "mc/world/level/block/Block.h"
 #include "mc/world/level/biome/registry/BiomeRegistry.h"
 
+#include "BedrockAccess.h"
+#include "mc/deps/core/threading/TaskResult.h"
+#ifdef SHANHAI_MC_26_51
+#include "NativeGeneration26_51.h"
+#endif
 namespace terrain {
 using Json=nlohmann::json;
 constexpr int Side=terrain_bounds::Chunks, Half=Side/2, Count=Side*Side;
@@ -131,7 +138,7 @@ uint64_t checked=0;
 uint64_t verificationSnowChanges=0;
 Json verificationSnowExamples=Json::array();
 unsigned missingSavedChunks=0;
-std::unique_ptr<ChunkViewSource> view;
+bedrock_compat::View view;
 ll::event::ListenerPtr tickListener;
 std::filesystem::path worldPath(){
 #ifdef KARMA_CLIENT
@@ -163,7 +170,11 @@ uint64_t oldestPendingMs=0;std::array<unsigned,15> pendingByState{};
 
 #include "NativeQueueSnapshot.inc"
 #include "PlayerStreaming.inc"
+#ifdef SHANHAI_MC_26_51
+#include "ChunkStageDiagnostics26_51.inc"
+#else
 #include "ChunkStageDiagnostics.inc"
+#endif
 struct LoadEvent {int x,z;bool saved;Clock::time_point started;};
 struct PendingLoad {LoadEvent event;int state=-1;Clock::time_point changed=Clock::now();};
 std::mutex loadMutex;
@@ -181,8 +192,8 @@ uint64_t loadKey(int x,int z){return (uint64_t(uint32_t(x))<<32)|uint32_t(z);}
 // distinguish reading disk from creating a missing chunk.
 LL_TYPE_INSTANCE_HOOK(ObserveLoad,ll::memory::HookPriority::Normal,DBChunkStorage,&DBChunkStorage::$loadChunk,void,LevelChunk& lc,bool force){
  auto session=publishedSession.load();auto observing=session->tasks.tryEnter();
- if(observing&&active&&static_cast<int>(lc.getDimension().getDimensionId())==0&&mLevel->getLevelData().getLevelName()==worldName){
-  auto const p=lc.getPosition();LoadEvent e{p.x,p.z,isChunkSaved(p),Clock::now()};
+ if(observing&&active&&static_cast<int>(bedrock_compat::dimension(lc).getDimensionId())==0&&bedrock_compat::levelName(mLevel->getLevelData())==worldName){
+  auto const p=bedrock_compat::position(lc);LoadEvent e{p.x,p.z,isChunkSaved(p),Clock::now()};
   std::lock_guard guard(loadMutex);if(loadEvents.size()<8192)loadEvents.push_back(e);else ++observationDrops;
  }
  origin(lc,force);
@@ -201,9 +212,9 @@ void pollLoads(Level& level){
  }
  for(auto it=pendingLoads.begin();it!=pendingLoads.end();){
   auto& p=it->second;auto c=dim->getChunkSource().getExistingChunk(ChunkPos{p.event.x,p.event.z});
-  auto age=uint64_t(std::chrono::duration_cast<std::chrono::milliseconds>(now-p.event.started).count());int state=c?int(c->getState().load()):-1;
+  auto age=uint64_t(std::chrono::duration_cast<std::chrono::milliseconds>(now-p.event.started).count());int state=c?int(bedrock_compat::loadState(*c).load()):-1;
   if(state!=p.state){if(p.state>=0&&p.state<14)worldSession->stageLatency[p.state].observe(std::chrono::duration_cast<std::chrono::microseconds>(now-p.changed).count());p.state=state;p.changed=now;}
-  if(c&&c->getState().load()==ChunkState::Loaded){++ready;++loadReady;worldSession->readyLatency.observe(std::chrono::duration_cast<std::chrono::microseconds>(now-p.event.started).count());it=pendingLoads.erase(it);continue;}
+  if(c&&bedrock_compat::loadState(*c).load()==ChunkState::Loaded){++ready;++loadReady;worldSession->readyLatency.observe(std::chrono::duration_cast<std::chrono::microseconds>(now-p.event.started).count());it=pendingLoads.erase(it);continue;}
   if(!c&&age>5000){++released;++loadReleased;it=pendingLoads.erase(it);continue;}
   // Only stop observing abandoned far-away requests; never pretend they
   // finished, cancel engine jobs or force a chunk to a ready state.
@@ -314,7 +325,7 @@ void resolveRegistry(Dimension& dim){
     if(!base)throw std::runtime_error("Unregistered custom block "+entry.dump());
     auto parsed=CompoundTag::fromSnbt(entry.at("states").dump());
     if(!parsed)throw std::runtime_error("Invalid block states "+entry.dump());
-    CompoundTag tag=base->getSerializationId();tag["states"]=std::move(*parsed);
+    CompoundTag tag=*base->mSerializationId;tag["states"]=std::move(*parsed);
     auto block=Block::tryGetFromRegistry(tag);
     if(!block)throw std::runtime_error("Missing custom block permutation "+entry.dump());
     for(size_t i=71;i<palette.size();i++)if(*palette[i]==*block)throw std::runtime_error("Duplicate custom permutation "+entry.dump()+" actual="+block->toDebugString());
@@ -365,13 +376,26 @@ int index(ChunkPos const& p){return !validChunk(p.x,p.z)?-1:unboundedWorld?0:(p.
 template<class F>void column(Chunk const& c,int col,F fn){size_t p=c.columns[col];int n=c.runs[p]|(c.runs[p+1]<<8);p+=2;int y=0;for(int r=0;r<n;r++){int len=c.runs[p]|(c.runs[p+1]<<8);int b=c.runs[p+2]|(c.runs[p+3]<<8);p+=4;fn(y,len,b);y+=len;}}
 void fill(LevelChunk& lc,Chunk const& c){
  auto fillStarted=Clock::now();
- resolveRegistry(lc.getDimension());
- buildHeight.requireDimension(lc.getHeightRange().mMin,lc.getHeightRange().mMax);
+ resolveRegistry(bedrock_compat::dimension(lc));
+ buildHeight.requireDimension(bedrock_compat::heightRange(lc).mMin,bedrock_compat::heightRange(lc).mMax);
  thread_local std::vector<Block const*> blocks;
  blocks.resize(buildHeight.blocks());
+#ifdef SHANHAI_MC_26_51
+ BlockVolume volume{};
+ volume.mBlocks={blocks.data(),blocks.data()+blocks.size()};
+ volume.mWidth=16;volume.mHeight=buildHeight.height();volume.mDepth=16;
+ volume.mDimensionBottom=buildHeight.MinY;volume.mInitBlock=palette[0];
+#else
  BlockVolume volume({blocks.data(),blocks.data()+blocks.size()},16,buildHeight.height(),16,*palette[0],buildHeight.MinY);
+#endif
  terrain_runtime::fillGeneratedBlockVolume(std::span<Block const*>{blocks},std::span<Block const* const>{palette},c,buildHeight,
-  [&](int x,int y,int z){return volume.indexNoBoundsCheck(BlockPos{x,y,z});});
+  [&](int x,int y,int z){
+#ifdef SHANHAI_MC_26_51
+   return (x*volume.mDepth+z)*volume.mHeight+y;
+#else
+   return volume.indexNoBoundsCheck(BlockPos{x,y,z});
+#endif
+  });
  // A void chunk reconstructed by DBChunkStorage can have an empty/moved biome
  // vector while retaining a nonzero stack size. _setBiome(fillY=true) assumes
  // that vector already exists and dereferences it. Replace the whole volume
@@ -381,36 +405,40 @@ void fill(LevelChunk& lc,Chunk const& c){
  thread_local std::vector<Biome const*> biomeSubchunk(4096);
  terrain_runtime::fillBiomeSubchunk(std::span<Biome const*>{biomeSubchunk},std::span<Biome const* const>{biomes},c);
  biomeVolume.mSubChunkVectors.assign(buildHeight.subchunks(),biomeSubchunk);
+#ifdef SHANHAI_MC_26_51
+ lc.mBiomes->setBiomeFromVolume(biomeVolume,buildHeight.subchunks());
+#else
  lc.setBiomeFromVolume(biomeVolume);
+#endif
  lc.setBlockVolume(volume,0);
  // Aquatic plants replace the primary water block but retain source water in
  // Bedrock's secondary layer. Write directly during generation, without ticks.
  int lavaTicks=0;
  for(int col=0;col<256;col++)column(c,col,[&](int y,int len,int b){
   // At most eight once-only vanilla queue entries per generated chunk.
-  if(b==145&&lavaTicks<8){BlockPos p{lc.getPosition().x*16+col%16,y+len-1-64,lc.getPosition().z*16+col/16};lc.getTickQueue().addTickToLevelChunk(lc,p,*palette[b],40+lavaTicks*10,0);++lavaTicks;}
+  if(b==145&&lavaTicks<8){BlockPos p{bedrock_compat::position(lc).x*16+col%16,y+len-1-64,bedrock_compat::position(lc).z*16+col/16};lc.getTickQueue().addTickToLevelChunk(lc,p,*palette[b],40+lavaTicks*10,0);++lavaTicks;}
 
   if(b!=49&&b!=50&&(b<56||b>60))return;
   for(int j=y;j<y+len;j++)lc.setExtraBlock(ChunkBlockPos{BlockPos{col%16,j-64,col/16},-64},*palette[8],nullptr);
  });
- lc.setPreWorldGenHeightMap(volume.computeHeightMap());lc.recomputeHeightMap(true);lc.setUnsaved();
- observedMinY=lc.getHeightRange().mMin;observedMaxYExclusive=lc.getHeightRange().mMax;
+ lc.setPreWorldGenHeightMap(volume.computeHeightMap());lc.recomputeHeightMap(true);bedrock_compat::markUnsaved(lc);
+ observedMinY=bedrock_compat::heightRange(lc).mMin;observedMaxYExclusive=bedrock_compat::heightRange(lc).mMax;
  auto fillUs=std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-fillStarted).count();worldSession->fillLatency.observe(fillUs);worldSession->fillMicros+=fillUs;recordMax(worldSession->maxFillMicros,fillUs);
- unsigned n=++generated;if(n<=3||n%256==0)logChunkDiagnostic(ll::io::LogLevel::Info,"地形生成调用={}, chunk=({},{}), state={}, readOnly={}",n,lc.getPosition().x,lc.getPosition().z,int(lc.getState().load()),lc.isReadOnly());
+ unsigned n=++generated;if(n<=3||n%256==0)logChunkDiagnostic(ll::io::LogLevel::Info,"地形生成调用={}, chunk=({},{}), state={}, readOnly={}",n,bedrock_compat::position(lc).x,bedrock_compat::position(lc).z,int(bedrock_compat::loadState(lc).load()),bool(lc.mReadOnly));
 }
 LL_TYPE_INSTANCE_HOOK(Generate,ll::memory::HookPriority::Normal,FlatWorldGenerator,&FlatWorldGenerator::$loadChunk,void,LevelChunk& lc,bool force){
  auto session=publishedSession.load();
- if(!active||static_cast<int>(lc.getDimension().getDimensionId())!=0||mLevel->getLevelData().getLevelName()!=worldName||index(lc.getPosition())<0){
-  if(!active&&session->belongsTo(&lc.getDimension().getLevel())&&static_cast<int>(lc.getDimension().getDimensionId())==0)
-   calculatorFailure(std::runtime_error("Late terrain request after world close"),"closed-world-request",std::array<int,2>{lc.getPosition().x,lc.getPosition().z});
+ if(!active||static_cast<int>(bedrock_compat::dimension(lc).getDimensionId())!=0||bedrock_compat::levelName(mLevel->getLevelData())!=worldName||index(bedrock_compat::position(lc))<0){
+  if(!active&&session->belongsTo(&bedrock_compat::level(bedrock_compat::dimension(lc)))&&static_cast<int>(bedrock_compat::dimension(lc).getDimensionId())==0)
+   calculatorFailure(std::runtime_error("Late terrain request after world close"),"closed-world-request",std::array<int,2>{bedrock_compat::position(lc).x,bedrock_compat::position(lc).z});
   origin(lc,force);return;
  }
- auto p=lc.getPosition();std::string_view phase="validate-generator";
+ auto p=bedrock_compat::position(lc);std::string_view phase="validate-generator";
  try{
   auto work=session->tasks.enter();
-  session->bind(&lc.getDimension().getLevel());
+  session->bind(&bedrock_compat::level(bedrock_compat::dimension(lc)));
   if(!mIsVoidWorld)throw std::runtime_error("Target is not a void flat world");
-  buildHeight.requireDimension(lc.getHeightRange().mMin,lc.getHeightRange().mMax);
+  buildHeight.requireDimension(bedrock_compat::heightRange(lc).mMin,bedrock_compat::heightRange(lc).mMax);
   phase="calculate-or-decode";auto const& c=getChunk(p.x,p.z);
   if(generated.load()<3)log().info("[生成线程] thread={} 主线程={} chunk=({},{})",GetCurrentThreadId(),GetCurrentThreadId()==mainThread,p.x,p.z);
   phase="initialize-chunk";origin(lc,force);phase="fill-and-prefilter";fill(lc,*c);++flatGenerated;
@@ -420,16 +448,16 @@ LL_TYPE_INSTANCE_HOOK(Generate,ll::memory::HookPriority::Normal,FlatWorldGenerat
 // VoidGenerator. Keep the legacy flat path for saved worlds and cover both.
 LL_TYPE_INSTANCE_HOOK(GenerateVoid,ll::memory::HookPriority::Normal,VoidGenerator,&VoidGenerator::$loadChunk,void,LevelChunk& lc,bool force){
  auto session=publishedSession.load();
- if(!active||static_cast<int>(lc.getDimension().getDimensionId())!=0||mLevel->getLevelData().getLevelName()!=worldName||index(lc.getPosition())<0){
-  if(!active&&session->belongsTo(&lc.getDimension().getLevel())&&static_cast<int>(lc.getDimension().getDimensionId())==0)
-   calculatorFailure(std::runtime_error("Late terrain request after world close"),"closed-world-request",std::array<int,2>{lc.getPosition().x,lc.getPosition().z});
+ if(!active||static_cast<int>(bedrock_compat::dimension(lc).getDimensionId())!=0||bedrock_compat::levelName(mLevel->getLevelData())!=worldName||index(bedrock_compat::position(lc))<0){
+  if(!active&&session->belongsTo(&bedrock_compat::level(bedrock_compat::dimension(lc)))&&static_cast<int>(bedrock_compat::dimension(lc).getDimensionId())==0)
+   calculatorFailure(std::runtime_error("Late terrain request after world close"),"closed-world-request",std::array<int,2>{bedrock_compat::position(lc).x,bedrock_compat::position(lc).z});
   origin(lc,force);return;
  }
- auto p=lc.getPosition();std::string_view phase="validate-void-generator";
+ auto p=bedrock_compat::position(lc);std::string_view phase="validate-void-generator";
  try{
   auto work=session->tasks.enter();
-  session->bind(&lc.getDimension().getLevel());
-  buildHeight.requireDimension(lc.getHeightRange().mMin,lc.getHeightRange().mMax);
+  session->bind(&bedrock_compat::level(bedrock_compat::dimension(lc)));
+  buildHeight.requireDimension(bedrock_compat::heightRange(lc).mMin,bedrock_compat::heightRange(lc).mMax);
   phase="calculate-or-decode";auto const& c=getChunk(p.x,p.z);
   phase="initialize-chunk";origin(lc,force);phase="fill-and-prefilter";fill(lc,*c);++voidGenerated;
  }catch(std::exception const& e){calculatorFailure(e,phase,std::array<int,2>{p.x,p.z});}
@@ -439,7 +467,13 @@ LL_TYPE_INSTANCE_HOOK(GenerateVoid,ll::memory::HookPriority::Normal,VoidGenerato
 Json latencyJson(terrain_runtime::Latency& latency){auto s=latency.snapshot();Json q={{"count",s.count},{"windowCount",s.windowCount},{"windowLimit",2048},{"totalMs",s.totalUs/1000.},{"maxMs",s.maxUs/1000.}};if(s.windowCount){q["p50Ms"]=s.p50/1000.;q["p95Ms"]=s.p95/1000.;q["p99Ms"]=s.p99/1000.;}else{q["p50Ms"]=nullptr;q["p95Ms"]=nullptr;q["p99Ms"]=nullptr;}return q;}
 Json workReport(){
  static constexpr std::array names={"loadTask","structureTask","decorationTask","lightingTask","clientMeshBuild"};
- Json r;for(size_t i=0;i<names.size();++i)r[names[i]]=latencyJson(worldSession->nativeWorkLatency[i]);
+ Json r;for(size_t i=0;i<names.size();++i){r[names[i]]=latencyJson(worldSession->nativeWorkLatency[i]);
+#ifdef KARMA_CLIENT
+  r[names[i]]["available"]=true;
+#else
+  r[names[i]]["available"]=i!=4;
+#endif
+ }
  r["slowTasks"]=Json::array();{std::lock_guard lock(worldSession->slowWorkMutex);for(auto const& s:worldSession->slowWork)
   r["slowTasks"].push_back({{"task",names[s.stage]},{"chunk",{s.x,s.z}},{"ms",s.us/1000.}});}
  r["scope"]="function wall time; includes internal lock/dependency wait; not GPU publication";
@@ -484,28 +518,28 @@ bool supportedSnowVariation(LevelChunk&lc,Chunk const&c,int col,int j,int expect
  auto const&support=lc.getBlock(ChunkBlockPos{BlockPos{col%16,j-65,col/16},-64});
  if(!(support==*palette[under]))return false;
  ++verificationSnowChanges;
- if(verificationSnowExamples.size()<8)verificationSnowExamples.push_back({{"x",lc.getPosition().x*16+col%16},{"y",j-64},{"z",lc.getPosition().z*16+col/16},{"expected",palette[expected]->toDebugString()},{"actual",actual.toDebugString()},{"support",support.toDebugString()}});
+ if(verificationSnowExamples.size()<8)verificationSnowExamples.push_back({{"x",bedrock_compat::position(lc).x*16+col%16},{"y",j-64},{"z",bedrock_compat::position(lc).z*16+col/16},{"expected",palette[expected]->toDebugString()},{"actual",actual.toDebugString()},{"support",support.toDebugString()}});
  return true;
 }
 bool check(LevelChunk& lc){
  auto session=publishedSession.load();auto work=session->tasks.enter();
- int ci=index(lc.getPosition());if(ci<0)return true;auto p=lc.getPosition();auto hold=getChunk(p.x,p.z);auto const& c=*hold;
+ int ci=index(bedrock_compat::position(lc));if(ci<0)return true;auto p=bedrock_compat::position(lc);auto hold=getChunk(p.x,p.z);auto const& c=*hold;
  if(!lc.mLevelChunkHasHadOriginalLighting){++errors;log().error("Chunk has no original lighting");return false;}
- for(int col:{51,119,187,255})if(&lc.getBiome(ChunkBlockPos{BlockPos{col%16,99,col/16},-64})!=biomes[c.biomes[col]]){++errors;log().error("Biome mismatch in chunk {},{}",lc.getPosition().x,lc.getPosition().z);return false;}
+ for(int col:{51,119,187,255})if(&lc.getBiome(ChunkBlockPos{BlockPos{col%16,99,col/16},-64})!=biomes[c.biomes[col]]){++errors;log().error("Biome mismatch in chunk {},{}",bedrock_compat::position(lc).x,bedrock_compat::position(lc).z);return false;}
  // Eight complete columns per chunk check volume order, caves, water and negative Y.
  for(int col:{0,15,51,85,128,170,240,255}){
   bool ok=true;column(c,col,[&](int y,int len,int b){for(int j=y;j<y+len;j++){
    auto const& actual=lc.getBlock(ChunkBlockPos{BlockPos{col%16,j-64,col/16},-64});
-   ++checked;if(actual.getTypeName()!=palette[b]->getTypeName()){if(supportedSnowVariation(lc,c,col,j,b,actual))continue;if(errors++<8)log().error("Mismatch at {},{},{}: {} != {}",lc.getPosition().x*16+col%16,j-64,lc.getPosition().z*16+col/16,actual.getTypeName(),palette[b]->getTypeName());ok=false;return;}
+   ++checked;if(actual.getTypeName()!=palette[b]->getTypeName()){if(supportedSnowVariation(lc,c,col,j,b,actual))continue;if(errors++<8)log().error("Mismatch at {},{},{}: {} != {}",bedrock_compat::position(lc).x*16+col%16,j-64,bedrock_compat::position(lc).z*16+col/16,actual.getTypeName(),palette[b]->getTypeName());ok=false;return;}
   }});if(!ok)return false;
  }
  // Check every oriented log, since eight sampled columns can miss a short log.
  for(int col=0;col<256;col++){
   bool ok=true;column(c,col,[&](int y,int len,int b){if(b<25)return;for(int j=y;j<y+len;j++){
    auto const& actual=lc.getBlock(ChunkBlockPos{BlockPos{col%16,j-64,col/16},-64});
-   if(!(actual==*palette[b])){if(supportedSnowVariation(lc,c,col,j,b,actual))continue;++errors;ok=false;log().error("Block state mismatch at {},{},{}: {} expected {}",lc.getPosition().x*16+col%16,j-64,lc.getPosition().z*16+col/16,actual.toDebugString(),palette[b]->toDebugString());}
-   if((b==49||b==50||(b>=56&&b<=60))&&!(lc.getExtraBlock(ChunkBlockPos{BlockPos{col%16,j-64,col/16},-64})==*palette[8])){
-    ++errors;ok=false;log().error("Aquatic plant missing source-water layer at {},{},{}: {} expected {}",lc.getPosition().x*16+col%16,j-64,lc.getPosition().z*16+col/16,lc.getExtraBlock(ChunkBlockPos{BlockPos{col%16,j-64,col/16},-64}).toDebugString(),palette[8]->toDebugString());
+   if(!(actual==*palette[b])){if(supportedSnowVariation(lc,c,col,j,b,actual))continue;++errors;ok=false;log().error("Block state mismatch at {},{},{}: {} expected {}",bedrock_compat::position(lc).x*16+col%16,j-64,bedrock_compat::position(lc).z*16+col/16,actual.toDebugString(),palette[b]->toDebugString());}
+   if((b==49||b==50||(b>=56&&b<=60))&&!(bedrock_compat::extraBlock(lc,ChunkBlockPos{BlockPos{col%16,j-64,col/16},-64},*palette[0])==*palette[8])){
+    ++errors;ok=false;log().error("Aquatic plant missing source-water layer at {},{},{}: {} expected {}",bedrock_compat::position(lc).x*16+col%16,j-64,bedrock_compat::position(lc).z*16+col/16,bedrock_compat::extraBlock(lc,ChunkBlockPos{BlockPos{col%16,j-64,col/16},-64},*palette[0]).toDebugString(),palette[8]->toDebugString());
    }
   }});if(!ok)return false;
  }
@@ -519,19 +553,19 @@ void tick(Level& level){
  if(!requested||!active)return;
  auto dim=level.getOrCreateDimension(0).lock();if(!dim)return;
  resolveRegistry(*dim);
- if(!view)view=std::make_unique<ChunkViewSource>(dim->getChunkSource(),ChunkSource::LoadMode::Deferred);
+ if(!view)view=bedrock_compat::deferredView(dim->getChunkSource());
  if(waitTicks<0){
   auto pos=ChunkPos{probeX,probeZ};missingSavedChunks=dim->getChunkSource().isChunkSaved(pos)?0:1;
   view->move(BlockPos{(probeX-8)*16,0,(probeZ-8)*16},BlockPos{(probeX+9)*16-1,0,(probeZ+9)*16-1},false,ChunkSourceViewGenerateMode::GenerateAll,{},nullptr);waitTicks=0;
  }
  dim->getChunkSource().checkAndLaunchChunkGenerationTasks(false);
  auto c=view->getExistingChunk(ChunkPos{probeX,probeZ});
- if(!c||c->getState().load()!=ChunkState::Loaded){
-  if(++waitTicks%200==0)log().info("[按需探测] 等待 ({},{}) state={}",probeX,probeZ,c?int(c->getState().load()):-1);
+ if(!c||bedrock_compat::loadState(*c).load()!=ChunkState::Loaded){
+  if(++waitTicks%200==0)log().info("[按需探测] 等待 ({},{}) state={}",probeX,probeZ,c?int(bedrock_compat::loadState(*c).load()):-1);
   if(waitTicks>6000){++errors;requested=false;writeReport();log().error("Probe timed out");}return;
  }
  if(!check(*c)){requested=false;writeReport();return;}
- c->setUnsaved();c->markSaveIfNeverSaved();c->markSaveNonActorDataIfDirty();
+ bedrock_compat::requestSave(*c);
  if(!dim->getChunkSource().saveLiveChunk(*c)){++errors;log().error("Probe persistence refused");}
  dim->getChunkSource().flushThreadBatch();dim->getChunkSource().flushPendingDiscardedChunkWrites();
  completed=1;requested=false;writeReport();
@@ -571,7 +605,7 @@ bool Mod::enable(){
  cmd.runtimeOverload().text("checkblocks").execute([](CommandOrigin const& origin,CommandOutput& out,ll::command::RuntimeCommand const&){
   if(origin.getOriginType()!=CommandOriginType::DedicatedServer){out.error("Console only");return;}
   try{
-   auto level=origin.getLevel();if(!level)throw std::runtime_error("Level not ready");
+   auto level=bedrock_compat::level(origin);if(!level)throw std::runtime_error("Level not ready");
    auto dim=level->getOrCreateDimension(0).lock();if(!dim)throw std::runtime_error("Overworld not ready");
    resolveRegistry(*dim);
    Json states=Json::array();for(size_t i=27;i<palette.size();i++)states.push_back(palette[i]->toDebugString());
@@ -588,7 +622,7 @@ bool Mod::enable(){
  });
  cmd.runtimeOverload().text("release").execute([](CommandOrigin const& origin,CommandOutput& out,ll::command::RuntimeCommand const&){
   if(origin.getOriginType()!=CommandOriginType::DedicatedServer){out.error("Console only");return;}
-  requested=false;if(view){view->clear();view.reset();}writeReport();out.success("Released development probe");
+  requested=false;view.reset();writeReport();out.success("Released development probe");
  });
  tickListener=ll::event::EventBus::getInstance().emplaceListener<ll::event::ServerLevelTickEvent>([](auto& e){try{tick(e.level());}catch(std::exception const& ex){++errors;requested=false;writeReport();log().error("Terrain tick failed: {}",ex.what());}});
  requested=false;writeReport();

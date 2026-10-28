@@ -1,12 +1,12 @@
 // Read-only timers around native tasks. Never alter stage results or readiness.
 template<class F> void measureNativeWork(LevelChunk& chunk,int stage,F run){
  auto owner=publishedSession.load();auto observing=owner->tasks.tryEnter();
- if(!observing||!active||static_cast<int>(chunk.getDimension().getDimensionId())!=0||
-    chunk.getDimension().getLevel().getLevelData().getLevelName()!=worldName){run();return;}
- auto cp=chunk.getPosition();
- owner->pipelineTrace.record({1,cp.x,cp.z,stage,0,0,int(chunk.getState().load()),true,owner->streamActiveMicros.load()});
+ if(!observing||!active||static_cast<int>(bedrock_compat::dimension(chunk).getDimensionId())!=0||
+    bedrock_compat::levelName(bedrock_compat::level(bedrock_compat::dimension(chunk)).getLevelData())!=worldName){run();return;}
+ auto cp=bedrock_compat::position(chunk);
+ owner->pipelineTrace.record({1,cp.x,cp.z,stage,0,0,int(bedrock_compat::loadState(chunk).load()),true,owner->streamActiveMicros.load()});
  auto start=Clock::now();run();
- owner->pipelineTrace.record({2,cp.x,cp.z,stage,0,0,int(chunk.getState().load()),true,owner->streamActiveMicros.load()});
+ owner->pipelineTrace.record({2,cp.x,cp.z,stage,0,0,int(bedrock_compat::loadState(chunk).load()),true,owner->streamActiveMicros.load()});
  owner->recordWork(stage,cp.x,cp.z,std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-start).count());
 }
 LL_TYPE_INSTANCE_HOOK(NativeLoadTiming,ll::memory::HookPriority::Normal,ChunkSource,
@@ -19,20 +19,7 @@ LL_TYPE_INSTANCE_HOOK(NativeLightingTiming,ll::memory::HookPriority::Normal,Chun
  &ChunkSource::_lightingTask,void,std::shared_ptr<LevelChunk> const& lc,ChunkViewSource& chunks){
  if(!lc){origin(lc,chunks);return;}measureNativeWork(*lc,3,[&]{origin(lc,chunks);});
 }
-#ifdef KARMA_CLIENT
-LL_TYPE_INSTANCE_HOOK(ClientMeshTiming,ll::memory::HookPriority::Normal,RenderChunkBuilder,
- &RenderChunkBuilder::build,void,RenderChunkGeometry& geometry,bool lightingType,BakedBlockLightType forExport,
- bool capabilities,mce::framebuilder::FrameLightingModelCapabilities const& models){
- auto owner=publishedSession.load();auto observing=owner->tasks.tryEnter();
- auto* source=mLocalSource.get();
- if(!observing||!active||!source||static_cast<int>(source->getDimension().getDimensionId())!=0){
-  origin(geometry,lightingType,forExport,capabilities,models);return;
- }
- auto start=Clock::now();origin(geometry,lightingType,forExport,capabilities,models);
- // Builder duration only; GPU upload/queue visibility is not measured here.
- owner->nativeWorkLatency[4].observe(std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-start).count());
-}
-#endif
+#include "ClientMeshDiagnostics.inc"
 using NativeExpectedChunk=std::pair<ChunkPos,ChunkState>;
 LL_TYPE_INSTANCE_HOOK(NativeDispatchTrace,ll::memory::HookPriority::Normal,ChunkSource,
  &ChunkSource::_checkAndDispatchTaskForLevelChunk,bool,NativeExpectedChunk const& expected,bool inTask){
@@ -49,7 +36,7 @@ thread_local DependencyTraceContext* dependencyTrace=nullptr;
 using NativeNeighbourGrid=LevelChunkGridAreaElement<std::weak_ptr<LevelChunk>>;
 LL_TYPE_INSTANCE_HOOK(NativeDependencyTrace,ll::memory::HookPriority::Normal,ChunkSource,
  &ChunkSource::_checkLevelChunkForNextStage,void,LevelChunk const& lc,NativeNeighbourGrid& grid,ChunkState state){
- auto owner=publishedSession.load();auto cp=lc.getPosition();
+ auto owner=publishedSession.load();auto cp=bedrock_compat::position(lc);
  bool watching=active&&owner->belongsTo(mLevel)&&owner->pipelineTrace.contains(cp.x,cp.z);
  if(!watching){origin(lc,grid,state);return;}
  auto observing=owner->tasks.tryEnter();if(!observing){origin(lc,grid,state);return;}
@@ -62,8 +49,8 @@ LL_TYPE_INSTANCE_HOOK(NativeNeighbourTrace,ll::memory::HookPriority::Normal,Chun
  &ChunkSource::_chunkAtStage,bool,std::weak_ptr<LevelChunk> weak,ChunkState state){
  if(!dependencyTrace)return origin(std::move(weak),state);
  auto chunk=weak.lock();bool result=origin(std::move(weak),state);
- if(!result){auto& c=*dependencyTrace;auto cp=chunk?chunk->getPosition():ChunkPos{};
-  c.owner->pipelineTrace.record({3,c.x,c.z,int(state),cp.x,cp.z,chunk?int(chunk->getState().load()):-1,false,c.owner->streamActiveMicros.load()});}
+ if(!result){auto& c=*dependencyTrace;auto cp=chunk?bedrock_compat::position(*chunk):ChunkPos{};
+  c.owner->pipelineTrace.record({3,c.x,c.z,int(state),cp.x,cp.z,chunk?int(bedrock_compat::loadState(*chunk).load()):-1,false,c.owner->streamActiveMicros.load()});}
  return result;
 }
 void nativeTimingHooks(terrain_runtime::HookTransaction& hooks){

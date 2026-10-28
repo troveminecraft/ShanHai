@@ -1,4 +1,7 @@
 #pragma once
+#ifdef SHANHAI_MC_26_51
+#include "PinnedGameImage26_51.h"
+#else
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -7,6 +10,7 @@
 #include <type_traits>
 
 namespace client::image {
+inline constexpr uint32_t MaxRva=0xea9f000;
 inline constexpr uint32_t FacetRva = 0x928b910;
 inline constexpr std::array<uint8_t, 24> FacetBytes{
     0x41,0x57,0x41,0x56,0x41,0x54,0x56,0x57,0x55,0x53,0x48,0x83,
@@ -72,3 +76,4 @@ template<class Reader> Result inspect(Reader read) {
     return result;
 }
 }
+#endif

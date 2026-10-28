@@ -51,7 +51,7 @@ void clientRelease(Level& level) {
     villageFeatureRecord = nullptr;
     extraFeatureRecords.clear();
     if (auto dim = level.getDimension(0).lock()) {
-        auto *generator = dim->getWorldGenerator();
+        auto *generator = bedrock_compat::generator(*dim);
         if (generator && generator->mStructureFeatureRegistry) {
             auto &entries = *generator->mStructureFeatureRegistry->mStructureFeatures;
             std::erase_if(entries, [](auto const &p) { return ownedNativeFeatures.contains(p.get()); });
@@ -90,11 +90,18 @@ void clientHooks(terrain_runtime::HookTransaction& hooks) {
         hooks.add<ModernGround>("ModernGround");
         hooks.add<VillageBuilderDepth>("VillageBuilderDepth");
         hooks.add<VillageBuilderBudget>("VillageBuilderBudget");
+#ifdef SHANHAI_MC_26_51
+        hooks.add<RuinPieceScope>("RuinPieceScope");
+        hooks.add<MansionOrigin>("MansionOrigin");
+#else
         hooks.add<ShipGround>("ShipGround");
         hooks.add<ShipGroundLegacy>("ShipGroundLegacy");
+#endif
         hooks.add<PortalGround>("PortalGround");
         hooks.add<RuinGround>("RuinGround");
+#ifndef SHANHAI_MC_26_51
         hooks.add<MineSupport>("MineSupport");
+#endif
         hooks.add<MineWeb>("MineWeb");
         hooks.add<SeededStructureRead>("SeededStructureRead");
         hooks.add<SeededStructureLayer>("SeededStructureLayer");
@@ -105,7 +112,9 @@ void clientHooks(terrain_runtime::HookTransaction& hooks) {
         hooks.add<DecorationTask>("DecorationTask");
         installStructureGeneratorHooks(hooks);
         hooks.add<SmallWrite>("SmallWrite");
+#ifndef SHANHAI_MC_26_51
         hooks.add<SmallWriteSimple>("SmallWriteSimple");
+#endif
         hooks.add<SmallWriteFast>("SmallWriteFast");
         hooks.add<FossilHeightXZ>("FossilHeightXZ");
         hooks.add<FossilHeightPos>("FossilHeightPos");

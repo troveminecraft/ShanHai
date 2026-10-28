@@ -1,3 +1,4 @@
+#include "BedrockAccess.h"
 // One module coordinates two separately compiled host adapters.
 #include <Windows.h>
 #include "WindowsWorldHost.h"
@@ -74,14 +75,14 @@ void validateStoredGenerator(std::filesystem::path const &root, std::string cons
 void writeStatus(Level &level, bool closed = false) {
     Json status = terrain::clientStatus();
     status.update(lab::clientStatus());
-    status["seed"] = level.getLevelData().getSeed().toUiString();
+    status["seed"] = bedrock_compat::seed(level.getLevelData()).toUiString();
     status["ticks"] = sessionTicks;
     status["closed"] = closed;
     status["tickErrors"] = tickErrors;
     status["clouds"] = clouds::status();
     status["players"] = Json::array();
     level.forEachPlayer([&](Player &p) {
-        auto pos = p.getPosition();
+        auto pos = bedrock_compat::position(p);
         status["players"].push_back({{"pos", {pos.x, pos.y, pos.z}}, {"dimension", int(p.getDimensionId())}});
         return true;
     });
@@ -111,7 +112,7 @@ void bindWorld(Level &level, std::string const &name, LevelSettings const &setti
     auto marker = terrain::jsonFile(root / "karma-worldgen.json");
     if (marker.value("host", "") != "windows-client")
         throw std::runtime_error("Not a client world package");
-    auto seed = settings.getSeed().toUiString();
+    auto seed = bedrock_compat::seed(settings).toUiString();
     if (marker.at("worldSeed").get<std::string>() != seed)
         throw std::runtime_error("World seed differs from its immutable Karma seed package");
     validateStoredGenerator(root, seed);
@@ -124,7 +125,7 @@ void bindWorld(Level &level, std::string const &name, LevelSettings const &setti
         startup::requireHeightResource(definition,height.MinY,height.maxYExclusive);
     }
     terrain::log().info("Karma client: world generator provenance validated; runtime generator={}",
-                        int(settings.getGenerator()));
+                        int(settings.mGenerator));
     current = &level;
     terrain::clientPrepare(level, root, name, seed, marker);
     lab::clientPrepare(root, name, marker.at("worldName").get<std::string>());
@@ -170,7 +171,7 @@ LL_TYPE_INSTANCE_HOOK(WorldOpen, ll::memory::HookPriority::Normal, ServerLevel, 
             auto dimension = getOrCreateDimension(0).lock();
             if (!dimension)
                 throw std::runtime_error("Overworld dimension is unavailable after initialization");
-            auto const &range = dimension->getHeightRange();
+            auto const &range = bedrock_compat::heightRange(*dimension);
             // Repository registration alone does not prove the pack was selected
             // by the native server. Reject a mismatched dimension before joining.
             std::ofstream(diagnostics / "world-height.json") << Json{
@@ -227,7 +228,13 @@ class Mod {
         std::filesystem::create_directories(diagnostics);
         if (!creation::supportedFacetLayout()) {
             m.getLogger().error(
-                "Unsupported Minecraft executable; this adapter requires Windows 1.26.20.04.");
+                "Unsupported Minecraft executable; this adapter requires Windows "
+#ifdef SHANHAI_MC_26_51
+                "1.26.51.01."
+#else
+                "1.26.20.04."
+#endif
+            );
             return false;
         }
         m.getLogger().info("Karma Windows client {}; local world creation enabled", shanhai_release::Windows);

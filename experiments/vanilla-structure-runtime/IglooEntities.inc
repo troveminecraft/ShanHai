@@ -6,7 +6,7 @@ void persistEntityLedger();
 void tickStructureEntities(Level &level) {
     static unsigned ticks = 0;
     if (++ticks % worldgen_rules::StructureEntityTickInterval || !automaticStructures ||
-        structureStageFailed || !entityLedgerReady || level.getLevelData().getLevelName() != activeWorld)
+        structureStageFailed || !entityLedgerReady || bedrock_compat::levelName(level.getLevelData()) != activeWorld)
         return;
     std::unique_lock guard(stageMutex, std::try_to_lock);
     if (!guard.owns_lock())
@@ -30,10 +30,10 @@ void tickStructureEntities(Level &level) {
         if (plan.sharedLayout) {
             worldgen_rules::enqueueLoadedVillageOwners(
                 nativeEntityQueue, entityLedger, plan.start, *plan.sharedLayout,
-                {it->first.first, it->first.second}, level.getLevelData().getSeed().to32BitRandomSeed(),
+                {it->first.first, it->first.second}, bedrock_compat::seed(level.getLevelData()).to32BitRandomSeed(),
                 [&](worldgen_rules::ChunkPosition cp) {
                     auto c = d->getChunkSource().getExistingChunk({cp.x, cp.z});
-                    return c && c->getState().load() == ChunkState::Loaded;
+                    return c && bedrock_compat::loadState(*c).load() == ChunkState::Loaded;
                 });
             continue;
         }
@@ -41,7 +41,7 @@ void tickStructureEntities(Level &level) {
         auto &blocks = d->getBlockSourceFromMainChunkSource();
         for (auto const &[pos, name] : plan.witnesses) {
             auto c = d->getChunkSource().getExistingChunk({chunk(pos.x), chunk(pos.z)});
-            if (c && c->getState().load() == ChunkState::Loaded &&
+            if (c && bedrock_compat::loadState(*c).load() == ChunkState::Loaded &&
                 blocks.getBlock(pos).getTypeName() == name) {
                 present = true;
                 break;
@@ -54,10 +54,10 @@ void tickStructureEntities(Level &level) {
             chunks.emplace(chunk(spawn.pos.x), chunk(spawn.pos.z));
         for (auto [x, z] : chunks) {
             auto c = d->getChunkSource().getExistingChunk({x, z});
-            if (c && c->getState().load() == ChunkState::Loaded)
+            if (c && bedrock_compat::loadState(*c).load() == ChunkState::Loaded)
                 queueStructureEntities(plan.start, {{x * 16, -64, z * 16}, {x * 16 + 15, (field->generationHeight()-65), z * 16 + 15}},
                                        "village", {it->first.first, it->first.second},
-                                       level.getLevelData().getSeed().to32BitRandomSeed());
+                                       bedrock_compat::seed(level.getLevelData()).to32BitRandomSeed());
         }
     }
     auto &entries = entityLedger["structureEntries"];
@@ -79,7 +79,7 @@ void tickStructureEntities(Level &level) {
                         *it->second.igloo->program, {cp.x, cp.z},
                         [&](worldgen_rules::ChunkPosition p) {
                             auto c = d->getChunkSource().getExistingChunk({p.x, p.z});
-                            return c && c->getState().load() == ChunkState::Loaded;
+                            return c && bedrock_compat::loadState(*c).load() == ChunkState::Loaded;
                         },
                         [&](worldgen_rules::StructurePoint p) -> std::string_view {
                             return blocks.getBlock({p.x, p.y, p.z}).getTypeName();
@@ -97,7 +97,7 @@ void tickStructureEntities(Level &level) {
                             *it->second.sharedLayout, {cp.x, cp.z},
                             [&](worldgen_rules::ChunkPosition c) {
                                 auto chunk = d->getChunkSource().getExistingChunk({c.x, c.z});
-                                return chunk && chunk->getState().load() == ChunkState::Loaded;
+                                return chunk && bedrock_compat::loadState(*chunk).load() == ChunkState::Loaded;
                             },
                             [&](worldgen_rules::StructurePoint p) -> std::string_view {
                                 return blocks.getBlock({p.x, p.y, p.z}).getTypeName();
@@ -109,7 +109,7 @@ void tickStructureEntities(Level &level) {
                     }
                 }
                 auto ch = d->getChunkSource().getExistingChunk(cp);
-                return ch && ch->getState().load() == ChunkState::Loaded;
+                return ch && bedrock_compat::loadState(*ch).load() == ChunkState::Loaded;
             },
             [](J const &) { persistEntityLedger(); });
     } catch (std::exception const &e) {
@@ -179,14 +179,12 @@ void tickStructureEntities(Level &level) {
                     a->addTag(std::string(worldgen_rules::NativeStructureEntityTag));
                     if (job.key.starts_with("igloo:"))
                         a->addTag(std::string(worldgen_rules::IglooResidentTag));
-                    auto p = a->getPosition();
+                    auto p = bedrock_compat::position(*a);
                     actors.push_back({{"id", a->getOrCreateUniqueID().rawID},
                                       {"type", a->getTypeName()},
                                       {"pos", {p.x, p.y, p.z}}});
                 }
-            ch->setUnsaved();
-            ch->markSaveIfNeverSaved();
-            ch->markSaveNonActorDataIfDirty();
+            bedrock_compat::requestSave(*ch);
         } catch (std::exception const &e) {
             if (error.empty())
                 error = e.what();
@@ -241,19 +239,19 @@ void initializeEntityLedger() {
 }
 J iglooActors(Dimension &d, BoundingBox const &b) {
     J rows = J::array();
-    for (auto *a : d.getLevel().getRuntimeActorList()) {
-        if (&a->getDimension() != &d)
+    for (auto *a : bedrock_compat::level(d).getRuntimeActorList()) {
+        if (&bedrock_compat::dimension(*a) != &d)
             continue;
         auto const &type = a->getTypeName();
         if (type != "minecraft:villager" && type != "minecraft:villager_v2" &&
             type != "minecraft:zombie_villager" && type != "minecraft:zombie_villager_v2")
             continue;
-        auto p = a->getPosition();
+        auto p = bedrock_compat::position(*a);
         if (p.x >= b.min.x - 2 && p.x <= b.max.x + 3 && p.y >= b.min.y - 2 && p.y <= b.max.y + 3 &&
             p.z >= b.min.z - 2 && p.z <= b.max.z + 3)
             rows.push_back(J{{"type", a->getTypeName()},
                              {"alive", a->isAlive()},
-                             {"removed", a->isRemoved()},
+                             {"removed", a->mRemoved},
                              {"id", a->getOrCreateUniqueID().rawID},
                              {"pos", {p.x, p.y, p.z}}});
     }
@@ -262,7 +260,7 @@ J iglooActors(Dimension &d, BoundingBox const &b) {
 void tickIglooEntities(Level &level) {
     static unsigned ticks = 0;
     if (++ticks % worldgen_rules::StructureEntityTickInterval || !automaticStructures ||
-        structureStageFailed || !entityLedgerReady || level.getLevelData().getLevelName() != activeWorld)
+        structureStageFailed || !entityLedgerReady || bedrock_compat::levelName(level.getLevelData()) != activeWorld)
         return;
     std::unique_lock guard(stageMutex, std::try_to_lock);
     if (!guard.owns_lock())
@@ -283,10 +281,10 @@ void tickIglooEntities(Level &level) {
             auto const &plan = it->second;
             worldgen_rules::enqueueLoadedPopulationOwners(
                 nativeEntityQueue, entityLedger, plan.start, plan.igloo->program->population, "igloo",
-                {it->first.first, it->first.second}, level.getLevelData().getSeed().to32BitRandomSeed(),
+                {it->first.first, it->first.second}, bedrock_compat::seed(level.getLevelData()).to32BitRandomSeed(),
                 [&](worldgen_rules::ChunkPosition cp) {
                     auto c = d->getChunkSource().getExistingChunk({cp.x, cp.z});
-                    return c && c->getState().load() == ChunkState::Loaded;
+                    return c && bedrock_compat::loadState(*c).load() == ChunkState::Loaded;
                 }, field->generationHeight()-65);
         }
         return;
@@ -302,7 +300,7 @@ void tickIglooEntities(Level &level) {
         for (int z = chunk(bottom.bounds.min.z); z <= chunk(bottom.bounds.max.z); ++z)
             for (int x = chunk(bottom.bounds.min.x); x <= chunk(bottom.bounds.max.x); ++x) {
                 auto c = d->getChunkSource().getExistingChunk({x, z});
-                loaded &= c && c->getState().load() == ChunkState::Loaded;
+                loaded &= c && bedrock_compat::loadState(*c).load() == ChunkState::Loaded;
             }
         if (!loaded)
             continue;
@@ -342,9 +340,7 @@ void tickIglooEntities(Level &level) {
             mob->addTag(std::string(worldgen_rules::IglooResidentTag));
             auto c = d->getChunkSource().getExistingChunk({chunk(pos.x), chunk(pos.z)});
             if (c) {
-                c->setUnsaved();
-                c->markSaveIfNeverSaved();
-                c->markSaveNonActorDataIfDirty();
+                bedrock_compat::requestSave(*c);
             }
         };
         auto vdef = *worldgen_rules::iglooEntityDefinition("Villager"),

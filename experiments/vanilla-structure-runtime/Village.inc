@@ -10,7 +10,7 @@ TerrainVillageFeature *villageFeatureRecord = nullptr;
 TerrainVillageFeature &registeredVillage(Dimension &d) {
     if (villageFeatureRecord)
         return *villageFeatureRecord;
-    auto &entries = *d.getWorldGenerator()->mStructureFeatureRegistry->mStructureFeatures;
+    auto &entries = *bedrock_compat::generator(d)->mStructureFeatureRegistry->mStructureFeatures;
     auto v = std::make_unique<TerrainVillageFeature>(structureSeed(d), d.getBiomeRegistry());
     auto *ptr = v.get();
     villageFeatureRecord = ptr;
@@ -37,7 +37,7 @@ bool villageActorChunk(StructureStart *start, BoundingBox const &clip) {
 std::vector<std::pair<int, int>> villagePopulationPlans;
 bool villageTemplatesReady = false;
 void warmVillageTemplates(Level &level) {
-    if (villageTemplatesReady || level.getLevelData().getLevelName() != activeWorld)
+    if (villageTemplatesReady || bedrock_compat::levelName(level.getLevelData()) != activeWorld)
         return;
     std::lock_guard guard(stageMutex);
     if (villageTemplatesReady)
@@ -156,7 +156,7 @@ bool buildSharedVillage(StructureStart &start, VillagePlan &result, ChunkPos cp,
     for (size_t i = 0; i < plan.verticalMoves.size(); ++i)
         if (int dy = plan.verticalMoves[i])
             (*start.pieces)[i]->moveBoundingBox(0, dy, 0);
-    start.calculateBoundingBox();
+    bedrock_compat::calculateBoundingBox(start);
     result.foundations = std::move(plan.foundations);
     result.fittedGround = std::move(plan.ground.fitted);
     result.roadSurfaceFix = std::move(plan.roadSurfaceFix);
@@ -251,7 +251,7 @@ VillagePlan &villagePlan(Dimension &d, ChunkPos cp, uint seed) {
     FixedBiomeSource bs(*biome);
     VillageFeature f(seed, 32, 8, d.getBiomeRegistry());
     Random rng(seed, true);
-    StructureFeature::setRandomSeedFor(rng, cp.x, cp.z, 10387312, seed);
+    bedrock_compat::seedStructure(rng, cp.x, cp.z, 10387312, seed);
     std::map<std::pair<int, int>, std::vector<short>> heights;
     planningHeights = &heights;
     adaptHeightMap = true;
@@ -280,7 +280,7 @@ VillagePlan &villagePlan(Dimension &d, ChunkPos cp, uint seed) {
             }
         } growthReset;
         Random expandedRandom(seed, true);
-        StructureFeature::setRandomSeedFor(expandedRandom, cp.x, cp.z, 10387312, seed);
+        bedrock_compat::seedStructure(expandedRandom, cp.x, cp.z, 10387312, seed);
         auto expanded = f.createStructureStart(d, bs, expandedRandom, cp, provider);
         if (expanded && expanded->isValid())
             start = std::move(expanded);
@@ -344,7 +344,7 @@ void villageTerrain(BlockSource &blocks, ChunkPos cp, VillagePlan const &plan) {
                              : b.name == "minecraft:grass_block" ? grass
                              : b.name == "minecraft:sandstone"   ? sandstone
                                                                  : sand;
-                blocks.setBlockNoUpdate({p.x, p.y, p.z}, *block);
+                bedrock_compat::setBlockNoUpdate(blocks,{p.x, p.y, p.z}, *block);
             }, field->generationHeight()-65);
         }
 }
@@ -382,7 +382,7 @@ unsigned placeVillage(BlockSource &blocks, ChunkPos cp, VillagePlan &plan, uint 
                              : y == c.floor ? (c.green ? grass : sand)
                              : y <= c.water ? water
                                             : air;
-                blocks.setBlockNoUpdate({xz.first, y, xz.second}, *block);
+                bedrock_compat::setBlockNoUpdate(blocks,{xz.first, y, xz.second}, *block);
             }
         }
     }
@@ -414,7 +414,7 @@ unsigned placeVillage(BlockSource &blocks, ChunkPos cp, VillagePlan &plan, uint 
         *plan.sharedLayout, {cp.x, cp.z},
         [&](worldgen_rules::StructurePoint p) { return blocks.getBlock({p.x, p.y, p.z}).getTypeName(); },
         [&](worldgen_rules::StructurePoint p, worldgen_rules::StructureBlock b) {
-            blocks.setBlockNoUpdate({p.x, p.y, p.z}, *sharedBlock(b));
+            bedrock_compat::setBlockNoUpdate(blocks,{p.x, p.y, p.z}, *sharedBlock(b));
         });
     placeVillageDecor(blocks, cp, plan, seed);
     // Only planned original walls near this owner chunk are revisited. Vanilla
@@ -555,7 +555,7 @@ void repairStructurePlants(Dimension &d, int x, int z, bool village, bool apply)
                         if (name == "minecraft:air" || name == "minecraft:structure_void" ||
                             name == "minecraft:jigsaw")
                             continue;
-                        auto q = LegacyStructureTemplate::transform(*i.mPos, Mirror::None, p.mRotation);
+                        auto q = bedrock_compat::transform(*i.mPos, Mirror::None, p.mRotation);
                         int xx = q.x + p.mPosition->x, zz = q.z + p.mPosition->z;
                         int ground =
                             villageGround(*vp, xx, zz, field->surface(xx + 32768, zz + 32768).height);
@@ -599,9 +599,7 @@ void repairStructurePlants(Dimension &d, int x, int z, bool village, bool apply)
                                                   vp->diagnostics["groundMax"].get<int>() + 8);
             if (n && apply) {
                 auto c = d.getChunkSource().getExistingChunk(cp);
-                c->setUnsaved();
-                c->markSaveIfNeverSaved();
-                c->markSaveNonActorDataIfDirty();
+                bedrock_compat::requestSave(*c);
             }
             ++chunks;
         }
@@ -654,9 +652,7 @@ void repairStructurePlants(Dimension &d, int x, int z, bool village, bool apply)
         if (apply)
             for (auto [xx, zz] : dirty) {
                 auto c = d.getChunkSource().getExistingChunk({xx, zz});
-                c->setUnsaved();
-                c->markSaveIfNeverSaved();
-                c->markSaveNonActorDataIfDirty();
+                bedrock_compat::requestSave(*c);
             }
     }
     std::ofstream(folder / "plant-repair.json")

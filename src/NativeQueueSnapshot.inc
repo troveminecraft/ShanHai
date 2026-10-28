@@ -23,7 +23,8 @@ void sampleNativeQueue(ChunkSource& source){
     unsigned queued=0;
     bool complete=true;
     {
-        std::unique_lock lock(*data->mChunksReadyForProcessingSpinLock,std::try_to_lock);
+        bedrock_compat::QueueSampleLock sampleLock(*data->mChunksReadyForProcessingSpinLock);
+        std::unique_lock lock(sampleLock,std::try_to_lock);
         if(lock.owns_lock()){
             queued+=unsigned(data->mChunksReadyForProcessing->size());
             for(auto const& [cp,state]:*data->mChunksReadyForProcessing){
@@ -33,7 +34,8 @@ void sampleNativeQueue(ChunkSource& source){
         }else complete=false;
     }
     {
-        std::unique_lock lock(*data->mChunksToAddToProcessingSpinLock,std::try_to_lock);
+        bedrock_compat::QueueSampleLock sampleLock(*data->mChunksToAddToProcessingSpinLock);
+        std::unique_lock lock(sampleLock,std::try_to_lock);
         if(lock.owns_lock()){
             queued+=unsigned(data->mChunksToAddToProcessing->size());
             for(auto const& [cp,state]:*data->mChunksToAddToProcessing){
@@ -72,6 +74,13 @@ void recordPipelineHistory(double wall){
         {"frontierPending",frontierPendingTotal},{"queuePumps",queuePumps}});
 }
 Json pipelineReport(){
+#ifdef SHANHAI_MC_26_51
+    Json traceKinds={{"1","native task began"},{"2","native task ended"}};
+    constexpr bool predicateTraceAvailable=false;
+#else
+    Json traceKinds={{"0","dispatch check returned"},{"1","native task began"},{"2","native task ended"},{"3","native neighbour stage predicate failed"}};
+    constexpr bool predicateTraceAvailable=true;
+#endif
     Json events=Json::array();
     for(auto const&e:worldSession->pipelineTrace.snapshot())events.push_back({
         {"kind",e.kind},{"chunk",{e.x,e.z}},{"stage",e.stage},{"otherChunk",{e.otherX,e.otherZ}},
@@ -82,6 +91,7 @@ Json pipelineReport(){
         {"supplementalThrottles",supplementalThrottles},{"queuePumps",queuePumps},{"sampleSkips",queueSampleSkips},
         {"activeSeconds",streamingClock.seconds},{"excludedTickGapSeconds",streamingClock.excluded},
         {"stalled",stalledChunkSample},{"trace",events},{"timeline",pipelineTimeline},{"firstNearReadyWallSeconds",firstNearReadySeconds},
-        {"traceKinds",{{"0","dispatch check returned"},{"1","native task began"},{"2","native task ended"},{"3","native neighbour stage predicate failed"}}},
-        {"scope","bounded read-only engine queue/dependency trace; no GPU publication measurement"}};
+        {"traceKinds",traceKinds},{"dispatchPredicateTraceAvailable",predicateTraceAvailable},
+        {"neighbourPredicateTraceAvailable",predicateTraceAvailable},
+        {"scope","bounded read-only engine queue sample and native task trace; predicate coverage reported separately; no GPU publication measurement"}};
 }

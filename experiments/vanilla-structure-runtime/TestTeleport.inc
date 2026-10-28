@@ -12,7 +12,7 @@ struct TestTeleportListOutput {
   if(!pending.empty())pending+='\n';pending+=message;
   if(++lines==8)flush();
  }
- void finish(){flush();if(player)command.success();}
+ void finish(){flush();if(player)command.success("");}
 };
 
 // Stable biome IDs start at 101; adding them never renumbers structures.
@@ -228,14 +228,26 @@ void tickStructureTest(Level&level){
   if(s.complete&&s.biomesDone()){s.terrain.reset();s.delegate.reset();ll::mod::NativeMod::current()->getLogger().info("Test teleport catalog ready: {}/{} destinations",s.count(),structure_test::expected());}
  }catch(std::exception const&e){s.error=e.what();s.terrain.reset();s.delegate.reset();ll::mod::NativeMod::current()->getLogger().error("Test teleport catalog paused: {}",s.error);try{s.save();}catch(...){};}
 }
+#ifdef SHANHAI_MC_26_51
+// Server loop 0x771949 calls Minecraft::update (0x3790b0) before the
+// per-level tick branch; catalog preparation therefore also runs with no players.
+LL_TYPE_INSTANCE_HOOK(StructureTestPump,ll::memory::HookPriority::Normal,Minecraft,&Minecraft::update,bool){
+ bool updated=origin();
+#else
 LL_TYPE_INSTANCE_HOOK(StructureTestPump,ll::memory::HookPriority::Normal,ServerInstance,&ServerInstance::_update,void){
  origin();
+#endif
  // Empty BDS worlds may have no level ticks. Run from the enclosing server
  // update, on the same thread, without forcing world ticks or loading chunks.
+ auto pump=[] {
  if(!structureTest.enabled||(structureTest.complete&&structureTest.biomesDone())||!structureTest.error.empty())return;
  static auto next=std::chrono::steady_clock::time_point{};auto now=std::chrono::steady_clock::now();if(now<next)return;
  next=now+std::chrono::milliseconds(50);
  if(auto level=ll::service::getLevel())tickStructureTest(*level);
+ };pump();
+#ifdef SHANHAI_MC_26_51
+ return updated;
+#endif
 }
 void registerStructureTest(J const&config){
  structureTest.initialize(config);if(!structureTest.enabled)return;
@@ -269,7 +281,7 @@ void registerStructureTest(J const&config){
   auto&p=static_cast<Player&>(*a);
   if(mode)p.setPlayerGameType(*mode==test_teleport::Mode::Creative?GameType::Creative:GameType::Spectator);
   p.teleport(target,0);
-  p.sendMessage(fmt::format("§9已前往 [{}] {}，{}。§r",id,name,mode?(*mode==test_teleport::Mode::Creative?"创造模式":"观察者模式"):"保持当前模式"));out.success();
+  p.sendMessage(fmt::format("§9已前往 [{}] {}，{}。§r",id,name,mode?(*mode==test_teleport::Mode::Creative?"创造模式":"观察者模式"):"保持当前模式"));out.success("");
  });
  structureTest.join=ll::event::EventBus::getInstance().emplaceListener<ll::event::PlayerJoinEvent>([](auto&e){if(!e.self().isSimulated())e.self().sendMessage(test_teleport::joinMessage());});
  structureTest.save();StructureTestPump::hook();

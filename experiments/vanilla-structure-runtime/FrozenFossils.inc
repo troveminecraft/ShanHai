@@ -36,7 +36,7 @@ void initializeFossilJournal(){
  }
 }
 void warmFossilTemplates(Level&level){
- if(fossilTemplatesReady||!smallFeaturesEnabled||level.getLevelData().getLevelName()!=activeWorld)return;
+ if(fossilTemplatesReady||!smallFeaturesEnabled||bedrock_compat::levelName(level.getLevelData())!=activeWorld)return;
  std::lock_guard guard(stageMutex);if(fossilTemplatesReady)return;auto t=std::chrono::steady_clock::now();J names=J::array();
  // Same eight server-owned skull/spine models used by FossilFeature.
  for(auto type:{"skull","spine"})for(int i=1;i<=4;++i){auto name="fossils/fossil_"+std::string(type)+"_0"+std::to_string(i);auto s=level.getStructureManager()->getOrCreateLegacy(name).rawSize();if(s.x<=0||s.y<=0||s.z<=0)throw std::runtime_error("Missing native fossil template: "+name);names.push_back(name);}
@@ -45,12 +45,21 @@ void warmFossilTemplates(Level&level){
 // Fossil placement must not use a tree canopy/live decorated neighbour to
 // choose its height or decide empty corners. These bounded queries consult
 // the existing seeded terrain; they never generate neighbouring chunks.
+#ifdef SHANHAI_MC_26_51
+LL_TYPE_INSTANCE_HOOK(FossilHeightXZ,ll::memory::HookPriority::Normal,BlockSource,(short(BlockSource::*)(int,int,bool,bool)const)&BlockSource::$getAboveTopSolidBlock,short,int x,int z,bool water,bool leaves){if(fossilCapture&&fossilCapture->source==this){int h=field->surface(x+32768,z+32768).height;return short((capturedVillageGround?villageGround(*capturedVillageGround,x,z,h):h)+1);}return origin(x,z,water,leaves);}
+LL_TYPE_INSTANCE_HOOK(FossilHeightPos,ll::memory::HookPriority::Normal,BlockSource,(short(BlockSource::*)(BlockPos const&,bool,bool,bool)const)&BlockSource::$getAboveTopSolidBlock,short,BlockPos const&p,bool water,bool leaves,bool past){if(fossilCapture&&fossilCapture->source==this){int h=field->surface(p.x+32768,p.z+32768).height;return short((capturedVillageGround?villageGround(*capturedVillageGround,p.x,p.z,h):h)+1);}return origin(p,water,leaves,past);}
+// Eight corner material queries are inlined into FossilFeature::place and
+// still use the virtual getBlock boundary. Captured planning uses immutable
+// terrain for these reads as well as template support/replacement queries.
+LL_TYPE_INSTANCE_HOOK(FossilCorners,ll::memory::HookPriority::Normal,BlockSource,(Block const&(BlockSource::*)(BlockPos const&)const)&BlockSource::$getBlock,Block const&,BlockPos const&p){if(fossilCapture&&fossilCapture->source==this)return seededNeighbourBlock(p);return origin(p);}
+#else
 LL_TYPE_INSTANCE_HOOK(FossilHeightXZ,ll::memory::HookPriority::Normal,BlockSource,(short(BlockSource::*)(int,int))&BlockSource::getHeightmap,short,int x,int z){if(fossilCapture&&fossilCapture->source==this){int h=field->surface(x+32768,z+32768).height;return short((capturedVillageGround?villageGround(*capturedVillageGround,x,z,h):h)+1);}return origin(x,z);}
 LL_TYPE_INSTANCE_HOOK(FossilHeightPos,ll::memory::HookPriority::Normal,BlockSource,(short(BlockSource::*)(BlockPos const&)const)&BlockSource::getHeightmap,short,BlockPos const&p){if(fossilCapture&&fossilCapture->source==this){int h=field->surface(p.x+32768,p.z+32768).height;return short((capturedVillageGround?villageGround(*capturedVillageGround,p.x,p.z,h):h)+1);}return origin(p);}
 LL_STATIC_HOOK(FossilCorners,ll::memory::HookPriority::Normal,&FossilFeature::_countEmptyCorners,uint64,BlockSource const&source,BoundingBox const&b){
  if(!fossilCapture||fossilCapture->source!=&source)return origin(source,b);
  uint64 n=0;for(int x:{b.min.x,b.max.x})for(int z:{b.min.z,b.max.z})for(int y:{b.min.y,b.max.y}){auto s=field->surface(x+32768,z+32768);auto m=field->material(s,x+32768,y,z+32768);n+=m==0||m==8||m==43;}return n;
 }
+#endif
 bool fossilPotential(ChunkPos cp,uint seed){return smallFeaturesEnabled&&worldgen_rules::fossilNeighbourPotential({cp.x,cp.z},seed);}
 void rejectFossil(std::tuple<int,int,std::string> const&key){if(rejectedFossils.emplace(key).second){rejectedFossilOrder.push_back(key);if(rejectedFossilOrder.size()>4096){rejectedFossils.erase(rejectedFossilOrder.front());rejectedFossilOrder.pop_front();}}}
 FrozenFossil* frozenFossil(Dimension&d,BlockSource&blocks,ChunkPos anchor,uint seed,std::string const&kind,std::vector<BoundingBox> const&occupied){
@@ -64,13 +73,19 @@ FrozenFossil* frozenFossil(Dimension&d,BlockSource&blocks,ChunkPos anchor,uint s
  auto s=field->surface(anchor.x*16+32776,anchor.z*16+32776);if(!worldgen_rules::fossilHabitat(s)){rejectFossil(key);return nullptr;}
  // Do not start a newly-added skeleton in previously saved terrain.
  if(storedChunk(d,anchor)){rejectFossil(key);return nullptr;}
- Random rng(seed,true);StructureFeature::setRandomSeedFor(rng,anchor.x,anchor.z,worldgen_rules::fossilPlacementSalt(kind!="fossil"),seed);
+ Random rng(seed,true);bedrock_compat::seedStructure(rng,anchor.x,anchor.z,worldgen_rules::fossilPlacementSalt(kind!="fossil"),seed);
  auto origin=worldgen_rules::fossilOrigin({anchor.x,anchor.z},s.height,kind!="fossil",rng);
  plan.origin={origin.x,origin.y,origin.z};FossilCapture capture{&blocks};fossilCapture=&capture;
  struct Reset{~Reset(){fossilCapture=nullptr;}}reset;auto t=std::chrono::steady_clock::now();++fossilPlanCalls;
- WorldGenContext context{};context.mPreliminarySurfaceProvider=&provider;SmallTarget target(blocks,context);RenderParams params;params.mLevel=&d.getLevel();params.mBlockSource=&blocks;params.mBlockPlacementTarget=&target;FeaturePlacementFailureLog logger;FeaturePlacementFailureLogProxy proxy(logger);
+ WorldGenContext context{};context.mPreliminarySurfaceProvider=&provider;SmallTarget target(blocks,context);RenderParams params;params.mLevel=&bedrock_compat::level(d);params.mBlockSource=&blocks;params.mBlockPlacementTarget=&target;FeaturePlacementFailureLog logger;
+#ifdef SHANHAI_MC_26_51
+  FeaturePlacementFailureLogProxy proxy{&logger};
+#else
+  FeaturePlacementFailureLogProxy proxy(logger);
+#endif
+
  struct Context {IBlockWorldGenAPI& target;BlockPos pos;Random& random;RenderParams& params;FeaturePlacementFailureLogProxy logger;};static_assert(sizeof(Context)==sizeof(IFeature::PlacementContext));
- Context storage{target,plan.origin,rng,params,std::move(proxy)};bool ok=smallDefinition(d.getLevel(),"minecraft:"+kind+"_feature").place(reinterpret_cast<IFeature::PlacementContext const&>(storage)).has_value();fossilCapture=nullptr;
+ Context storage{target,plan.origin,rng,params,std::move(proxy)};bool ok=smallDefinition(bedrock_compat::level(d),"minecraft:"+kind+"_feature").place(reinterpret_cast<IFeature::PlacementContext const&>(storage)).has_value();fossilCapture=nullptr;
  fossilPlanNanos+=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-t).count();
  if(!ok||capture.rejected||capture.writes.empty()){rejectFossil(key);return nullptr;}
  plan.bounds=nativeBox(worldgen_rules::fossilOutputBounds({anchor.x,anchor.z},capture.writes,[](auto p){return worldgen_rules::StructurePoint{p[0],p[1],p[2]};},[](auto b){return b->getTypeName();},field->generationHeight()-65));
@@ -89,9 +104,9 @@ void placeFrozenFossils(Dimension&d,BlockSource&blocks,ChunkPos cp,uint seed,std
    // load, delayed post-generation repair or saved-block comparison/replay.
    writes=unsigned(worldgen_rules::publishFossilOwner({cp.x,cp.z},plan->writes,[](auto p){return worldgen_rules::StructurePoint{p[0],p[1],p[2]};},
     [&](auto p){BlockPos pos{p.x,p.y,p.z};auto const&old=blocks.getBlock(pos);if(old.getTypeName()=="minecraft:bedrock"||blocks.getBlockEntity(pos))throw std::runtime_error("Fossil fragment would overwrite protected block");return &old;},
-    [&](auto p,auto b){BlockPos pos{p.x,p.y,p.z};return blocks.getBlock(pos)==*b||blocks.setBlockNoUpdate(pos,*b);},
-    [&](auto p,auto b){return blocks.setBlockNoUpdate({p.x,p.y,p.z},*b);}));
-   if(writes){++fossilFragments;auto*c=blocks.getChunkAt({cp.x*16,0,cp.z*16});c->setUnsaved();c->markSaveIfNeverSaved();c->markSaveNonActorDataIfDirty();std::ofstream(folder/"fossil-fragments.jsonl",std::ios::app)<<J{{"anchor",{x,z}},{"kind",kind},{"chunk",{cp.x,cp.z}},{"writes",writes},{"ms",std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t).count()}}.dump()<<'\n';}
+    [&](auto p,auto b){BlockPos pos{p.x,p.y,p.z};return blocks.getBlock(pos)==*b||bedrock_compat::setBlockNoUpdate(blocks,pos,*b);},
+    [&](auto p,auto b){return bedrock_compat::setBlockNoUpdate(blocks,{p.x,p.y,p.z},*b);}));
+   if(writes){++fossilFragments;auto*c=blocks.getChunkAt({cp.x*16,0,cp.z*16});bedrock_compat::requestSave(*c);std::ofstream(folder/"fossil-fragments.jsonl",std::ios::app)<<J{{"anchor",{x,z}},{"kind",kind},{"chunk",{cp.x,cp.z}},{"writes",writes},{"ms",std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t).count()}}.dump()<<'\n';}
    fossilFragmentNanos+=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-t).count();
   }
  }
@@ -107,7 +122,7 @@ void inspectFrozenFossil(Dimension&d,int x,int z,bool deep){
  std::ofstream(folder/"fossil-inspection.json")<<J{{"world",activeWorld},{"plan",r},{"counts",counts},{"chunks",chunks},{"mismatches",mismatches},{"complete",mismatches.empty()},{"destination",destination}}.dump(2);
 }
 void findFrozenFossils(Dimension&d,int x,int z,int radius){
- if(radius<1||radius>64)throw std::runtime_error("Fossil search radius must be 1..64 chunks");uint seed=d.getLevel().getLevelData().getSeed().to32BitRandomSeed();J rows=J::array();
+ if(radius<1||radius>64)throw std::runtime_error("Fossil search radius must be 1..64 chunks");uint seed=bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed();J rows=J::array();
  for(int zz=chunk(z)-radius;zz<=chunk(z)+radius;++zz)for(int xx=chunk(x)-radius;xx<=chunk(x)+radius;++xx){ChunkPos cp{xx,zz};if(xx<-terrain_bounds::HalfChunks+1||xx>=terrain_bounds::HalfChunks-1||zz<-terrain_bounds::HalfChunks+1||zz>=terrain_bounds::HalfChunks-1||smallSelector(cp,seed)%64||storedChunk(d,cp))continue;auto s=field->surface(xx*16+32776,zz*16+32776);if((s.biome==11||s.biome==10)&&s.volcanic<.01&&s.iceHabitat<.01&&s.ocean<.5)rows.push_back({{"anchor",{xx*16,zz*16}},{"height",s.height},{"biome",s.biome}});}
  std::ofstream(folder/"fossil-candidates.json")<<rows.dump(2);
 }

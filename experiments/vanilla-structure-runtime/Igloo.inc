@@ -10,14 +10,14 @@ struct IglooLayout {
 BoundingBox templateBounds(LegacyStructureTemplate const& model,BlockPos pos,Rotation rotation){
  auto s=model.rawSize();BoundingBox b{{INT_MAX,INT_MAX,INT_MAX},{INT_MIN,INT_MIN,INT_MIN}};
  for(int z:{0,s.z-1})for(int y:{0,s.y-1})for(int x:{0,s.x-1}){
-  auto q=LegacyStructureTemplate::transform({x,y,z},Mirror::None,rotation);q.x+=pos.x;q.y+=pos.y;q.z+=pos.z;
+  auto q=bedrock_compat::transform({x,y,z},Mirror::None,rotation);q.x+=pos.x;q.y+=pos.y;q.z+=pos.z;
   b.min.x=std::min(b.min.x,q.x);b.min.y=std::min(b.min.y,q.y);b.min.z=std::min(b.min.z,q.z);
   b.max.x=std::max(b.max.x,q.x);b.max.y=std::max(b.max.y,q.y);b.max.z=std::max(b.max.z,q.z);
  }return b;
 }
 IglooLayout planIgloo(Dimension& dim,ChunkPos cp,uint worldSeed,int floor){
- IglooLayout result;Random rng(worldSeed,true);StructureFeature::setRandomSeedFor(rng,cp.x,cp.z,14357617,worldSeed);
- auto manager=dim.getLevel().getStructureManager();
+ IglooLayout result;Random rng(worldSeed,true);bedrock_compat::seedStructure(rng,cp.x,cp.z,14357617,worldSeed);
+ auto manager=bedrock_compat::level(dim).getStructureManager();
  auto model=[&](worldgen_rules::IglooTemplateRole role)->LegacyStructureTemplate&{using R=worldgen_rules::IglooTemplateRole;auto const&native=role==R::TopWithTrapdoor?Igloo::STRUCTURE_LOCATION_IGLOO_TRAPDOOR():role==R::TopWithoutTrapdoor?Igloo::STRUCTURE_LOCATION_IGLOO_NO_TRAPDOOR():role==R::Ladder?Igloo::STRUCTURE_LOCATION_LADDER():Igloo::STRUCTURE_LOCATION_LABORATORY();auto expected=worldgen_rules::iglooTemplateName(role);if(worldgen_rules::sharedStructurePlan(input.at("config").value("sharedRules",J::object()).value("revision",std::string{}))&&native!=expected)throw std::runtime_error("Igloo native template name differs from shared catalog");return manager->getOrCreateLegacy(native);};
  auto size=[&](auto role){auto s=model(role).rawSize();return worldgen_rules::StructurePoint{s.x,s.y,s.z};};
  auto plan=[&]{if(worldgen_rules::sharedStructurePlan(input.at("config").value("sharedRules",J::object()).value("revision",std::string{}))){worldgen_rules::StructureRandom shared(worldgen_rules::placementSeed(cp.x,cp.z,14357617,worldSeed));return worldgen_rules::planFrozenIgloo({cp.x,cp.z},floor,shared,size);}return worldgen_rules::planFrozenIgloo({cp.x,cp.z},floor,rng,size);}();
@@ -43,7 +43,7 @@ void compileIglooProgram(IglooLayout&layout){
 }
 bool placeIgloo(BlockSource& blocks,IglooLayout const& plan,BoundingBox const& clip){
  auto air=Block::tryGetFromRegistry("minecraft:air");if(!air)throw std::runtime_error("Missing air");
- if(plan.program)return worldgen_rules::executeFrozenIgloo(*plan.program,{{clip.min.x,clip.min.y,clip.min.z},{clip.max.x,clip.max.y,clip.max.z}},[&](size_t i,auto const&,int rotation,uint32_t seed,uint32_t randomSeed,auto const&){auto const&p=plan.parts.at(i);LegacyStructureSettings settings(Mirror::None,Rotation(rotation),nullptr,clip);settings.mIgnoreStructureBlocks=true;settings.mSeed=seed;Random rng(randomSeed,true);p.model->placeInWorld(blocks,p.pos,settings,rng);},[&](worldgen_rules::StructurePoint p){blocks.setBlockNoUpdate({p.x,p.y,p.z},*air);},[&](worldgen_rules::StructureLootAssignment const&a){BlockPos p{a.position.x,a.position.y,a.position.z};if(blocks.getBlock(p).getTypeName()!="minecraft:chest")throw std::runtime_error("Igloo chest marker has no chest");auto actor=blocks.getBlockEntity(p);if(!actor)throw std::runtime_error("Igloo chest actor absent");static_cast<ChestBlockActor*>(actor)->setLootTable(a.table,int(a.seed));});
+ if(plan.program)return worldgen_rules::executeFrozenIgloo(*plan.program,{{clip.min.x,clip.min.y,clip.min.z},{clip.max.x,clip.max.y,clip.max.z}},[&](size_t i,auto const&,int rotation,uint32_t seed,uint32_t randomSeed,auto const&){auto const&p=plan.parts.at(i);LegacyStructureSettings settings(Mirror::None,Rotation(rotation),nullptr,clip);settings.mIgnoreStructureBlocks=true;settings.mSeed=seed;Random rng(randomSeed,true);p.model->placeInWorld(blocks,p.pos,settings,rng);},[&](worldgen_rules::StructurePoint p){bedrock_compat::setBlockNoUpdate(blocks,{p.x,p.y,p.z},*air);},[&](worldgen_rules::StructureLootAssignment const&a){BlockPos p{a.position.x,a.position.y,a.position.z};if(blocks.getBlock(p).getTypeName()!="minecraft:chest")throw std::runtime_error("Igloo chest marker has no chest");auto actor=blocks.getBlockEntity(p);if(!actor)throw std::runtime_error("Igloo chest actor absent");static_cast<ChestBlockActor*>(actor)->setLootTable(a.table,int(a.seed));});
  for(size_t i=0;i<plan.parts.size();++i){auto const&p=plan.parts[i];auto const& b=p.bounds;
   if(b.max.x<clip.min.x||b.min.x>clip.max.x||b.max.z<clip.min.z||b.min.z>clip.max.z)continue;
   LegacyStructureSettings settings(Mirror::None,plan.rotation,nullptr,clip);settings.mIgnoreStructureBlocks=true;settings.mSeed=plan.seed;
@@ -52,7 +52,7 @@ bool placeIgloo(BlockSource& blocks,IglooLayout const& plan,BoundingBox const& c
   // until their once-only post-load lifecycle is wired; don't spawn per chunk.
   for(auto const&[pos,label]:p.model->getMarkers(p.pos,settings)){
    if(pos.x<clip.min.x||pos.x>clip.max.x||pos.z<clip.min.z||pos.z>clip.max.z)continue;
-   blocks.setBlockNoUpdate(pos,*air);
+   bedrock_compat::setBlockNoUpdate(blocks,pos,*air);
    if(auto assignment=worldgen_rules::iglooMarkerLoot(label,{pos.x,pos.y,pos.z},plan.seed)){BlockPos chestPos{assignment->position.x,assignment->position.y,assignment->position.z};if(blocks.getBlock(chestPos).getTypeName()!="minecraft:chest")throw std::runtime_error("Igloo chest marker has no chest");
     auto actor=blocks.getBlockEntity(chestPos);if(!actor)throw std::runtime_error("Igloo chest actor absent");
     static_cast<ChestBlockActor*>(actor)->setLootTable(assignment->table,int(assignment->seed));

@@ -4,31 +4,31 @@
 
 English · [简体中文](README.zh-CN.md)
 
-[Download 0.2.10](https://github.com/troveminecraft/ShanHai/releases/tag/v0.2.10) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
+[Download 0.3.0](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.0) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
 
 ShanHai is an Overworld terrain generation mod for Minecraft Bedrock on Windows, powered by LeviLamina. Follow rivers through mountain ranges, rolling highlands, forests, deserts and coastlines; explore caves, glaciers and volcanic terrain. Vanilla structures are placed according to the surrounding landscape.
 
 ## Requirements
 
-- Minecraft for Windows **1.26.20.04**.
-- LeviLamina **26.20.7**, client edition.
+- Minecraft for Windows **1.26.51.01**.
+- LeviLamina **26.51.9**, client edition.
 - Windows x64 and an AVX2-capable CPU.
 
 ## Install
 
-1. Download [ShanHai-Windows-0.2.10.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.2.10/ShanHai-Windows-0.2.10.zip).
+1. Download [ShanHai-Windows-0.3.0.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.3.0/ShanHai-Windows-0.3.0.zip).
 2. Save and fully close Minecraft. Import the ZIP into the matching instance through LeviLauncher’s mod manager.
 3. Enable the mod and create a new **normal** world with your chosen seed. Do not select a flat world.
 
 Use the release ZIP, rather than GitHub’s automatically generated source archive. Python and Node.js runtime dependencies are included; copying only the DLL is insufficient. The internal mod ID remains `karma-worldgen-client` for configuration and save compatibility.
 
-## Version 0.2.10
+## Version 0.3.0
 
-The player’s complete nearby dependency halo now stays ahead of older distant jobs. This corrects the 0.2.9 priority inversion that could delay first entry while view-distance work aged. Extra native scheduling checks run only after a sampled queue remains idle, rather than while native tasks are already running.
+Windows now targets Minecraft **1.26.51.01** with LeviLamina **26.51.9**. World creation, height-pack discovery, chunk views, save-state tracking and native structure placement use the new game interfaces. The shared source retains a separate 26.20 build path; DLLs for different game builds are not interchangeable.
 
-Ordinary chunks reuse bounded, value-only structure reservation snapshots without acquiring the native placement lock. Proven rejected structure candidates can also finish the adapter stage without that lock; unknown or accepted candidates retain the original planning and placement paths. Expected unfinished dependency rings at the view boundary are excluded from interior backlog pressure; enclosed holes are still tracked.
+The Y500 cloud adjustment uses the two native cloud-height call sites shared by original graphics and Vibrant Visuals. Executable layout and instruction checks reject unsupported builds. Native chunk task timing follows each task’s owning chunk, and client mesh-build timing remains available. Diagnostics explicitly identify unavailable dispatch/neighbour predicate traces on 26.51.
 
-Diagnostics retain the longest lock holders and a bounded startup/recent timeline using wall time. Terrain generation rules, existing worlds, Y100 sea level and Y-64..511 build height are unchanged. Loading stalls and visible gaps can still occur during exploration.
+Terrain recipes, kernel **2.211**, sea level **Y100** and building range **Y-64..511** are unchanged. Existing supported recipes remain pinned. Known issue: first entry and exploration can still show loading stalls or visible chunk gaps; this compatibility update does not establish that those problems are resolved.
 
 Please report the version, world seed, coordinates, screenshots and reproduction steps when you encounter an issue.
 

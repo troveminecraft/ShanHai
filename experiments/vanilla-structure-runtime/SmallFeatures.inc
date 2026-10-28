@@ -2,7 +2,7 @@
 // Discovery is console-only; generation never scans the feature registry.
 void nativeFeatureCatalog(Dimension& d){
  J rows=J::array();
- d.getLevel().getFeatureRegistry().forEachFeature([&](HashedString const&name,WeakRef<IFeature> weak){
+ bedrock_compat::forEachFeature(bedrock_compat::level(d).getFeatureRegistry(),[&](HashedString const&name,WeakRef<IFeature> weak){
   if(!weak.mRegistry->has_value())return;
   auto& entries=*weak.mRegistry->value().get().mFeatureRegistry;
   auto index=uint64_t(weak.mIndex);if(index>=entries.size()||!entries[index])return;
@@ -35,7 +35,7 @@ IFeature& smallDefinition(Level& level,std::string const& name){
  if(!weak.mRegistry->has_value())throw std::runtime_error("Native small feature missing: "+name);
  auto&entries=*weak.mRegistry->value().get().mFeatureRegistry;auto i=uint64_t(weak.mIndex);
  if(i>=entries.size()||!entries[i])throw std::runtime_error("Native small feature registry index invalid");
- auto* p=entries[i].get();if(level.getFeatureRegistry().reverseLookupString(*p)!=name)throw std::runtime_error("Native small feature name/index mismatch");nativeSmallDefinitions.emplace(name,p);return *p;
+ auto* p=entries[i].get();if(!bedrock_compat::featureNameMatches(level.getFeatureRegistry(),name,i,p))throw std::runtime_error("Native small feature name/index mismatch");nativeSmallDefinitions.emplace(name,p);return *p;
 }
 struct SmallWriteScope {
  BoundingBox clip;BlockSource* source;std::map<std::array<int,3>,Block const*> before;unsigned rejected=0;J rejectedPos=J::array();
@@ -59,8 +59,23 @@ bool captureSmallWrite(BlockSource* source,BlockPos const&p){
  s->before.try_emplace({p.x,p.y,p.z},&source->getBlock(p));return true;
 }
 LL_TYPE_INSTANCE_HOOK(SmallWrite,ll::memory::HookPriority::Normal,BlockSource,&BlockSource::$setBlock,bool,BlockPos const&p,Block const&block,int flags,ActorBlockSyncMessage const*sync,BlockChangeContext const&context){if(captureFossilWrite(this,p,block))return true;if(!captureSmallWrite(this,p))return false;bool done=origin(p,block,flags,sync,context);if(done)rememberStructureWall(p,block);return done;}
+#ifndef SHANHAI_MC_26_51
 LL_TYPE_INSTANCE_HOOK(SmallWriteSimple,ll::memory::HookPriority::Normal,BlockSource,&BlockSource::setBlockNoUpdate,bool,BlockPos const&p,Block const&block){if(captureFossilWrite(this,p,block))return true;if(!captureSmallWrite(this,p))return false;bool done=origin(p,block);if(done)rememberStructureWall(p,block);return done;}
 LL_TYPE_INSTANCE_HOOK(SmallWriteFast,ll::memory::HookPriority::Normal,BlockSource,&BlockSource::setBlockSimple,bool,BlockPos const&p,Block const&block){if(captureFossilWrite(this,p,block))return true;if(!captureSmallWrite(this,p))return false;bool done=origin(p,block);if(done)rememberStructureWall(p,block);return done;}
+#else
+// The source's simple setter is now inlined. Catch the public target boundary
+// before a missing chunk can reject a fossil capture, and the surviving chunk
+// setter for native structure paths that do not use WorldBlockTarget.
+LL_TYPE_INSTANCE_HOOK(SmallWriteFast,ll::memory::HookPriority::Normal,WorldBlockTarget,&WorldBlockTarget::$setBlockSimple,bool,BlockPos const&p,Block const&block){auto*source=&mBlockSource;if(captureFossilWrite(source,p,block))return true;if(!captureSmallWrite(source,p))return false;bool done=origin(p,block);if(done)rememberStructureWall(p,block);return done;}
+BlockSource* nativeSimpleSource(){return fossilCapture?fossilCapture->source:smallWriteScope?smallWriteScope->source:portalWriteSource;}
+BlockPos nativeSimplePosition(LevelChunk& chunk,ChunkBlockPos const& p){auto cp=*chunk.mPosition;return {cp.x*16+int(p.x),int(chunk.mMin->y)+int(p.y.mVal),cp.z*16+int(p.z)};}
+bool captureNativeSimpleWrite(LevelChunk& c,ChunkBlockPos const& p,Block const& b){
+ auto* source=nativeSimpleSource();if(!source)return false;auto world=nativeSimplePosition(c,p);
+ if(source->getChunkAt(world)!=&c)return false;
+ return captureFossilWrite(source,world,b)||!captureSmallWrite(source,world);
+}
+void rememberNativeSimpleWrite(LevelChunk& c,ChunkBlockPos const& p,Block const& b){if(nativeSimpleSource())rememberStructureWall(nativeSimplePosition(c,p),b);}
+#endif
 class SmallTarget final:public WorldBlockTarget {
 public:
  SmallTarget(BlockSource&b,WorldGenContext const&c):WorldBlockTarget(b,c){}
@@ -74,21 +89,27 @@ bool callSmallFeature(Dimension& d,BlockSource&blocks,ChunkPos cp,std::string co
   static unsigned diagnostics=0;if(!placed&&diagnostics++<8){J rings=J::array();for(int radius:{3,4}){int floor=0,roof3=0,roof4=0,doors=0;for(int dz=-radius;dz<=radius;++dz)for(int dx=-radius;dx<=radius;++dx){floor+=blocks.isSolidBlockingBlock({pos.x+dx,pos.y-1,pos.z+dz});roof3+=blocks.isSolidBlockingBlock({pos.x+dx,pos.y+3,pos.z+dz});roof4+=blocks.isSolidBlockingBlock({pos.x+dx,pos.y+4,pos.z+dz});if(std::abs(dx)==radius||std::abs(dz)==radius)doors+=blocks.getBlock({pos.x+dx,pos.y,pos.z+dz}).getTypeName()=="minecraft:air"&&blocks.getBlock({pos.x+dx,pos.y+1,pos.z+dz}).getTypeName()=="minecraft:air";}rings.push_back({{"radius",radius},{"floor",floor},{"roof3",roof3},{"roof4",roof4},{"doors",doors}});}std::ofstream(folder/"dungeon-fit-diagnostics.jsonl",std::ios::app)<<J{{"pos",{pos.x,pos.y,pos.z}},{"rings",rings}}.dump()<<'\n';}
  }
  else {
-  WorldGenContext worldContext{};worldContext.mPreliminarySurfaceProvider=&provider;SmallTarget target(blocks,worldContext);RenderParams params;params.mLevel=&d.getLevel();params.mBlockSource=&blocks;params.mBlockPlacementTarget=&target;
-  FeaturePlacementFailureLog logger;FeaturePlacementFailureLogProxy proxy(logger);
+  WorldGenContext worldContext{};worldContext.mPreliminarySurfaceProvider=&provider;SmallTarget target(blocks,worldContext);RenderParams params;params.mLevel=&bedrock_compat::level(d);params.mBlockSource=&blocks;params.mBlockPlacementTarget=&target;
+  FeaturePlacementFailureLog logger;
+#ifdef SHANHAI_MC_26_51
+  FeaturePlacementFailureLogProxy proxy{&logger};
+#else
+  FeaturePlacementFailureLogProxy proxy(logger);
+#endif
+
   struct Context {IBlockWorldGenAPI& target;BlockPos pos;Random& random;RenderParams& params;FeaturePlacementFailureLogProxy logger;};
   static_assert(sizeof(Context)==sizeof(IFeature::PlacementContext));static_assert(offsetof(Context,logger)==offsetof(IFeature::PlacementContext,mLogger));
-  Context storage{target,pos,rng,params,std::move(proxy)};auto&def=smallDefinition(d.getLevel(),"minecraft:"+kind+"_feature");
+  Context storage{target,pos,rng,params,std::move(proxy)};auto&def=smallDefinition(bedrock_compat::level(d),"minecraft:"+kind+"_feature");
   placed=def.place(reinterpret_cast<IFeature::PlacementContext const&>(storage)).has_value();
  }
  if(placed&&!scope.rejected&&kind=="desert_well"){
-  auto air=Block::tryGetFromRegistry("minecraft:air");for(int z=pos.z-3;z<=pos.z+3;++z)for(int x=pos.x-3;x<=pos.x+3;++x)for(int y=pos.y-2;y<=pos.y+6;++y){BlockPos p{x,y,z};auto const&v=blocks.getBlock(p);if((groundPlant(v.getTypeName())||v.getTypeName()=="minecraft:cactus")&&!v.canSurvive(blocks,p))blocks.setBlockNoUpdate(p,*air);}
+  auto air=Block::tryGetFromRegistry("minecraft:air");for(int z=pos.z-3;z<=pos.z+3;++z)for(int x=pos.x-3;x<=pos.x+3;++x)for(int y=pos.y-2;y<=pos.y+6;++y){BlockPos p{x,y,z};auto const&v=blocks.getBlock(p);if((groundPlant(v.getTypeName())||v.getTypeName()=="minecraft:cactus")&&!v.canSurvive(blocks,p))bedrock_compat::setBlockNoUpdate(blocks,p,*air);}
  }
  smallWriteScope=nullptr;
  double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-began).count();smallNanos+=uint64_t(ms*1e6);
- if(scope.rejected||!placed){for(auto const&[p,old]:scope.before)blocks.setBlockNoUpdate({p[0],p[1],p[2]},*old);if(scope.rejected)std::ofstream(folder/"small-feature-rejections.jsonl",std::ios::app)<<J{{"kind",kind},{"pos",{pos.x,pos.y,pos.z}},{"rejectedWrites",scope.rejected},{"firstRejected",scope.rejectedPos},{"rolledBack",scope.before.size()}}.dump()<<'\n';return false;}
+ if(scope.rejected||!placed){for(auto const&[p,old]:scope.before)bedrock_compat::setBlockNoUpdate(blocks,{p[0],p[1],p[2]},*old);if(scope.rejected)std::ofstream(folder/"small-feature-rejections.jsonl",std::ios::app)<<J{{"kind",kind},{"pos",{pos.x,pos.y,pos.z}},{"rejectedWrites",scope.rejected},{"firstRejected",scope.rejectedPos},{"rolledBack",scope.before.size()}}.dump()<<'\n';return false;}
  if(scope.before.empty())return false;
- ++smallPlaced;auto ch=blocks.getChunkAt(pos);ch->setUnsaved();ch->markSaveIfNeverSaved();ch->markSaveNonActorDataIfDirty();
+ ++smallPlaced;auto ch=blocks.getChunkAt(pos);bedrock_compat::requestSave(*ch);
  BoundingBox written{{32000,(field->generationHeight()-64),32000},{-32000,-64,-32000}};
  for(auto const&[p,old]:scope.before){written.min.x=std::min(written.min.x,p[0]);written.min.y=std::min(written.min.y,p[1]);written.min.z=std::min(written.min.z,p[2]);written.max.x=std::max(written.max.x,p[0]);written.max.y=std::max(written.max.y,p[1]);written.max.z=std::max(written.max.z,p[2]);}
  J row{{"world",activeWorld},{"kind",kind},{"pos",{pos.x,pos.y,pos.z}},{"chunk",{cp.x,cp.z}},{"box",boxJson(written)},{"writes",scope.before.size()},{"ms",ms}};
@@ -108,7 +129,7 @@ void placeSmallFeatures(Dimension&d,BlockSource&blocks,ChunkPos cp,uint seed,std
  // Re-evaluate native placement for that fresh chunk; never replay saved chunks.
  auto key=std::pair{cp.x,cp.z};completedSmallChunks.erase(key);
  auto probeBegan=std::chrono::steady_clock::now();++smallProbeCalls;struct Timer{std::chrono::steady_clock::time_point began;~Timer(){smallProbeNanos+=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-began).count();}}timer{probeBegan};
- Random rng(seed,true);StructureFeature::setRandomSeedFor(rng,cp.x,cp.z,worldgen_rules::SmallFeatureSalt,seed);
+ Random rng(seed,true);bedrock_compat::seedStructure(rng,cp.x,cp.z,worldgen_rules::SmallFeatureSalt,seed);
  auto name=[&](worldgen_rules::StructurePoint p)->std::string_view{return blocks.getBlock({p.x,p.y,p.z}).getTypeName();};
  auto solid=[&](worldgen_rules::StructurePoint p){return blocks.isSolidBlockingBlock({p.x,p.y,p.z});};
  std::vector<worldgen_rules::StructureBox> reserved;reserved.reserve(occupied.size());for(auto const&b:occupied)reserved.push_back(sharedBox(b));
@@ -116,7 +137,7 @@ void placeSmallFeatures(Dimension&d,BlockSource&blocks,ChunkPos cp,uint seed,std
 
 }
 void findSmallCandidates(Dimension&d,int x,int z){
- uint seed=d.getLevel().getLevelData().getSeed().to32BitRandomSeed();J rows=J::array();int cx=chunk(x),cz=chunk(z);
+ uint seed=bedrock_compat::seed(bedrock_compat::level(d).getLevelData()).to32BitRandomSeed();J rows=J::array();int cx=chunk(x),cz=chunk(z);
  for(int dz=-128;dz<=128;++dz)for(int dx=-128;dx<=128;++dx){ChunkPos cp{cx+dx,cz+dz};if(!structureChunkInside(cp.x,cp.z))continue;
   if(wellCandidate(cp,seed))if(auto p=wellPosition(cp);p&&!storedChunk(d,cp))rows.push_back({{"kind","desert_well"},{"pos",{p->x,p->y,p->z}},{"chunk",{cp.x,cp.z}}});
  }
@@ -129,7 +150,7 @@ void inspectSmallFeature(Dimension&d,BlockPos pos){
   if(n=="minecraft:chest"||n=="minecraft:mob_spawner"||n=="minecraft:suspicious_sand"||n=="minecraft:bone_block"){
    J row{{"pos",{x,y,z}},{"block",n}};auto actor=blocks.getBlockEntity(p);row["blockActor"]=actor!=nullptr;
    if(actor&&n=="minecraft:chest"){auto*c=static_cast<ChestBlockActor const*>(actor);row["lootTable"]=*c->mLootTable;row["lootSeed"]=c->mLootTableSeed;}
-   if(actor&&n=="minecraft:mob_spawner"){auto*s=static_cast<MobSpawnerBlockActor const*>(actor);row["mob"]=s->mSpawner->mActorDefId->getFullName();row["playerRange"]=int(s->mSpawner->mRequiredPlayerRange);}
+   if(actor&&n=="minecraft:mob_spawner"){auto*s=static_cast<MobSpawnerBlockActor const*>(actor);row["mob"]=*s->mSpawner->mActorDefId->mFullName;row["playerRange"]=int(s->mSpawner->mRequiredPlayerRange);}
    special.push_back(row);
   }
  }

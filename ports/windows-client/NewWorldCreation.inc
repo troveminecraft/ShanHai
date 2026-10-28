@@ -9,6 +9,10 @@
 #include "mc/client/gui/screens/models/IContentManager.h"
 #include "mc/resources/IResourcePackRepository.h"
 #include "mc/resources/ResourcePack.h"
+#ifdef SHANHAI_MC_26_51
+#include "mc/resources/InvalidPack.h"
+#include "mc/deps/core/sem_ver/SemVersionConstant.h"
+#endif
 #include "mc/resources/PackSourceFactory.h"
 #include "mc/resources/DirectoryPackSource.h"
 #include "mc/deps/core/resource/PackIdVersion.h"
@@ -24,17 +28,21 @@ using Provider=OreUI::WorldSettingsProvider_DEPRECATED;
 std::filesystem::path modFolder;
 bool enabled=true;
 bool hooksInstalled=false;
-// LL 26.20.7 omits the nonempty FacetBase layout. This correction is local to
-// the pinned 1.26.20.04 adapter; never call methods through an adjusted this.
+// Both pinned SDKs omit the nonempty FacetBase layout. Native instruction
+// checks below guard this field correction; never adjust the method this pointer.
 static_assert(offsetof(Facet,mWorldSettingsProvider)==0x1e0);
 static_assert(offsetof(Facet,mStatus)==0x11);
+#ifdef SHANHAI_MC_26_51
+static_assert(offsetof(Provider,mWorldCreator)==0xd58);
+static_assert(offsetof(WorldCreationHelper,mCreatingFromTemplate)==0x94);
+#endif
 template<class T> T& facetField(Facet& f,T Facet::*member){
  return *reinterpret_cast<T*>(reinterpret_cast<std::byte*>(&(f.*member))+0x18);
 }
 bool supportedFacetLayout(){
  auto base=reinterpret_cast<unsigned char const*>(GetModuleHandleW(nullptr));
  auto check=image::inspect([&](uint32_t rva,void* out,size_t size){
-  if(!base||uint64_t(rva)+size>0xea9f000)return false;
+  if(!base||uint64_t(rva)+size>image::MaxRva)return false;
   MEMORY_BASIC_INFORMATION page{};auto address=base+rva;
   if(!VirtualQuery(address,&page,sizeof(page))||page.State!=MEM_COMMIT||
      (page.Protect&(PAGE_NOACCESS|PAGE_GUARD))||
@@ -52,7 +60,7 @@ bool supportedSeedParser(){
  Json checks=Json::array();bool valid=true;
  for(auto const* text:{"0","-1","288493980","9223372036854775807","-9223372036854775808"}){
   auto parsed=LevelSettings::parseSeedString(text);
-  auto actual=parsed?parsed->toUiString():std::string("invalid");
+  auto actual=parsed?bedrock_compat::seedText(*parsed):std::string("invalid");
   bool matches=actual==text;valid=valid&&matches;
   checks.push_back({{"input",text},{"actual",actual},{"matches",matches}});
  }
@@ -73,6 +81,7 @@ struct Job {
  std::string seed,name,phase="正在准备 Karma 世界";
  Json result;
  HANDLE group=nullptr,process=nullptr;
+ bool heightPackPrepared=false;
  bool ready=false,failed=false,cancelled=false,progressFinished=false,handedOff=false,attached=false;
  float progress=0.f;
  std::chrono::steady_clock::time_point lastPoll{};
@@ -171,10 +180,20 @@ void resetFacet(Facet&f,std::string const&error={}){
  *facetField(f,&Facet::mInputError)=error;
  facetField(f,&Facet::mStatus)=error.empty()?Facet::FacetStatus::Idle:Facet::FacetStatus::InputError;
 }
-class Progress final:public CallbackProgressHandler {
+#ifdef SHANHAI_MC_26_51
+using ProgressBase=EmptyProgressHandler;
+static_assert(sizeof(ProgressHandler)==16 && offsetof(ProgressHandler,mType)==8 && offsetof(ProgressHandler,mProgressAnimation)==12);
+#else
+using ProgressBase=CallbackProgressHandler;
+#endif
+class Progress final:public ProgressBase {
  std::shared_ptr<Job> job;Facet* facet;std::weak_ptr<bool> life;
 public:
- Progress(std::shared_ptr<Job> j,Facet&f):CallbackProgressHandler([]{return LoadingState::None;}),job(std::move(j)),facet(&f),life(facetField(f,&Facet::mIsAlive)){
+ Progress(std::shared_ptr<Job> j,Facet&f):
+#ifndef SHANHAI_MC_26_51
+ ProgressBase([]{return LoadingState::BuildingTerrain;}),
+#endif
+ job(std::move(j)),facet(&f),life(facetField(f,&Facet::mIsAlive)){
   mProgressAnimation=ProgressAnimation::LoadingBar;
  }
  void onStart(MinecraftScreenModel&)override{}
@@ -202,7 +221,13 @@ public:
   if(!alive(weak)||j->cancelled)return;
   j->trace("progress_closed");
   if(j->failed){resetFacet(*f,j->phase);jobs.erase(f);return;}
+#ifdef SHANHAI_MC_26_51
+  // The stage is inlined into update() in 26.51. Resume on the next UI update.
+  facetField(*f,&Facet::mStatus)=Facet::FacetStatus::StartCreatingWorld;
+  facetField(*f,&Facet::mIsDirty)=true;
+#else
   f->_handleStartCreatingWorld();
+#endif
  }
  LoadingState getLoadingState(MinecraftScreenModel&)const override{
   return job->ready||job->failed||job->cancelled?LoadingState::Done:
@@ -218,17 +243,25 @@ public:
  std::string getName()const override{return "karma_seed_preparation";}
 };
 
-LL_TYPE_INSTANCE_HOOK(CreateStage,ll::memory::HookPriority::Normal,Facet,&Facet::_handleStartCreatingWorld,void){
- auto& provider=*facetField(*this,&Facet::mWorldSettingsProvider);
- auto& bindings=getLevelDataBindings();
+template<class T> WorldCreationHelper& worldCreator(T& provider) {
+ if constexpr(requires{provider.getWorldCreationHelper();})return provider.getWorldCreationHelper();
+ else return *provider.mWorldCreator;
+}
+template<class T> bool fromTemplate(T const& provider) {
+ if constexpr(requires{provider.isFromWorldTemplate();})return provider.isFromWorldTemplate();
+ else return bool(provider.mWorldCreator->mCreatingFromTemplate);
+}
+template<class Next> void handleCreationStage(Facet& facet,Next&& next){
+ auto& provider=*facetField(facet,&Facet::mWorldSettingsProvider);
+ auto& bindings=facet.getLevelDataBindings();
  auto& advanced=*bindings.mAdvanced;
- if(!enabled||facetField(*this,&Facet::mCreatingOnRealms)||isEditorWorld()||provider.isFromWorldTemplate())return origin();
- auto found=jobs.find(this);
+ if(!enabled||facetField(facet,&Facet::mCreatingOnRealms)||facet.isEditorWorld()||fromTemplate(provider))return next();
+ auto found=jobs.find(&facet);
  if(found==jobs.end()){
   // Explicit superflat worlds retain their selected vanilla preset.
-  if(advanced.getGeneratorType()==GeneratorType::Flat)return origin();
+  if(advanced.getGeneratorType()==GeneratorType::Flat)return next();
   if(advanced.getGeneratorType()!=GeneratorType::Overworld){
-   resetFacet(*this,"Karma 暂不支持这个世界类型，请使用普通世界");return;
+   resetFacet(facet,"Karma 暂不支持这个世界类型，请使用普通世界");return;
   }
   auto j=std::make_shared<Job>();
   // The binding resolves text/numeric/random seeds with vanilla's own semantics.
@@ -241,17 +274,17 @@ LL_TYPE_INSTANCE_HOOK(CreateStage,ll::memory::HookPriority::Normal,Facet,&Facet:
   if(seedText.empty()){
    LevelSeed64 random{};
    if(BCryptGenRandom(nullptr,reinterpret_cast<PUCHAR>(&random.mValue),sizeof(random.mValue),BCRYPT_USE_SYSTEM_PREFERRED_RNG)<0){
-    resetFacet(*this,"无法生成随机种子，请输入种子后重试");return;
+    resetFacet(facet,"无法生成随机种子，请输入种子后重试");return;
    }
-   j->seed=random.toUiString();
+   j->seed=bedrock_compat::seedText(random);
   }else{
    auto parsed=LevelSettings::parseSeedString(seedText);
-   if(!parsed){resetFacet(*this,"无法解析世界种子，请检查种子输入");return;}
-   j->seed=parsed->toUiString();
+   if(!parsed){resetFacet(facet,"无法解析世界种子，请检查种子输入");return;}
+   j->seed=bedrock_compat::seedText(*parsed);
    // Decimal seeds must round-trip exactly (leading zeros/plus are permitted).
    try{size_t used=0;auto numeric=std::stoll(seedText,&used);
     if(used==seedText.size()&&j->seed!=std::to_string(numeric)){
-     resetFacet(*this,"Karma 种子校验失败，已停止创建");return;
+     resetFacet(facet,"Karma 种子校验失败，已停止创建");return;
     }
    }catch(std::exception const&){} // Named seeds use vanilla's string hashing.
   }
@@ -259,32 +292,60 @@ LL_TYPE_INSTANCE_HOOK(CreateStage,ll::memory::HookPriority::Normal,Facet,&Facet:
   // Freeze a resolved random seed before the asynchronous boundary.
   advanced.setWorldSeed(j->seed);
   try{
-   j->start();jobs[this]=j;
-   auto& nav=*facetField(*this,&Facet::mProgressScreenNavigation);
-   auto scene=nav.mSceneFactory.createModalProgressScreen("karma_seed_preparation",std::make_unique<Progress>(j,*this),true,true,"",true,0.8f);
+   j->start();jobs[&facet]=j;
+   auto& nav=*facetField(facet,&Facet::mProgressScreenNavigation);
+   auto scene=nav.mSceneFactory.createModalProgressScreen("karma_seed_preparation",std::make_unique<Progress>(j,facet),true,true,"",true,0.8f);
    (*nav.mGetSceneStack)()->pushScreen(std::move(scene),false);
    terrain::log().info("Karma new-world preparation: seed={}",j->seed);
-  }catch(std::exception const&e){j->cancel();jobs.erase(this);resetFacet(*this,"Karma 创建准备无法启动，请检查模组安装");terrain::log().error("Create world: {}",e.what());}
+  }catch(std::exception const&e){j->cancel();jobs.erase(&facet);resetFacet(facet,"Karma 创建准备无法启动，请检查模组安装");terrain::log().error("Create world: {}",e.what());}
   return;
  }
  auto j=found->second;j->poll();
  if(!j->ready||!j->progressFinished||j->failed||j->cancelled||j->handedOff)return;
- if(advanced.getWorldSeed()!=j->seed){resetFacet(*this,"准备期间种子发生变化，请重新创建");jobs.erase(this);return;}
+ if(advanced.getWorldSeed()!=j->seed){resetFacet(facet,"准备期间种子发生变化，请重新创建");jobs.erase(&facet);return;}
  j->handedOff=true;
  j->trace("create_handoff");
- prepared[&provider.getWorldCreationHelper()]=j;
+ prepared[&worldCreator(provider)]=j;
  advanced.setGeneratorType(GeneratorType::Flat);advanced.setFlatWorldPreset("TheVoid");
- origin();
+ next();
  // The native stage only selects its next UI state; it has not started a server.
  // Replace our attachment failure with a specific input error before the next tick.
  if(j->failed){
-  prepared.erase(&provider.getWorldCreationHelper());
+  prepared.erase(&worldCreator(provider));
   advanced.setGeneratorType(GeneratorType::Overworld);
-  clearErrors();resetFacet(*this,j->phase);jobs.erase(this);
+  facet.clearErrors();resetFacet(facet,j->phase);jobs.erase(&facet);
  }
 }
 
-LL_TYPE_INSTANCE_HOOK(CreateFiles,ll::memory::HookPriority::Normal,WorldCreationHelper,&WorldCreationHelper::createWorld,
+#ifdef SHANHAI_MC_26_51
+bool beforeLocalServer(WorldCreationHelper&);
+LL_TYPE_INSTANCE_HOOK(CreateStage,ll::memory::HookPriority::Normal,Facet,&Facet::$update,bool){
+ auto state=facetField(*this,&Facet::mStatus);
+ if(state==Facet::FacetStatus::StartCreatingWorld){
+  bool updated=false;handleCreationStage(*this,[&]{updated=origin();});return updated;
+ }
+ if(state==Facet::FacetStatus::StartLocalServer){
+  auto& provider=*facetField(*this,&Facet::mWorldSettingsProvider);
+  auto& helper=worldCreator(provider);
+  if(!beforeLocalServer(helper))return true;
+  bool updated=origin();
+  if(facetField(*this,&Facet::mStatus)!=Facet::FacetStatus::StartLocalServer)awaitingServer.erase(&helper);
+  return updated;
+ }
+ return origin();
+}
+#else
+LL_TYPE_INSTANCE_HOOK(CreateStage,ll::memory::HookPriority::Normal,Facet,&Facet::_handleStartCreatingWorld,void){
+ handleCreationStage(*this,[&]{origin();});
+}
+#endif
+
+LL_TYPE_INSTANCE_HOOK(CreateFiles,ll::memory::HookPriority::Normal,WorldCreationHelper,
+#ifdef SHANHAI_MC_26_51
+ &WorldCreationHelper::_createWorldImpl,
+#else
+ &WorldCreationHelper::createWorld,
+#endif
  WorldCreationUtils::WorldCreationResult,LevelDataWrapper&data,LevelSummary&summary){
  auto found=prepared.find(this);
  if(found==prepared.end())return origin(data,summary);
@@ -301,9 +362,9 @@ LL_TYPE_INSTANCE_HOOK(CreateFiles,ll::memory::HookPriority::Normal,WorldCreation
   std::ofstream(modFolder/"creation-path.json")<<Json{{"root",root.string()},{"id",id},{"seed",j->seed},{"levelDatExists",std::filesystem::exists(root/"level.dat")}}.dump(2);
   requireFreshWorldDirectory(root);
   auto saved=terrain::jsonFile(j->path/"prepared/karma-worldgen.json");
-  if(mLevelSettings->mSeed->toUiString()!=j->seed||saved.at("worldSeed")!=j->seed)throw std::runtime_error("New world seed changed");
-  if(mLevelSettings->getGenerator()!=GeneratorType::Flat||
-     mLevelSettings->getFlatWorldOptions().toStyledString().find("TheVoid")==std::string::npos)
+  if(bedrock_compat::seedText(*mLevelSettings->mSeed)!=j->seed||saved.at("worldSeed")!=j->seed)throw std::runtime_error("New world seed changed");
+  if(mLevelSettings->mGenerator!=GeneratorType::Flat||
+     mLevelSettings->mFlatWorldOptions->toStyledString().find("TheVoid")==std::string::npos)
    throw std::runtime_error("Native new-world settings are not Flat/TheVoid");
   auto spawn=j->result.at("spawn");
   // Let vanilla perform the first level.dat save with its complete settings.
@@ -325,13 +386,14 @@ LL_TYPE_INSTANCE_HOOK(CreateFiles,ll::memory::HookPriority::Normal,WorldCreation
  }
  return result;
 }
-LL_TYPE_INSTANCE_HOOK(CreateServer,ll::memory::HookPriority::Normal,WorldCreationHelper,&WorldCreationHelper::startLocalServer,bool){
- auto found=awaitingServer.find(this);
- if(found==awaitingServer.end())return origin();
+template<class Next> bool guardLocalServer(WorldCreationHelper& helper,bool eraseOnStart,Next&& next){
+ auto found=awaitingServer.find(&helper);
+ if(found==awaitingServer.end())return next();
  auto j=found->second;
  if(j->failed||j->cancelled)return false;
+ if(j->heightPackPrepared){auto started=next();if(started&&eraseOnStart)awaitingServer.erase(&helper);return started;}
  try{
-  auto root=std::filesystem::u8path(mContentManager.getWorldPath(*mLevelSummary->mId).value);
+  auto root=std::filesystem::u8path(helper.mContentManager.getWorldPath(*helper.mLevelSummary->mId).value);
   // This boundary is after native selected-pack copying and before native
   // startLocalServerAsync constructs its world pack stack and dimensions.
   // Re-merge here because the copy stage may have replaced the selection file.
@@ -339,10 +401,16 @@ LL_TYPE_INSTANCE_HOOK(CreateServer,ll::memory::HookPriority::Normal,WorldCreatio
   bool visibleInRepository=false;
   bool selectedInSettings=false;
   if(!uuid.empty()){
-   auto& repository=*mResourcePackRepository;
+   auto& repository=*helper.mResourcePackRepository;
    auto header=readCreationJson(root/"behavior_packs"/HeightPackFolder/"manifest.json").at("header");
    auto v=header.at("version");
+#ifdef SHANHAI_MC_26_51
+   SemVersionConstant version{};
+   version.mMajor=v.at(0).get<uint16_t>();version.mMinor=v.at(1).get<uint16_t>();version.mPatch=v.at(2).get<uint16_t>();version.mValidVersion=true;
+   PackIdVersion id(mce::UUID::fromString(uuid),SemVersion(version),PackType::Behavior);
+#else
    PackIdVersion id(uuid,std::to_string(v.at(0).get<int>())+"."+std::to_string(v.at(1).get<int>())+"."+std::to_string(v.at(2).get<int>()),PackType::Behavior);
+#endif
    Core::Path worldPath(nativePackPathKey(root));
    Core::Path behaviorPath(nativePackPathKey(root/"behavior_packs"));
    Json discovery{{"world",root.string()},{"version",shanhai_release::Windows},{"packUuid",uuid},
@@ -377,13 +445,13 @@ LL_TYPE_INSTANCE_HOOK(CreateServer,ll::memory::HookPriority::Normal,WorldCreatio
    startup::requireHeightResource(definition,-64,512);
    // Fresh worlds also carry an in-memory selection into local-server startup.
    // Updating the file alone leaves this selection unchanged.
-   auto identities=*mLevelSettings->mNewWorldBehaviorPackIdentities;
+   auto identities=*helper.mLevelSettings->mNewWorldBehaviorPackIdentities;
    for(auto const& entry:identities)if(*entry.mPackId->mId==*id.mId){
     if(*entry.mPackId!=id)throw std::runtime_error("Conflicting native height pack version");
     selectedInSettings=true;
    }
    if(!selectedInSettings)identities.emplace_back(id,"");
-   mLevelSettings->setNewWorldBehaviorPackIdentities(identities);
+   *helper.mLevelSettings->mNewWorldBehaviorPackIdentities=std::move(identities);
    selectedInSettings=true;
   }
   j->trace("height_pack_prepared_before_server");
@@ -404,7 +472,7 @@ LL_TYPE_INSTANCE_HOOK(CreateServer,ll::memory::HookPriority::Normal,WorldCreatio
   }catch(std::exception const& cleanup){error+="；撤回接入数据未完成，已保留现有文件：";error+=cleanup.what();}
   j->fail(error,"height-pack-before-local-server");
   std::ofstream(diagnostics/"new-world-error.txt")<<error;
-  awaitingServer.erase(this);prepared.erase(this);
+  awaitingServer.erase(&helper);prepared.erase(&helper);
   for(auto it=jobs.begin();it!=jobs.end();){
    if(it->second!=j){++it;continue;}
    // This hook runs on the creation UI thread. Facet destruction removes its
@@ -415,11 +483,28 @@ LL_TYPE_INSTANCE_HOOK(CreateServer,ll::memory::HookPriority::Normal,WorldCreatio
   }
   return false;
  }
- bool started=origin();
- if(started)awaitingServer.erase(this);
+ j->heightPackPrepared=true;
+ bool started=next();
+ if(started&&eraseOnStart)awaitingServer.erase(&helper);
  return started;
 }
-LL_TYPE_INSTANCE_HOOK(CreateFacetClose,ll::memory::HookPriority::Normal,Facet,&Facet::$dtor,void){
+#ifdef SHANHAI_MC_26_51
+bool beforeLocalServer(WorldCreationHelper& helper){
+ return guardLocalServer(helper,false,[]{return true;});
+}
+#else
+LL_TYPE_INSTANCE_HOOK(CreateServer,ll::memory::HookPriority::Normal,WorldCreationHelper,&WorldCreationHelper::startLocalServer,bool){
+ return guardLocalServer(*this,true,[&]{return origin();});
+}
+#endif
+
+#ifdef SHANHAI_MC_26_51
+uintptr_t facetDestructor(){return reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr))+image::DestructorRva;}
+#define SHANHAI_FACET_DESTRUCTOR facetDestructor()
+#else
+#define SHANHAI_FACET_DESTRUCTOR &Facet::$dtor
+#endif
+LL_TYPE_INSTANCE_HOOK(CreateFacetClose,ll::memory::HookPriority::Normal,Facet,SHANHAI_FACET_DESTRUCTOR,void){
  auto it=jobs.find(this);
  if(it!=jobs.end()){
   auto j=it->second;j->cancel();std::erase_if(prepared,[&](auto const&p){return p.second==j;});
@@ -427,6 +512,7 @@ LL_TYPE_INSTANCE_HOOK(CreateFacetClose,ll::memory::HookPriority::Normal,Facet,&F
  }
  origin();
 }
+#undef SHANHAI_FACET_DESTRUCTOR
 void enable(){
  modFolder=std::filesystem::absolute(terrain::clientMod().getModDir()).lexically_normal();
  auto config=modFolder/"client-config.json";
@@ -441,12 +527,20 @@ void enable(){
  std::error_code ignored;std::filesystem::remove(modFolder/"creation-abi-error.txt",ignored);
  std::ofstream(modFolder/"creation-abi.json")<<Json{{"supported",true},{"providerOffset",0x1f8},{"statusOffset",0x29}}.dump(2);
  terrain_runtime::HookTransaction hooks;
- hooks.add<CreateStage>("CreateStage");hooks.add<CreateFiles>("CreateFiles");hooks.add<CreateServer>("CreateServer");hooks.add<CreateFacetClose>("CreateFacetClose");
+ hooks.add<CreateStage>("CreateStage");hooks.add<CreateFiles>("CreateFiles");
+#ifndef SHANHAI_MC_26_51
+ hooks.add<CreateServer>("CreateServer");
+#endif
+hooks.add<CreateFacetClose>("CreateFacetClose");
  hooks.commit();hooksInstalled=true;
  terrain::log().info("Karma create-world ABI verified: provider=0x1f8, status=0x29");
 }
 void disable(){
  for(auto const&[f,j]:jobs)j->cancel();jobs.clear();prepared.clear();awaitingServer.clear();
- if(hooksInstalled){CreateStage::unhook();CreateFiles::unhook();CreateServer::unhook();CreateFacetClose::unhook();hooksInstalled=false;}
+ if(hooksInstalled){CreateStage::unhook();CreateFiles::unhook();
+#ifndef SHANHAI_MC_26_51
+ CreateServer::unhook();
+#endif
+CreateFacetClose::unhook();hooksInstalled=false;}
 }
 }

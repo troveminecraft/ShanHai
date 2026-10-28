@@ -1,3 +1,6 @@
+#ifdef SHANHAI_MC_26_51
+#include "CloudHeight26_51.inc"
+#else
 #include "CloudHeightPolicy.h"
 #include "mc/client/renderer/game/LevelRendererPlayer.h"
 #include "mc/deps/minecraft_renderer/objects/CloudRenderObject.h"
@@ -87,4 +90,5 @@ void install(terrain_runtime::HookTransaction& hooks) {
 }
 void remove(){CloudExtract::unhook();CloudTick::unhook();}
 }
+#endif
 

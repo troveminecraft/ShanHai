@@ -34,16 +34,23 @@ int main(int argc,char**argv){
         image.set32(nt+24+56,0xea9d000);assert(!image.check().supported);image.set32(nt+24+56,result.imageSize);
         auto badSignature=inspect([&](uint32_t rva,void*out,size_t size){bool ok=image.read(rva,out,size);if(rva==client::image::FacetRva)static_cast<uint8_t*>(out)[0]^=1;return ok;});
         assert(!badSignature.supported);
-        for (auto cloudRva : {client::image::CloudSideRva, client::image::CloudTranslationRva, client::image::CloudDrawRva}) {
+        unsigned negativeCases=4;
+        for (auto cloudRva : {client::image::CloudSideRva, client::image::CloudTranslationRva, client::image::CloudDrawRva
+#ifdef SHANHAI_MC_26_51
+             ,client::image::DispatchRva,client::image::StartStageRva,client::image::ServerStageRva,
+             client::image::CreatorRva,client::image::LifeRva,client::image::DestructorCheckRva
+#endif
+        }) {
             auto changed = inspect([&](uint32_t rva, void* out, size_t size) {
                 bool ok = image.read(rva, out, size);
                 if (rva == cloudRva) static_cast<uint8_t*>(out)[0] ^= 1;
                 return ok;
             });
             assert(!changed.supported);
+            ++negativeCases;
         }
         auto section=nt+24+image.u16(nt+20);auto old=image.u32(section+8);image.set32(section+8,old-1);assert(!image.check().supported);image.set32(section+8,old);
         assert(image.check().supported);
-        report.push_back({{"path",argv[arg]},{"supported",true},{"timestamp",result.timestamp},{"imageSize",result.imageSize},{"negativeCases",7}});
+        report.push_back({{"path",argv[arg]},{"supported",true},{"timestamp",result.timestamp},{"imageSize",result.imageSize},{"negativeCases",negativeCases}});
     }std::cout<<report.dump(2)<<std::endl;
 }

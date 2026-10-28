@@ -8,7 +8,7 @@ void sampleAcceptance(Dimension&d,BlockPos pos){
 }
 void inspectVillageTemplates(VillagePlan const&plan){
  J rows=J::array();for(auto const&ptr:*plan.start->pieces){auto&p=*static_cast<PoolElementStructurePiece*>(ptr.get());auto const&opt=*p.mElement.mTemplate;if(!opt)continue;auto const&variant=*opt->mStructureVariant;auto legacy=std::get_if<std::reference_wrapper<LegacyStructureTemplate>>(&variant);if(!legacy)continue;J cells=J::array();
-  for(auto const&i:*legacy->get().mBlockInfo){auto q=LegacyStructureTemplate::transform(*i.mPos,Mirror::None,p.mRotation);cells.push_back({q.x+p.mPosition->x,q.y+p.mPosition->y,q.z+p.mPosition->z,i.mBlock.getTypeName()});}
+  for(auto const&i:*legacy->get().mBlockInfo){auto q=bedrock_compat::transform(*i.mPos,Mirror::None,p.mRotation);cells.push_back({q.x+p.mPosition->x,q.y+p.mPosition->y,q.z+p.mPosition->z,i.mBlock.getTypeName()});}
   rows.push_back({{"name",*p.mElement.mLocation},{"projection",int(p.mElement.getProjection())},{"base",p.mPosition->y},{"box",boxJson(*p.mBoundingBox)},{"cells",cells}});
  }
  std::ofstream(folder/"village-template-cells.json")<<rows.dump();

@@ -37,7 +37,7 @@ unsigned structureCollectionTicks = 0;
 size_t structureCollectionCursor = 0;
 void collectStructureCaches(Level &level) {
     if (++structureCollectionTicks % 20 || !automaticStructures || structureStageFailed ||
-        level.getLevelData().getLevelName() != activeWorld)
+        bedrock_compat::levelName(level.getLevelData()) != activeWorld)
         return;
     worldgen_rules::StructureStageSiteScope site(3,0,0);
     std::unique_lock guard(stageMutex, std::try_to_lock);
@@ -144,7 +144,7 @@ void clearPopulationRecovery() {
 void recoverLoadedStructurePlans(Level &level) {
     try {
         if (++populationRecoveryTicks % 20 || !automaticStructures || structureStageFailed ||
-            !entityLedgerReady || level.getLevelData().getLevelName() != activeWorld)
+            !entityLedgerReady || bedrock_compat::levelName(level.getLevelData()) != activeWorld)
             return;
         worldgen_rules::StructureStageSiteScope site(2,0,0);
         std::unique_lock lock(stageMutex, std::try_to_lock);
@@ -177,7 +177,7 @@ void recoverLoadedStructurePlans(Level &level) {
                 auto const &b = job.at("clip");
                 ChunkPos owner{chunk(b[0].get<int>()), chunk(b[2].get<int>())};
                 auto loaded = dimension->getChunkSource().getExistingChunk(owner);
-                if (!loaded || loaded->getState().load() != ChunkState::Loaded) {
+                if (!loaded || bedrock_compat::loadState(*loaded).load() != ChunkState::Loaded) {
                     ++it;
                     continue;
                 }
@@ -206,7 +206,7 @@ void recoverLoadedStructurePlans(Level &level) {
         level.forEachPlayer([&](Player &player) {
             if (static_cast<int>(player.getDimensionId()) != 0)
                 return true;
-            auto pos = player.getPosition();
+            auto pos = bedrock_compat::position(player);
             int cx = int(std::floor(pos.x / 16)), cz = int(std::floor(pos.z / 16));
             auto queue = [&](bool village, ChunkPos anchor) {
                 if (!structureChunkInside(anchor.x, anchor.z) || populationRecovery.size() >= 64)
@@ -242,7 +242,7 @@ void recoverLoadedStructurePlans(Level &level) {
         for (int dz = -reach; dz <= reach && !nearbyLoaded; ++dz)
             for (int dx = -reach; dx <= reach; ++dx) {
                 auto c = dimension->getChunkSource().getExistingChunk({x + dx, z + dz});
-                if (c && c->getState().load() == ChunkState::Loaded) {
+                if (c && bedrock_compat::loadState(*c).load() == ChunkState::Loaded) {
                     nearbyLoaded = true;
                     break;
                 }

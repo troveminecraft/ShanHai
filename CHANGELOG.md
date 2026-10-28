@@ -1,3 +1,13 @@
+## 0.3.0 — Bedrock 26.51 compatibility
+
+Windows now targets Minecraft **1.26.51.01** with LeviLamina **26.51.9**. World creation, height-pack discovery, chunk views, save-state tracking and native structure placement use the new game interfaces. The shared source retains a separate 26.20 build path; DLLs for different game builds are not interchangeable.
+
+The Y500 cloud adjustment uses the two native cloud-height call sites shared by original graphics and Vibrant Visuals. Executable layout and instruction checks reject unsupported builds. Native chunk task timing follows each task’s owning chunk, and client mesh-build timing remains available. Diagnostics explicitly identify unavailable dispatch/neighbour predicate traces on 26.51.
+
+Terrain recipes, kernel **2.211**, sea level **Y100** and building range **Y-64..511** are unchanged. Existing supported recipes remain pinned. Known issue: first entry and exploration can still show loading stalls or visible chunk gaps; this compatibility update does not establish that those problems are resolved.
+
+Windows **0.3.0**, BDS terrain **1.0.54** / structures **1.0.69**.
+
 ## 0.2.10 — first-entry priority and structure lock contention
 
 The player’s complete nearby dependency halo now stays ahead of older distant jobs. This corrects the 0.2.9 priority inversion that could delay first entry while view-distance work aged. Extra native scheduling checks run only after a sampled queue remains idle, rather than while native tasks are already running.

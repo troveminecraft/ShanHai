@@ -99,3 +99,13 @@ The fix adds `500 - nativeHeight` to the extracted translation. During the synch
 `diagnostics/world-session.json` → `clouds.classic` / `clouds.vibrant` contain sampled `nativeHeight`, `cameraY`, `nativeWorldY`, `outputWorldY`, `hasMeshes` and extraction number. Missing samples are null; the counters and samples are process-scoped. At the extraction boundary the expected output base is about 500.33, retaining native bias and thickness. These values describe the CPU-side renderer output before GPU submission. Non-finite samples are counted and left untouched. Sampling takes a lock once per 120 extractions, with no disk IO on the render path.
 
 Offline checks replay the measured translation/face decision below, inside and above the target layer and check normal/exception camera restoration. Image tests reject changed cloud instruction signatures. Existing world creation safeguards remain enabled. BDS has no cloud renderer; its plugins, test seed and generated chunks are unchanged.
+
+## 0.3.0 native adapter coverage
+
+Windows now targets Minecraft **1.26.51.01** with LeviLamina **26.51.9**. World creation, height-pack discovery, chunk views, save-state tracking and native structure placement use the new game interfaces. The shared source retains a separate 26.20 build path; DLLs for different game builds are not interchangeable.
+
+The Y500 cloud adjustment uses the two native cloud-height call sites shared by original graphics and Vibrant Visuals. Executable layout and instruction checks reject unsupported builds. Native chunk task timing follows each task’s owning chunk, and client mesh-build timing remains available. Diagnostics explicitly identify unavailable dispatch/neighbour predicate traces on 26.51.
+
+Terrain recipes, kernel **2.211**, sea level **Y100** and building range **Y-64..511** are unchanged. Existing supported recipes remain pinned. Known issue: first entry and exploration can still show loading stalls or visible chunk gaps; this compatibility update does not establish that those problems are resolved.
+
+The new adapter times native load, structure, decoration and lighting closures without changing their results. `nativeWork.*.available` distinguishes unsupported metrics from zero samples. `pipeline.dispatchPredicateTraceAvailable` and `pipeline.neighbourPredicateTraceAvailable` are false on 26.51 because those native helpers were inlined. Queue snapshots remain read-only and bounded; client mesh timing excludes GPU publication.

@@ -91,11 +91,16 @@ bool placeCityEcology(Dimension &d, BlockSource &blocks, BoundingBox const &clip
     worldContext.mPreliminarySurfaceProvider = &provider;
     CityEcologyTarget target(localView, worldContext, clip);
     RenderParams params;
-    params.mLevel = &d.getLevel();
+    params.mLevel = &bedrock_compat::level(d);
     params.mBlockSource = &localView;
     params.mBlockPlacementTarget = &target;
     FeaturePlacementFailureLog logger;
-    FeaturePlacementFailureLogProxy proxy(logger);
+    #ifdef SHANHAI_MC_26_51
+  FeaturePlacementFailureLogProxy proxy{&logger};
+#else
+  FeaturePlacementFailureLogProxy proxy(logger);
+#endif
+
     struct Context {
         IBlockWorldGenAPI &target;
         BlockPos pos;
@@ -106,7 +111,7 @@ bool placeCityEcology(Dimension &d, BlockSource &blocks, BoundingBox const &clip
     static_assert(sizeof(Context) == sizeof(IFeature::PlacementContext));
     static_assert(offsetof(Context, logger) == offsetof(IFeature::PlacementContext, mLogger));
     Context storage{target, pos, rng, params, std::move(proxy)};
-    bool placed = smallDefinition(d.getLevel(), name)
+    bool placed = smallDefinition(bedrock_compat::level(d), name)
                       .place(reinterpret_cast<IFeature::PlacementContext const &>(storage))
                       .has_value();
     return target.writes > 0;
@@ -218,7 +223,7 @@ struct NativeCityEnvironment {
         return cityNaturalBlock(*b);
     }
     bool solid(Block const *b) {
-        return b->isSolidBlockingBlock();
+        return bedrock_compat::solidBlock(*b);
     }
     bool isAir(Block const *b) {
         return b->isAir();
@@ -233,15 +238,15 @@ struct NativeCityEnvironment {
         return masks[i];
     }
     void air(worldgen_rules::StructurePoint p) {
-        blocks.setBlockNoUpdate({p.x, p.y, p.z}, *airBlock);
+        bedrock_compat::setBlockNoUpdate(blocks,{p.x, p.y, p.z}, *airBlock);
     }
     void sculk(worldgen_rules::StructurePoint p) {
-        blocks.setBlockNoUpdate({p.x, p.y, p.z}, *sculkBlock);
+        bedrock_compat::setBlockNoUpdate(blocks,{p.x, p.y, p.z}, *sculkBlock);
     }
     void vein(worldgen_rules::StructurePoint p, Block const *b, int bits) {
         auto state = b->setState(VanillaStates::MultiFaceDirectionBits(), bits);
         if (state)
-            blocks.setBlockNoUpdate({p.x, p.y, p.z}, *state);
+            bedrock_compat::setBlockNoUpdate(blocks,{p.x, p.y, p.z}, *state);
     }
     void fringe(worldgen_rules::StructurePoint p, int bits) {
         vein(p, veinBlock, bits);
@@ -279,7 +284,7 @@ constexpr bool mansionHabitatAvailable = worldgen_rules::MansionHabitatAvailable
 bool mansionTemplatesReady = false;
 void warmMansionTemplates(Level &level) {
     if (!mansionHabitatAvailable || mansionTemplatesReady ||
-        level.getLevelData().getLevelName() != activeWorld)
+        bedrock_compat::levelName(level.getLevelData()) != activeWorld)
         return;
     std::lock_guard guard(stageMutex);
     if (mansionTemplatesReady)
@@ -326,18 +331,36 @@ void warmMansionTemplates(Level &level) {
 }
 // Keep native mansion room layouts/templates while binding the origin to our
 // immutable terrain field, without asking the vanilla start to preview terrain.
+#ifdef SHANHAI_MC_26_51
+LL_TYPE_INSTANCE_HOOK(MansionOrigin,ll::memory::HookPriority::Normal,WoodlandMansionPieces::MansionPiecePlacer,
+ &WoodlandMansionPieces::MansionPiecePlacer::createMansion,void,BlockPos const& pos,Rotation rotation,
+ std::vector<std::unique_ptr<StructurePiece>>& pieces,WoodlandMansionPieces::MansionGrid& grid){
+ origin(frozenMansionOrigin?*frozenMansionOrigin:pos,rotation,pieces,grid);
+}
+#endif
 class FrozenMansionStart final : public StructureStart {
   public:
-    FrozenMansionStart(Dimension &d, Random &random, ChunkPos cp) {
+    FrozenMansionStart(Dimension &d, BiomeSource const& biomes, Random &random, ChunkPos cp) {
         chunkX = cp.x;
         chunkZ = cp.z;
         maxYSpawnOffset = 0;
-        auto rotation = static_cast<Rotation>(random.nextInt(4));
         BlockPos pos{cp.x * 16 + 8, field->surface(cp.x * 16 + 32776, cp.z * 16 + 32776).height + 1,
                      cp.z * 16 + 8};
-        WoodlandMansionPieces::generateMansion(d.getLevel().getStructureManager(), pos, rotation, *pieces,
+#ifdef SHANHAI_MC_26_51
+        auto previous=frozenMansionOrigin;frozenMansionOrigin=&pos;
+        struct Reset{BlockPos const* previous;~Reset(){frozenMansionOrigin=previous;}}reset{previous};
+        // The native factory owns the inlined grid constructor and makes the
+        // same single rotation draw. Project at its surviving placer boundary.
+        WoodlandMansionFeature factory(0);
+        auto start=factory.createStructureStart(d,biomes,random,cp,provider);
+        if(!start)throw std::runtime_error("Native mansion factory returned no start");
+        *pieces=std::move(*start->pieces);
+#else
+        auto rotation = static_cast<Rotation>(random.nextInt(4));
+        WoodlandMansionPieces::generateMansion(bedrock_compat::level(d).getStructureManager(), pos, rotation, *pieces,
                                                random);
-        calculateBoundingBox();
+#endif
+        bedrock_compat::calculateBoundingBox(*this);
     }
     std::string_view getStructureName() const override {
         return "minecraft:mansion";
@@ -348,7 +371,7 @@ StructureFeature &extraDelegate(Dimension &d, int type) {
     if (it != extraDelegates.end())
         return *it->second;
     uint seed = structureSeed(d);
-    auto &v = d.getLevel().getLevelData().getBaseGameVersion();
+    auto &v = bedrock_compat::level(d).getLevelData().getBaseGameVersion();
     std::unique_ptr<StructureFeature> f;
     switch (type) {
     case 0:
@@ -404,7 +427,7 @@ std::unique_ptr<StructureStart> createExtra(Dimension &d, int type, ChunkPos cp)
     FixedBiomeSource bs(*b);
     uint seed = structureSeed(d);
     Random rng(seed, true);
-    StructureFeature::setRandomSeedFor(rng, cp.x, cp.z, 165745296 + type, seed);
+    bedrock_compat::seedStructure(rng, cp.x, cp.z, 165745296 + type, seed);
     std::map<std::pair<int, int>, std::vector<short>> heights;
     planningHeights = &heights;
     adaptHeightMap = true;
@@ -422,9 +445,13 @@ std::unique_ptr<StructureStart> createExtra(Dimension &d, int type, ChunkPos cp)
             worldgen_rules::sharedStructurePlan(
                 input.at("config").value("sharedRules", J::object()).value("revision", std::string{})));
     if (type == 7)
-        return std::make_unique<FrozenMansionStart>(d, rng, cp);
+        return std::make_unique<FrozenMansionStart>(d, bs, rng, cp);
     if (type == 9)
+#ifdef SHANHAI_MC_26_51
+        return MineshaftFeature(seed).createStructureStart(d, bs, rng, cp, provider);
+#else
         return std::make_unique<MineshaftStart>(d, bs, rng, cp, provider);
+#endif
     return extraDelegate(d, type).createStructureStart(d, bs, rng, cp, provider);
 }
 void extraProbe(Dimension &d, int type, int x, int z) {
@@ -562,7 +589,7 @@ std::map<int, TerrainExtraFeature *> extraFeatureRecords;
 TerrainExtraFeature &registeredExtra(Dimension &d, int type) {
     if (auto it = extraFeatureRecords.find(type); it != extraFeatureRecords.end())
         return *it->second;
-    auto &entries = *d.getWorldGenerator()->mStructureFeatureRegistry->mStructureFeatures;
+    auto &entries = *bedrock_compat::generator(d)->mStructureFeatureRegistry->mStructureFeatures;
     auto f = std::make_unique<TerrainExtraFeature>(structureSeed(d), type);
     auto *ptr = f.get();
     extraFeatureRecords.emplace(type, ptr);
@@ -575,9 +602,13 @@ bool fitSharedExtra(StructureStart &start, ExtraPlan &result, int type, ChunkPos
     // Modern structures have native StructureSections, not legacy pieces. An
     // empty legacy vector is normal and must not make their shared plan invalid.
     if (type >= 10)
-        for (auto const &section : *static_cast<ModernStart &>(start).instance) {
+        for (auto const &section : *static_cast<ModernStart &>(start).instance->mSections) {
             worldgen_rules::StructureBlueprintPiece p;
+#ifdef SHANHAI_MC_26_51
+            p.box = sharedBox(*section->mBoundingBox);
+#else
             p.box = sharedBox(section->boundingBox());
+#endif
             p.origin = p.box.min;
             blueprint.pieces.push_back(std::move(p));
         }
@@ -713,16 +744,16 @@ ExtraPlan &extraPlan(Dimension &d, int type, ChunkPos cp) {
                     *ptr->mBoundingBox = b;
             } else if (type == 2) {
                 int dy = r.floor - b.min.y;
-                start->moveBoundingBoxes(dy);
+                bedrock_compat::moveBoundingBoxes(*start,dy);
             } else if (type == 5) {
                 int dy = (hi + 1) - b.min.y;
-                start->moveBoundingBoxes(dy);
+                bedrock_compat::moveBoundingBoxes(*start,dy);
                 for (auto &ptr : *start->pieces)
                     for (auto &child : *static_cast<MonumentBuilding *>(ptr.get())->mChildPieces)
                         child->moveBoundingBox(0, dy, 0);
             } else if (type == 7) {
                 int dy = r.floor - b.min.y;
-                start->moveBoundingBoxes(dy);
+                bedrock_compat::moveBoundingBoxes(*start,dy);
             }
             if (extraSurface(type) && type != 10 && type != 1 && type != 7)
                 r.terrain.pads.push_back({*start->boundingBox, r.floor - 1});
@@ -734,8 +765,8 @@ ExtraPlan &extraPlan(Dimension &d, int type, ChunkPos cp) {
                         if (info.mBlock.isAir() || n == "minecraft:structure_void" ||
                             n == "minecraft:structure_block")
                             continue;
-                        auto q = LegacyStructureTemplate::transform(*info.mPos, part.mSettings->getMirror(),
-                                                                    part.mSettings->getRotation());
+                        auto q = bedrock_compat::transform(*info.mPos, part.mSettings->mMirror,
+                                                                    part.mSettings->mRotation);
                         q.x += part.mTemplatePosition->x;
                         q.y += part.mTemplatePosition->y;
                         q.z += part.mTemplatePosition->z;
@@ -775,7 +806,7 @@ ExtraPlan &extraPlan(Dimension &d, int type, ChunkPos cp) {
                 p._setBoundingBoxFromTemplate();
                 r.terrain.pads.push_back({*p.mBoundingBox, ground});
             }
-            start->calculateBoundingBox();
+            bedrock_compat::calculateBoundingBox(*start);
         }
         if (!unified && type == 3) {
             // Freeze native ruins against immutable seabed, not the chunk-order-dependent
@@ -799,7 +830,7 @@ ExtraPlan &extraPlan(Dimension &d, int type, ChunkPos cp) {
                 p.mTemplatePosition->y = lo;
                 p._setBoundingBoxFromTemplate();
             }
-            start->calculateBoundingBox();
+            bedrock_compat::calculateBoundingBox(*start);
         }
         auto b = *start->boundingBox;
         bool underground = worldgen_rules::extraUnderground(type);
@@ -1001,7 +1032,7 @@ void placeExtras(Dimension &d, BlockSource &blocks, ChunkPos cp,
         }
         if (type >= 10) {
             Random rng(seed, true);
-            StructureFeature::setRandomSeedFor(rng, cp.x, cp.z, extraSpec(type)->salt, seed);
+            bedrock_compat::seedStructure(rng, cp.x, cp.z, extraSpec(type)->salt, seed);
             p.start->postProcess(blocks, rng, clip);
             ++count;
         }
@@ -1092,14 +1123,14 @@ void placeExtras(Dimension &d, BlockSource &blocks, ChunkPos cp,
                     return b->isAir();
                 }
                 bool canContainWater(Block const *b) {
-                    return BlockLiquidDetectionComponent::canContainLiquid(*b);
+                    return bedrock_compat::canContainLiquid(*b);
                 }
                 void water(worldgen_rules::StructurePoint p, int layer) {
                     BlockPos q{p.x, p.y, p.z};
                     if (layer)
-                        source.setExtraBlockSimple(q, *waterBlock);
+                        bedrock_compat::setExtraBlockSimple(source,q, *waterBlock);
                     else
-                        source.setBlockNoUpdate(q, *waterBlock);
+                        bedrock_compat::setBlockNoUpdate(source,q, *waterBlock);
                 }
             } env{blocks};
             worldgen_rules::submergeStructure(
@@ -1111,9 +1142,7 @@ void placeExtras(Dimension &d, BlockSource &blocks, ChunkPos cp,
         auto ch = blocks.getChunkAt({cp.x * 16, 0, cp.z * 16});
         for (auto const &piece : *p.start->pieces)
             piece->addHardcodedSpawnAreas(*ch);
-        ch->setUnsaved();
-        ch->markSaveIfNeverSaved();
-        ch->markSaveNonActorDataIfDirty();
+        bedrock_compat::requestSave(*ch);
         if (!auditPlanningStarts)
             std::ofstream(folder / "extra-placements.jsonl", std::ios::app)
                 << J{{"family", extraNames[type]},

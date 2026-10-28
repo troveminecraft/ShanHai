@@ -3,7 +3,7 @@
 需要 Windows x64、Visual Studio 2026 C++ Build Tools（含 LLVM/clang-cl）、xmake 3.1.1、
 Python 3.13（安装 NumPy）和 Node.js 24。将 `xmake`、`clang-cl`、`python`、`node` 加入 PATH。
 使用完整 Node.js 官方发行包，保留 `node.exe` 旁的 `LICENSE` 文件，打包时会一同带入。
-构建器会获取 LeviLamina **26.20.7 客户端 SDK**、LeviBuildScript 和 nlohmann/json **3.12.0**。
+构建器会获取 LeviLamina **26.51.9 客户端 SDK**、LeviBuildScript 和 nlohmann/json **3.12.0**。
 
 在仓库根目录运行：
 
@@ -62,3 +62,5 @@ python -B ports/windows-client/test_world_package.py
 `package_windows.py` 会逐项核对运行时文件的 SHA-256。
 
 内核与世界会话边界、测试范围见 [KERNEL_BOUNDARY.md](KERNEL_BOUNDARY.md)。
+
+The default client target is Minecraft 1.26.51.01. For a separate legacy build, pass `-GameLine 26.20` to `ports/windows-client/build.ps1` and use a different output directory. Never install a 26.51 DLL into a 26.20 instance. SDK overlays are generated in the build directory; installed SDK files are not modified.

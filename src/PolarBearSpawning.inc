@@ -9,14 +9,14 @@ void startPolarBearSpawning(){
  if(polarBearListener)return;
  polarBearAllowed=0;polarBearRejected=0;
  polarBearListener=ll::event::EventBus::getInstance().emplaceListener<ll::event::SpawningMobEvent>([](auto&e){
-  if(!active||e.identifier().getFullName()!="minecraft:polar_bear")return;
+  if(!active||*e.identifier().mFullName!="minecraft:polar_bear")return;
   auto session=publishedSession.load();auto work=session->tasks.tryEnter();if(!work)return;
-  auto& region=e.blockSource();auto& dim=region.getDimension();
-  if(!glacier_ecology::restrictPolarBear(session->belongsTo(&dim.getLevel()),static_cast<int>(dim.getDimensionId())==0,e.naturalSpawn(),e.fromSpawner()))return;
+  auto& region=e.blockSource();auto& dim=bedrock_compat::dimension(region);
+  if(!glacier_ecology::restrictPolarBear(session->belongsTo(&bedrock_compat::level(dim)),static_cast<int>(dim.getDimensionId())==0,e.naturalSpawn(),e.fromSpawner()))return;
   auto p=e.pos();int x=int(std::floor(p.x)),z=int(std::floor(p.z)),y=int(std::floor(p.y))-1;
   int cx=int(std::floor(x/16.)),cz=int(std::floor(z/16.));
   auto chunk=region.getChunk(cx,cz);bool allow=false;
-  if(chunk&&chunk->getState().load()==ChunkState::Loaded&&biomes.size()>24&&palette.size()>148){
+  if(chunk&&bedrock_compat::loadState(*chunk).load()==ChunkState::Loaded&&biomes.size()>24&&palette.size()>148){
    auto& biome=chunk->getBiome(ChunkBlockPos{BlockPos{x-cx*16,64,z-cz*16},-64});
    bool dense=false;
    // Skip a snow layer or the air above it, but never look through a lake's

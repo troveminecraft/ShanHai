@@ -13,6 +13,9 @@ bool voidDecorationDispatch(WorldGenerator *generator,ChunkViewSource &view) {
         structureStageFailed,[&]{return origin(generator,view);},[&]{return runAutomaticStage(*generator->mLevel,view);});
 }
 void voidHeightDispatch(WorldGenerator *generator,BlockVolume &volume,ChunkPos const &cp,std::vector<short> *heights,bool flag) {
+#ifdef SHANHAI_MC_26_51
+    if(frozenMansionOrigin)return;
+#endif
     reinterpret_cast<VoidHeightFunction>(voidGeneratorOriginal[1])(generator,volume,cp,heights,flag);
     if(adaptHeightMap && heights && structureGeneratorMatches(generator)) *heights=terrainHeightMap(cp);
 }
@@ -65,8 +68,16 @@ void restoreVoidGeneratorSlots() {
     voidGeneratorSlots={};
 }
 LL_TYPE_INSTANCE_HOOK(VoidGeneratorConstruction,ll::memory::HookPriority::Normal,VoidGenerator,
-                      &VoidGenerator::$ctor,void*,Dimension &dimension) {
+                      &VoidGenerator::$ctor,void*,Dimension &dimension
+#ifdef SHANHAI_MC_26_51
+                      ,BiomeIdType defaultBiome
+#endif
+                      ) {
+#ifdef SHANHAI_MC_26_51
+    auto result=origin(dimension,defaultBiome);
+#else
     auto result=origin(dimension);
+#endif
     bindVoidGenerator(*this);
     return result;
 }
@@ -75,7 +86,7 @@ void installStructureGeneratorHooks(terrain_runtime::HookTransaction &hooks) {
     // Import thunks can already point into other hooks during hot enable, and
     // Bedrock has no usable RTTI here. Require a restart instead of guessing.
     if(auto level=ll::service::getLevel()) if(auto dim=level->getDimension(0).lock())
-        if(dim->getWorldGenerator())
+        if(bedrock_compat::generator(*dim))
             throw std::runtime_error("Structure generator already exists: fully restart before enabling ShanHai; unsafe hot enable is unsupported");
     auto flatLocate=ll::memory::unchecked(&FlatWorldGenerator::$findNearestStructureFeature);
     auto baseLocate=ll::memory::unchecked(&WorldGenerator::$findNearestStructureFeature);

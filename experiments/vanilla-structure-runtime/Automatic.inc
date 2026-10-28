@@ -98,7 +98,7 @@ bool placeScatteredNative(BlockSource &blocks, AutoBlueprint &plan, Random &rng,
     if (plan.igloo) {
         bool placed = placeIgloo(blocks, *plan.igloo, clip);
         if (placed && plan.igloo->program) {
-            auto seed = blocks.getDimension().getLevel().getLevelData().getSeed().to32BitRandomSeed();
+            auto seed = bedrock_compat::seed(bedrock_compat::level(bedrock_compat::dimension(blocks)).getLevelData()).to32BitRandomSeed();
             for (auto const &[owner, markers] : plan.igloo->program->population) {
                 if (markers.empty() || owner.first * 16 > clip.max.x || owner.first * 16 + 15 < clip.min.x ||
                     owner.second * 16 > clip.max.z || owner.second * 16 + 15 < clip.min.z)
@@ -117,18 +117,18 @@ bool placeScatteredNative(BlockSource &blocks, AutoBlueprint &plan, Random &rng,
         return worldgen_rules::executeScatteredFragments(
             *plan.fragments, sharedBox(clip),
             [&](auto const &recipe, auto const &fragment) {
-                auto &d = blocks.getDimension();
+                auto &d = bedrock_compat::dimension(blocks);
                 auto biome = d.getBiomeRegistry().lookupByName(
                     std::string(worldgen_rules::scatteredNativeBiome(recipe)));
                 if (!biome)
                     throw std::runtime_error("Native scattered biome missing");
                 FixedBiomeSource source(*biome);
-                auto local = std::make_unique<Start>(source, field->seaLevel(), recipe.anchor.x, recipe.anchor.z, provider);
+                auto local = bedrock_compat::scatteredStart(d,source, field->seaLevel(), recipe.anchor.x, recipe.anchor.z, provider);
                 int dy = worldgen_rules::scatteredFreshMove(recipe, sharedBox(*local->boundingBox));
-                local->moveBoundingBoxes(dy);
+                bedrock_compat::moveBoundingBoxes(*local,dy);
                 for (auto &piece : *local->pieces)
                     static_cast<ScatteredFeaturePiece *>(piece.get())->mHeightPosition = recipe.floor;
-                local->calculateBoundingBox();
+                bedrock_compat::calculateBoundingBox(*local);
                 return local;
             },
             [&](auto &local, auto const &, auto const &fragment) {
@@ -163,7 +163,7 @@ bool placeScatteredNative(BlockSource &blocks, AutoBlueprint &plan, Random &rng,
                 Random random(fragment.seed, true);
                 return local->postProcess(blocks, random, owner);
             });
-    auto &d = blocks.getDimension();
+    auto &d = bedrock_compat::dimension(blocks);
     auto cp = ChunkPos{plan.start->chunkX, plan.start->chunkZ};
     auto s = field->surface(cp.x * 16 + 32768, cp.z * 16 + 32768);
     auto b = d.getBiomeRegistry().lookupByName(s.biome == 11   ? "minecraft:desert"
@@ -172,12 +172,12 @@ bool placeScatteredNative(BlockSource &blocks, AutoBlueprint &plan, Random &rng,
     if (!b)
         throw std::runtime_error("Native scattered biome missing");
     FixedBiomeSource source(*b);
-    Start local(source, field->seaLevel(), cp.x, cp.z, provider);
+    auto localOwner=bedrock_compat::scatteredStart(d,source,field->seaLevel(),cp.x,cp.z,provider);auto& local=*localOwner;
     int floor = static_cast<ScatteredFeaturePiece *>((*plan.start->pieces)[0].get())->mHeightPosition;
-    local.moveBoundingBoxes(floor - local.boundingBox->min.y);
+    bedrock_compat::moveBoundingBoxes(local,floor - local.boundingBox->min.y);
     for (auto &piece : *local.pieces)
         static_cast<ScatteredFeaturePiece *>(piece.get())->mHeightPosition = floor;
-    local.calculateBoundingBox();
+    bedrock_compat::calculateBoundingBox(local);
     if (boxJson(*local.boundingBox) != boxJson(*plan.start->boundingBox))
         throw std::runtime_error("Scattered fragment layout diverged from native record");
     // Native per-piece placed-chest flags must not change the RNG consumed by
@@ -216,7 +216,7 @@ bool storedChunk(Dimension &dim, ChunkPos cp) {
     std::memcpy(key.data(), &cp.x, 4);
     std::memcpy(key.data() + 4, &cp.z, 4);
     key.push_back(char(LevelChunkTag::Version));
-    auto &db = dim.getLevel().getLevelStorage();
+    auto &db = bedrock_compat::level(dim).getLevelStorage();
     if (db.hasKey(key, DBHelpers::Category::Chunk))
         return true;
     key.back() = char(LevelChunkTag::LegacyVersion);
@@ -278,7 +278,7 @@ class TerrainScatteredFeature final : public RandomScatteredLargeFeature {
 worldgen_rules::StructureCacheOwnership<StructureFeature *> ownedNativeFeatures;
 TerrainScatteredFeature *scatteredFeatureRecord = nullptr;
 TerrainScatteredFeature &registeredFeature(Dimension &dim) {
-    auto *registry = &*dim.getWorldGenerator()->mStructureFeatureRegistry;
+    auto *registry = &*bedrock_compat::generator(dim)->mStructureFeatureRegistry;
     if (!registry)
         throw std::runtime_error("Missing native structure registry");
     if (scatteredFeatureRecord)
@@ -295,9 +295,9 @@ TerrainScatteredFeature &registeredFeature(Dimension &dim) {
 using DecorationTaskContext = worldgen_rules::DecorationTaskScope<ChunkViewSource, LevelChunk>;
 std::optional<ChunkPos> stageCenter(ChunkViewSource &view) {
     auto &owner = worldgen_rules::decorationTaskOwner<ChunkViewSource,LevelChunk>(
-        view, [](LevelChunk &chunk) { auto p=chunk.getPosition(); return std::pair{p.x,p.z}; },
+        view, [](LevelChunk &chunk) { auto p=bedrock_compat::position(chunk); return std::pair{p.x,p.z}; },
         [&](int x,int z) { return view.$getExistingChunk({x,z}).get(); });
-    auto p = owner.getPosition();
+    auto p = bedrock_compat::position(owner);
     return p;
 }
 AutoBlueprint &autoBlueprint(Dimension &dim, ChunkPos candidate, uint seed) {
@@ -321,7 +321,7 @@ AutoBlueprint &autoBlueprint(Dimension &dim, ChunkPos candidate, uint seed) {
     if (!biome)
         throw std::runtime_error("Missing native biome");
     FixedBiomeSource source(*biome);
-    auto start = std::make_unique<Start>(source, field->seaLevel(), candidate.x, candidate.z, provider);
+    auto start = bedrock_compat::scatteredStart(dim,source, field->seaLevel(), candidate.x, candidate.z, provider);
     if (!start->isValid())
         return plan;
     auto initial = *start->boundingBox;
@@ -382,10 +382,10 @@ AutoBlueprint &autoBlueprint(Dimension &dim, ChunkPos candidate, uint seed) {
     // Bind the whole-footprint ground level before any per-chunk writes. This avoids
     // the first processed chunk choosing a different height after restart/order changes.
     int floor = total / columns;
-    start->moveBoundingBoxes(floor - start->boundingBox->min.y);
+    bedrock_compat::moveBoundingBoxes(*start,floor - start->boundingBox->min.y);
     for (auto &piece : *start->pieces)
         static_cast<ScatteredFeaturePiece *>(piece.get())->mHeightPosition = floor;
-    start->calculateBoundingBox();
+    bedrock_compat::calculateBoundingBox(*start);
     if (igloo) {
         if (sharedIgloo) {
             for (size_t i = 0; i < igloo->parts.size(); ++i) {
@@ -452,7 +452,7 @@ void clearPlantBlock(BlockSource &blocks, BlockPos pos, Block const &air) {
     if (plantRepairChanges)
         plantRepairChanges->push_back({pos.x, pos.y, pos.z, blocks.getBlock(pos).getTypeName()});
     if (!plantRepairPreview)
-        blocks.setBlockNoUpdate(pos, air);
+        bedrock_compat::setBlockNoUpdate(blocks,pos, air);
 }
 using ProtectedPlants = std::set<std::array<int, 3>>;
 void protectTemplate(ProtectedPlants &keep, LegacyStructureTemplate const &model, BlockPos origin,
@@ -461,7 +461,7 @@ void protectTemplate(ProtectedPlants &keep, LegacyStructureTemplate const &model
         auto const &name = i.mBlock.getTypeName();
         if (name == "minecraft:air" || name == "minecraft:structure_void")
             continue;
-        auto p = LegacyStructureTemplate::transform(*i.mPos, Mirror::None, rotation);
+        auto p = bedrock_compat::transform(*i.mPos, Mirror::None, rotation);
         keep.insert({p.x + origin.x, p.y + origin.y, p.z + origin.z});
     }
 }
@@ -526,19 +526,30 @@ unsigned reserveTrees(BlockSource &blocks, ChunkPos cp, AutoBlueprint const &pla
 #include "SmallFeatures.inc"
 #include "FrozenFossils.inc"
 #include "VillageDecor.inc"
+#ifdef SHANHAI_MC_26_51
+LL_STATIC_HOOK(DecorationTask,ll::memory::HookPriority::Normal,bedrock_compat::generationTaskEntry(2),
+              TaskResult*,TaskResult* result,void* closure){
+    auto* owner=terrain_runtime::native26::taskOwner<LevelChunk>(closure);
+    auto* view=terrain_runtime::native26::taskView<ChunkViewSource>(closure);
+    if(!owner||!view)throw std::runtime_error("Native decoration closure missing owner or view");
+    DecorationTaskContext context(*view,*owner);
+    return origin(result,closure);
+}
+#else
 LL_TYPE_INSTANCE_HOOK(DecorationTask, ll::memory::HookPriority::Normal, ChunkSource,
                       &ChunkSource::_decorationPostProcessingTask, void,
                       LevelChunk &owner, ChunkViewSource &view) {
     DecorationTaskContext context(view, owner);
     origin(owner, view);
 }
+#endif
 bool runAutomaticStage(Level &level, ChunkViewSource &view) {
     auto work=structureTasks.enter();
     ++stageCalls;
     StageTimer timer;
     std::optional<std::array<int,2>> failureChunk;
     try {
-        auto position = DecorationTaskContext::ownerFor(view).getPosition();
+        auto position = bedrock_compat::position(DecorationTaskContext::ownerFor(view));
         failureChunk=std::array<int,2>{position.x,position.z};
         auto cp = stageCenter(view);
         if (!cp)
@@ -546,11 +557,11 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
         failureChunk=std::array<int,2>{cp->x,cp->z};
         worldgen_rules::StructureStageSiteScope site(1,cp->x,cp->z);
         auto center = view.$getExistingChunk(*cp);
-        if (!center || center->getState().load() != ChunkState::DecorationPostProcessing)
+        if (!center || bedrock_compat::loadState(*center).load() != ChunkState::DecorationPostProcessing)
             throw std::runtime_error("Unexpected center phase");
         if (!structureChunkInside(cp->x, cp->z))
             return true;
-        uint seed = level.getLevelData().getSeed().to32BitRandomSeed();
+        uint seed = bedrock_compat::seed(level.getLevelData()).to32BitRandomSeed();
         std::set<std::pair<int, int>> nearby;
         for (int z = structureCell(cp->z - 3); z <= structureCell(cp->z + 2); ++z)
             for (int x = structureCell(cp->x - 3); x <= structureCell(cp->x + 2); ++x) {
@@ -613,21 +624,21 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
             std::ofstream(folder / "automatic-storage-checks.jsonl", std::ios::app)
                 << J{{"chunk", {cp->x, cp->z}},
                      {"stored", stored},
-                     {"world", level.getLevelData().getLevelName()}}
+                     {"world", bedrock_compat::levelName(level.getLevelData())}}
                        .dump()
                 << '\n';
         // Restore seeded native cache records on stored chunks too; never replay
         // saved blocks, opened chests or player edits.
         if (stored)
             for (auto const &[type, anchor] : extras)
-                extraPlan(center->getDimension(), type, anchor);
+                extraPlan(bedrock_compat::dimension(*center), type, anchor);
         if (!stored && !extras.empty()) {
-            auto tokens = view.enableBlockEntityAccess();
-            BlockSource blocks(view, false, true);
-            placeExtras(center->getDimension(), blocks, *cp, extras, seed, alreadyFiltered);
+            auto tokens = bedrock_compat::blockActorAccess(view);
+            bedrock_compat::BlockSourceView blocks(view, false, true);
+            placeExtras(bedrock_compat::dimension(*center), blocks, *cp, extras, seed, alreadyFiltered);
         }
         for (auto anchor : nearbyVillages) {
-            auto &p = villagePlan(center->getDimension(), anchor, seed);
+            auto &p = villagePlan(bedrock_compat::dimension(*center), anchor, seed);
             if (!p.start)
                 continue;
             auto b = *p.start->boundingBox;
@@ -642,8 +653,8 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
                         "village", anchor, seed);
                 continue;
             }
-            auto tokens = view.enableBlockEntityAccess();
-            BlockSource blocks(view, false, true);
+            auto tokens = bedrock_compat::blockActorAccess(view);
+            bedrock_compat::BlockSourceView blocks(view, false, true);
             auto t = std::chrono::steady_clock::now();
             auto cleared = alreadyFiltered ? 0 : reserveVillageTrees(blocks, *cp, p);
             unsigned pieces = 0;
@@ -654,9 +665,7 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
                 queueStructureEntities(
                     p.start, {{cp->x * 16, -64, cp->z * 16}, {cp->x * 16 + 15, field->generationHeight()-65, cp->z * 16 + 15}},
                     "village", anchor, seed);
-            center->setUnsaved();
-            center->markSaveIfNeverSaved();
-            center->markSaveNonActorDataIfDirty();
+            bedrock_compat::requestSave(*center);
             std::ofstream(folder / "village-placements.jsonl", std::ios::app)
                 << J{{"anchor", {anchor.x * 16, anchor.z * 16}},
                      {"chunk", {cp->x, cp->z}},
@@ -668,7 +677,7 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
                 << '\n';
         }
         for (auto const &[x, z] : nearby) {
-            auto &plan = autoBlueprint(center->getDimension(), {x, z}, seed);
+            auto &plan = autoBlueprint(bedrock_compat::dimension(*center), {x, z}, seed);
             if (!plan.start)
                 continue;
             auto const &bounds = *plan.start->boundingBox;
@@ -683,15 +692,13 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
                 continue;
             if (stored)
                 continue; // Restore native records but never replay saved block edits.
-            auto tokens = view.enableBlockEntityAccess();
-            BlockSource blocks(view, false, true);
+            auto tokens = bedrock_compat::blockActorAccess(view);
+            bedrock_compat::BlockSourceView blocks(view, false, true);
             if (forest && !alreadyFiltered) {
                 auto t = std::chrono::steady_clock::now();
                 auto cleared = reserveTrees(blocks, *cp, plan);
                 if (cleared) {
-                    center->setUnsaved();
-                    center->markSaveIfNeverSaved();
-                    center->markSaveNonActorDataIfDirty();
+                    bedrock_compat::requestSave(*center);
                 }
                 std::ofstream(folder / "vegetation-reservations.jsonl", std::ios::app)
                     << J{{"anchor", {x * 16, z * 16}},
@@ -707,12 +714,10 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
                 continue;
             BoundingBox clip{{cp->x * 16, -64, cp->z * 16}, {cp->x * 16 + 15, field->generationHeight()-65, cp->z * 16 + 15}};
             Random rng(seed, true);
-            StructureFeature::setRandomSeedFor(rng, cp->x, cp->z, 14357617, seed);
+            bedrock_compat::seedStructure(rng, cp->x, cp->z, 14357617, seed);
             auto t = std::chrono::steady_clock::now();
             bool placed = placeScatteredNative(blocks, plan, rng, clip);
-            center->setUnsaved();
-            center->markSaveIfNeverSaved();
-            center->markSaveNonActorDataIfDirty();
+            bedrock_compat::requestSave(*center);
             if (!plan.igloo) {
                 queueStructureEntities(plan.start, clip, std::string(plan.start->getStructureName()), {x, z},
                                        seed);
@@ -751,11 +756,11 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
                 if (it != automaticBlueprints.end() && it->second.start)
                     occupied.push_back(*it->second.start->boundingBox);
             }
-            auto tokens = view.enableBlockEntityAccess();
-            BlockSource blocks(view, false, true);
-            placeFrozenFossils(center->getDimension(), blocks, *cp, seed, occupied);
+            auto tokens = bedrock_compat::blockActorAccess(view);
+            bedrock_compat::BlockSourceView blocks(view, false, true);
+            placeFrozenFossils(bedrock_compat::dimension(*center), blocks, *cp, seed, occupied);
             if (smallPotential(*cp, seed))
-                placeSmallFeatures(center->getDimension(), blocks, *cp, seed, occupied);
+                placeSmallFeatures(bedrock_compat::dimension(*center), blocks, *cp, seed, occupied);
         }
         // Publish durable negative decisions after planning completed normally.
         // Accepted plans' vegetation snapshots remain owned by prefill.
@@ -776,12 +781,12 @@ bool decorationGeneratorMatches(void const *generator, ChunkViewSource const &vi
     // Void's true-return stub can also be its structure-phase method. Require
     // the exact task/view and decoration phase, without dereferencing this.
     auto *owner=DecorationTaskContext::ownerIf(view);
-    if (!owner || owner->getState().load()!=ChunkState::DecorationPostProcessing)
+    if (!owner || bedrock_compat::loadState(*owner).load()!=ChunkState::DecorationPostProcessing)
         return false;
-    auto &dimension=owner->getDimension();
+    auto &dimension=bedrock_compat::dimension(*owner);
     return static_cast<int>(dimension.getDimensionId())==0 &&
-           dimension.getLevel().getLevelData().getLevelName()==activeWorld &&
-           dimension.getWorldGenerator()==generator;
+           bedrock_compat::levelName(bedrock_compat::level(dimension).getLevelData())==activeWorld &&
+           bedrock_compat::generator(dimension)==generator;
 }
 LL_TYPE_INSTANCE_HOOK(AutoStage, ll::memory::HookPriority::Normal, WorldGenerator,
                       ll::memory::unchecked(&FlatWorldGenerator::$decorationPostProcessChunk), bool, ChunkViewSource &view) {

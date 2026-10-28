@@ -13,9 +13,19 @@ target("cloud_height")
     set_kind("binary")
     add_files("cloud_height.cpp")
 target_end()
+for _, name in ipairs({"native_cloud_callsite", "cloud_native_image", "native_generation_image", "native_portal_ground"}) do
+    target(name)
+        set_kind("binary")
+        add_files(name .. ".cpp")
+    target_end()
+end
 target("streaming_pipeline")
     set_kind("binary")
     add_files("streaming_pipeline.cpp")
+target_end()
+target("native_spin_try")
+    set_kind("binary")
+    add_files("native_spin_try.cpp")
 target_end()
 target("structure_regional_warmup")
     set_kind("binary")
@@ -62,3 +72,10 @@ for _, name in ipairs({"glacier_ecology", "tall_ice_spires", "landform_refresh",
         if name == "build_height" or name == "runtime_stability" then add_syslinks("bcrypt") end
     target_end()
 end
+
+target("client_image_26_51")
+    set_kind("binary")
+    add_packages("nlohmann_json")
+    add_defines("SHANHAI_MC_26_51")
+    add_files("client_image.cpp")
+target_end()

@@ -71,14 +71,14 @@ unsigned applyVegetationDifference(BlockVolume const &volume, std::vector<uint16
        (volume.mHeight!=384&&volume.mHeight!=576)||volume.mDimensionBottom!=-64)
         throw std::runtime_error("Structure prefill native volume height mismatch");
     worldgen_rules::visitVegetationReservations(before,after,[&](int x,int y,int z,int previous,int reserved){
-                auto idx = volume.indexNoBoundsCheck(BlockPos{x, y, z});
+                auto idx = bedrock_compat::volumeIndex(volume,BlockPos{x, y, z});
                 if (!worldgen_rules::structureReservationRemoves(previous, reserved,
                                                                  data[idx]->getTypeName()))
                     return;
                 data[idx] = air;
                 ++count;
                 if (y+1 < volume.mHeight) {
-                    auto above = volume.indexNoBoundsCheck(BlockPos{x, y + 1, z});
+                    auto above = bedrock_compat::volumeIndex(volume,BlockPos{x, y + 1, z});
                     if (data[above]->getTypeName() == "minecraft:snow_layer") {
                         data[above] = air;
                         ++count;
@@ -113,26 +113,26 @@ unsigned filterVegetationVolume(BlockVolume const &volume, ChunkPos cp,
 }
 LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelChunk,
                       &LevelChunk::setBlockVolume, void, BlockVolume const &volume, uint yOffset) {
-    auto cp = getPosition();
-    auto &dim = getDimension();
+    auto cp = bedrock_compat::position(*this);
+    auto &dim = bedrock_compat::dimension(*this);
     if (!automaticStructures || volume.mWidth != 16 || volume.mDepth != 16 ||
         (volume.mHeight != 384 && volume.mHeight != 576) ||
-        volume.mDimensionBottom != -64 || yOffset != 0 || getState().load() > ChunkState::Generated ||
+        volume.mDimensionBottom != -64 || yOffset != 0 || bedrock_compat::loadState(*this).load() > ChunkState::Generated ||
         static_cast<int>(dim.getDimensionId()) != 0 ||
-        dim.getLevel().getLevelData().getLevelName() != activeWorld || !structureChunkInside(cp.x, cp.z)) {
+        bedrock_compat::levelName(bedrock_compat::level(dim).getLevelData()) != activeWorld || !structureChunkInside(cp.x, cp.z)) {
         origin(volume, yOffset);
         return;
     }
     auto work=structureTasks.enter();
     // Vanilla void initialization precedes the custom terrain buffer.
-    if (volume.mBlocks->mBegin[volume.indexNoBoundsCheck(BlockPos{0, 0, 0})]->getTypeName() !=
+    if (volume.mBlocks->mBegin[bedrock_compat::volumeIndex(volume,BlockPos{0, 0, 0})]->getTypeName() !=
         "minecraft:bedrock") {
         origin(volume, yOffset);
         return;
     }
     if (structureStageFailed)
         throw std::runtime_error("Structure generation paused after an earlier error");
-    uint seed = dim.getLevel().getLevelData().getSeed().to32BitRandomSeed();
+    uint seed = bedrock_compat::seed(bedrock_compat::level(dim).getLevelData()).to32BitRandomSeed();
     std::vector<ChunkPos> vc, sc;
     for (int z = villageCell(cp.z - 10); z <= villageCell(cp.z + 10); ++z)
         for (int x = villageCell(cp.x - 10); x <= villageCell(cp.x + 10); ++x) {
@@ -214,7 +214,7 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
         }
     } catch (std::exception const &e) {
         ++stageErrors;
-        reportStructureFailure("prefill", e, std::array<int,2>{getPosition().x,getPosition().z});
+        reportStructureFailure("prefill", e, std::array<int,2>{bedrock_compat::position(*this).x,bedrock_compat::position(*this).z});
         // Generate's failure handler stops the process instead of saving an
         // unfiltered terrain buffer as successful, permanently losing structures.
         throw;
