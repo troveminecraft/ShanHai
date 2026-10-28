@@ -15,7 +15,11 @@ def package(runtime,output,binary=None):
     if output.exists():raise ValueError('Use a new output path')
     output.parent.mkdir(parents=True,exist_ok=True)
     with zipfile.ZipFile(output,'x',zipfile.ZIP_DEFLATED) as archive:
-        root='karma-worldgen-client/'
+        manifest=json.loads((P/'ports/windows-client/manifest.json').read_bytes())
+        name=manifest['name']
+        if not name or name in ('.','..') or any(c in name for c in '/\\:'):
+            raise ValueError('Invalid mod directory name')
+        root=name+'/'
         for name in ('karma-worldgen-client.dll','manifest.json'):
             source=P/'ports/windows-client'/('build/windows/x64/release/'+name if name.endswith('.dll') else name)
             if name.endswith('.dll') and binary is not None: source=binary

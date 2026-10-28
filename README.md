@@ -4,7 +4,7 @@
 
 English · [简体中文](README.zh-CN.md)
 
-[Download 0.3.2](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.2) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
+[Download 0.3.3](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.3) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
 
 mountains&seas is an Overworld terrain generation mod for Minecraft Bedrock on Windows, powered by LeviLamina. Follow rivers through mountain ranges, rolling highlands, forests, deserts and coastlines; explore caves, glaciers and volcanic terrain. Vanilla structures are placed according to the surrounding landscape.
 
@@ -16,19 +16,19 @@ mountains&seas is an Overworld terrain generation mod for Minecraft Bedrock on W
 
 ## Install
 
-1. Download [ShanHai-Windows-0.3.2.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.3.2/ShanHai-Windows-0.3.2.zip).
+1. Download [ShanHai-Windows-0.3.3.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.3.3/ShanHai-Windows-0.3.3.zip).
 2. Save and fully close Minecraft. Import the ZIP into the matching instance through LeviLauncher’s mod manager.
 3. Enable the mod and create a new **normal** world with your chosen seed. Do not select a flat world.
 
-Use the release ZIP, rather than GitHub’s automatically generated source archive. Python and Node.js runtime dependencies are included; copying only the DLL is insufficient. The internal mod ID remains `karma-worldgen-client` for configuration and save compatibility.
+Use the release ZIP, rather than GitHub’s automatically generated source archive. Python and Node.js runtime dependencies are included; copying only the DLL is insufficient. The launcher entry is **mountains&seas**, by **troveminecraft**. For upgrades from the old entry, follow the migration steps below.
 
-## Version 0.3.2
+## Version 0.3.3
 
-Fixes a crash while loading a new world on Minecraft **1.26.51.01**. The native terrain-generator constructor passes a biome number directly, but the previous hook interpreted it as a pointer. The adapter now preserves the native calling convention and validates the corresponding game instructions. The 0.3.1 activation-order fix is retained.
+Fixes a world-entry failure on Minecraft **1.26.51.01** caused by reading the saved NBT seed name instead of the runtime seed property. Terrain and structures now read the native 64-bit seed consistently, and world initialization checks it against the creation settings. Optional session diagnostics no longer interrupt world cleanup.
 
-The English product name is **mountains&seas**. ZIP metadata now includes **troveminecraft** as the author for LeviLauncher. Existing internal IDs, save paths and package filenames remain compatible.
+LeviLauncher now displays **mountains&seas**, by **troveminecraft**. The install directory is `mods/mountains&seas`; the DLL filename and world markers remain compatible. When upgrading from 0.3.2 or earlier, fully close Minecraft, back up and move the old `karma-worldgen-client` folder outside `mods`, then import this ZIP. Copy `client-config.json` and, optionally, `seed-cache` from the backup into the new folder. Do not enable both entries.
 
-Requires LeviLamina **26.51.9**, Windows x64 and AVX2. Terrain recipes, kernel **2.211**, sea level **Y100** and building range **Y-64..511** are unchanged. Known issue: first entry and exploration may still show loading stalls or visible chunk gaps. Worlds created while the generator was disabled remain vanilla worlds.
+Requires LeviLamina **26.51.9**, Windows x64 and AVX2. Kernel **2.211**, terrain recipes, sea level **Y100** and building range **Y-64..511** are unchanged. First entry and exploration can still show loading stalls or visible chunk gaps. Vanilla worlds are not automatically converted.
 
 Please report the version, world seed, coordinates, screenshots and reproduction steps when you encounter an issue.
 

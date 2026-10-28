@@ -123,3 +123,13 @@ The native VoidGenerator constructor takes the biome ID as a scalar in R8W. The 
 ```powershell
 python -B -X utf8 tests/void_constructor_abi.py --dll PATH_TO_DLL --pdb PATH_TO_PDB --pdbutil PATH_TO_LLVM_PDBUTIL
 ```
+
+## Windows native seed and world entry (0.3.3)
+
+In the pinned 1.26.51.01 image, the static key initializer at RVA `0x64E48C` writes `seed` (hash `0x92EB667EA331F1E6`) to the HashedString at `0x11D2C540`. `LevelData::setSeed` at `0x621590` stores a LevelSeed64 variant (index 7); native getters at `0x1178860` and `0x11788A0` query that same key through `0x62F050`. `RandomSeed` is the NBT serialization name, not this runtime property. The adapter uses the native lookup so overrides retain their precedence. Missing or incorrectly typed entries are errors; they are not replaced with seed zero.
+
+After native initialization, the client compares LevelData with the validated LevelSettings seed before reporting ready and writes `diagnostics/world-seed.json`. Status-write errors cannot prevent session release or the native world destructor. The creation worker, immutable recipe, height pack, void-generator detour and native template warmup remain part of the same creation-to-entry path.
+
+`tests/native_seed_26_51.py IMAGE` replays the real native key initializer, property lookup and seed getters with synthetic map nodes. Only virtual level dispatch and byte comparison are stubbed. It reproduces the old lookup failure and checks override precedence and signed-boundary bit patterns without starting Minecraft. `bedrock-seed-test` in the client xmake project tests the production adapter with SDK seed types; `world_startup` checks seed mismatch rejection. These are offline tests, not world-entry acceptance.
+
+The launcher reads the displayed name from `manifest.name`, and LL requires it to match the folder. The ZIP and lip placement therefore use `mountains&seas/`; the entry DLL remains `karma-worldgen-client.dll`. Old configuration and seed caches can be copied into that folder after removing the old active entry. The manifest declares the old entry as a conflict to prevent loading both together.

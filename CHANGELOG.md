@@ -1,3 +1,11 @@
+## 0.3.3 — world-entry seed fix and launcher name
+
+Fixes a world-entry failure on Minecraft **1.26.51.01** caused by reading the saved NBT seed name instead of the runtime seed property. Terrain and structures now read the native 64-bit seed consistently, and world initialization checks it against the creation settings. Optional session diagnostics no longer interrupt world cleanup.
+
+LeviLauncher now displays **mountains&seas**, by **troveminecraft**. The install directory is `mods/mountains&seas`; the DLL filename and world markers remain compatible. When upgrading from 0.3.2 or earlier, fully close Minecraft, back up and move the old `karma-worldgen-client` folder outside `mods`, then import this ZIP. Copy `client-config.json` and, optionally, `seed-cache` from the backup into the new folder. Do not enable both entries.
+
+Requires LeviLamina **26.51.9**, Windows x64 and AVX2. Kernel **2.211**, terrain recipes, sea level **Y100** and building range **Y-64..511** are unchanged. First entry and exploration can still show loading stalls or visible chunk gaps. Vanilla worlds are not automatically converted.
+
 ## 0.3.2 — Windows world-loading crash
 
 Fixes a crash while loading a new world on Minecraft **1.26.51.01**. The native terrain-generator constructor passes a biome number directly, but the previous hook interpreted it as a pointer. The adapter now preserves the native calling convention and validates the corresponding game instructions. The 0.3.1 activation-order fix is retained.
