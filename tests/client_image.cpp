@@ -39,6 +39,7 @@ int main(int argc,char**argv){
 #ifdef SHANHAI_MC_26_51
              ,client::image::DispatchRva,client::image::StartStageRva,client::image::ServerStageRva,
              client::image::CreatorRva,client::image::LifeRva,client::image::DestructorCheckRva
+             ,client::image::VoidConstructorInputRva,client::image::VoidConstructorCallRva
 #endif
         }) {
             auto changed = inspect([&](uint32_t rva, void* out, size_t size) {

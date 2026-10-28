@@ -113,3 +113,13 @@ The new adapter times native load, structure, decoration and lighting closures w
 ## Windows activation diagnostics (0.3.1)
 
 `diagnostics/activation.json` separates executable validation, hook installation, enabled, failed and disabled states. `ready: true` means all required hook installers completed, not that a world has finished generating. With the module fully enabled, `newWorldsUseKarma` reflects the creation setting. Creation validation runs before rendering detours modify the pinned cloud call sites. If another installer fails, runtime hooks are restored before creation hooks are removed.
+
+## Windows 26.51 generator constructor ABI (0.3.2)
+
+The native VoidGenerator constructor takes the biome ID as a scalar in R8W. The SDK's `BiomeIdType` inherits `NewType`'s nontrivial copy constructor, so clang passes that wrapper indirectly. The detour uses `std::uint16_t` for its native boundary and resolves the existing constructor entry without imposing the SDK argument type. The original call and the detour share this scalar signature. Game-image checks pin both the callee's argument copy and the native zero-ID caller. The original 26.20 signature is unchanged.
+
+`tests/void_constructor_abi.py` replays the actual compiled DLL detour using Unicorn and its PDB symbols. It can reproduce the 0.3.1 null read and verifies values 0, 1, 255, 256 and 65535, the original call's arguments, post-construction binding order and the constructor result. Native construction and binding are observed stubs: this test does not execute a game world. It requires `pefile`, `unicorn` and `llvm-pdbutil`.
+
+```powershell
+python -B -X utf8 tests/void_constructor_abi.py --dll PATH_TO_DLL --pdb PATH_TO_PDB --pdbutil PATH_TO_LLVM_PDBUTIL
+```

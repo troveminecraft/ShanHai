@@ -67,10 +67,19 @@ void restoreVoidGeneratorSlots() {
     voidGeneratorBound=false;
     voidGeneratorSlots={};
 }
-LL_TYPE_INSTANCE_HOOK(VoidGeneratorConstruction,ll::memory::HookPriority::Normal,VoidGenerator,
-                      &VoidGenerator::$ctor,void*,Dimension &dimension
 #ifdef SHANHAI_MC_26_51
-                      ,BiomeIdType defaultBiome
+// Use the SDK only to resolve the entry, not to impose its wrapper ABI.
+#define SHANHAI_VOID_CTOR_TARGET ll::memory::unchecked(&VoidGenerator::$ctor)
+#else
+#define SHANHAI_VOID_CTOR_TARGET &VoidGenerator::$ctor
+#endif
+LL_TYPE_INSTANCE_HOOK(VoidGeneratorConstruction,ll::memory::HookPriority::Normal,VoidGenerator,
+                      SHANHAI_VOID_CTOR_TARGET,void*,Dimension &dimension
+#ifdef SHANHAI_MC_26_51
+                      // Native 26.51 passes the 16-bit biome value in R8W.
+                      // SDK BiomeIdType inherits a nontrivial copy constructor,
+                      // which instead makes clang expect an address in R8.
+                      ,std::uint16_t defaultBiome
 #endif
                       ) {
 #ifdef SHANHAI_MC_26_51
@@ -81,6 +90,7 @@ LL_TYPE_INSTANCE_HOOK(VoidGeneratorConstruction,ll::memory::HookPriority::Normal
     bindVoidGenerator(*this);
     return result;
 }
+#undef SHANHAI_VOID_CTOR_TARGET
 void installStructureGeneratorHooks(terrain_runtime::HookTransaction &hooks) {
     // Full startup installs this observer before any generator is constructed.
     // Import thunks can already point into other hooks during hot enable, and

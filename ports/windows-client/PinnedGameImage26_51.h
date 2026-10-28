@@ -19,11 +19,17 @@ inline constexpr uint32_t DestructorRva=0xbba2ef0, DestructorCheckRva=0xbba2f25;
 inline constexpr std::array<unsigned char,32> DestructorBytes{0x48,0x8b,0x81,0x90,0x05,0x00,0x00,0x48,0x85,0xc0,0x74,0x44,0xc6,0x00,0x00,0x0f,0x57,0xc0,0x48,0x8b,0x9e,0x98,0x05,0x00,0x00,0x0f,0x11,0x86,0x90,0x05,0x00,0x00};
 inline constexpr uint32_t LifeRva=0xbba12a1;
 inline constexpr std::array<unsigned char,16> LifeBytes{0x4d,0x85,0xc0,0x4c,0x89,0x45,0x18,0x74,0x37,0x48,0x8b,0x86,0x90,0x05,0x00,0x00};
+// VoidGenerator consumes a scalar biome ID in R8, not the SDK wrapper's
+// implicit copy-constructor pointer. Pin both the callee and its zero-ID caller.
+inline constexpr uint32_t VoidConstructorInputRva=0x2319757, VoidConstructorCallRva=0xc9d8da0;
+inline constexpr std::array<unsigned char,9> VoidConstructorInputBytes{0x44,0x89,0xc7,0x48,0x89,0xd6,0x48,0x89,0xcb};
+inline constexpr std::array<unsigned char,21> VoidConstructorCallBytes{0x48,0x89,0xf1,0x4c,0x89,0xf2,0x45,0x31,0xc0,0x48,0x89,0xb5,0x88,0x00,0x00,0x00,0xe8,0x7b,0x09,0x94,0xf5};
 template<class Reader> Result inspect(Reader read){
 Result result;
 uint32_t nt=0;read(0x3c,&nt,4);if(nt>=0x40&&nt<=0x1000){read(nt+8,&result.timestamp,4);read(nt+24+56,&result.imageSize,4);}
 if(!clouds::native26::inspect(read)){result.reason="Different Windows 1.26.51.01 image or cloud instructions";return result;}
 auto matches=[&](uint32_t rva,auto const& expected){std::remove_cvref_t<decltype(expected)> actual{};return read(rva,actual.data(),actual.size())&&actual==expected;};
+if(!(matches(VoidConstructorInputRva,VoidConstructorInputBytes)&&matches(VoidConstructorCallRva,VoidConstructorCallBytes))){result.reason="Void generator constructor calling convention mismatch";return result;}
 if(!(matches(FacetRva,FacetBytes)&&matches(DispatchRva,DispatchBytes)&&matches(StartStageRva,StartStageBytes)&&matches(ServerStageRva,ServerStageBytes)&&matches(CreatorRva,CreatorBytes)&&matches(LifeRva,LifeBytes)&&matches(DestructorCheckRva,DestructorBytes))){result.reason="Create-world state machine instruction mismatch";return result;}
 result.supported=true;result.reason="Pinned 1.26.51.01 creation state machine and cloud call sites verified";return result;
 }
