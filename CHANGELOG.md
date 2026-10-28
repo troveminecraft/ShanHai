@@ -1,3 +1,13 @@
+## 0.3.1 — Windows generator activation
+
+World creation now activates before cloud rendering patches are installed. This fixes 0.3.0 reporting the DLL as loaded but then rejecting its own patched executable, disabling the terrain hooks and creating vanilla worlds. Strict executable compatibility checks remain enabled. Startup diagnostics now distinguish a loaded DLL from a fully enabled generator.
+
+Minecraft **1.26.51.01** and LeviLamina **26.51.9** are required. Terrain recipes, kernel **2.211**, sea level **Y100** and building range **Y-64..511** are unchanged. Worlds created while activation failed remain vanilla worlds; create a new normal world after updating.
+
+Known issue: first entry and exploration can still show loading stalls or visible chunk gaps. This update addresses generator activation, not those separate performance problems.
+
+Windows **0.3.1**. This 26.51 update applies to Windows only.
+
 ## 0.3.0 — Bedrock 26.51 compatibility
 
 Windows now targets Minecraft **1.26.51.01** with LeviLamina **26.51.9**. World creation, height-pack discovery, chunk views, save-state tracking and native structure placement use the new game interfaces. The shared source retains a separate 26.20 build path; DLLs for different game builds are not interchangeable.

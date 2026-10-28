@@ -79,3 +79,8 @@ target("client_image_26_51")
     add_defines("SHANHAI_MC_26_51")
     add_files("client_image.cpp")
 target_end()
+
+target("client_activation")
+    set_kind("binary")
+    add_files("client_activation.cpp")
+target_end()

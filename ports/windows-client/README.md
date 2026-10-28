@@ -1,4 +1,4 @@
-# 山&海 0.3.0
+# 山&海 0.3.1
 
 Minecraft 基岩版 Windows 客户端地形生成模组。
 
@@ -7,7 +7,7 @@ Minecraft 基岩版 Windows 客户端地形生成模组。
 需要 Minecraft for Windows **1.26.51.01**、LeviLamina **26.51.9 客户端版**、Windows x64 和支持 AVX2 的 CPU。
 
 1. 保存并完全退出 Minecraft。
-2. 在 LeviLauncher 对应实例的模组管理中导入 `ShanHai-Windows-0.3.0.zip`。
+2. 在 LeviLauncher 对应实例的模组管理中导入 `ShanHai-Windows-0.3.1.zip`。
 3. 确认 `karma-worldgen-client` 已启用，再启动游戏。
 4. 创建普通新世界，可自行填写种子；不要选择超平坦。
 
@@ -15,11 +15,11 @@ ZIP 包含种子生成运行依赖，无需另装 Python 或 Node.js。请安装
 
 ## 本版变化与存档
 
-Windows 适配 Minecraft **1.26.51.01** 与 LeviLamina **26.51.9 客户端版**。同步调整创建世界、高度包发现、区块视图、存档脏状态及原版结构放置。共享源码保留独立的 26.20 构建入口，不同游戏版本的 DLL 不能混用。
+修复 0.3.0 中 DLL 显示已加载、生成器却启用失败，导致新世界生成原版地形的问题。创建世界接口现在先于云层补丁启用，避免把自身修改误判为不兼容的游戏程序。保留严格版本校验，并在日志与 `diagnostics/activation.json` 中区分 DLL 加载和生成器启用状态。
 
-Y500 云层改为接入原始画面与灵动视效共用的两个原生高度调用点，并校验可执行文件与指令边界。原生区块任务按实际所属区块记录耗时，保留客户端网格构建计时；26.51 暂不可采集的调度与邻区判断会在诊断中明确标出。
+适用于 Minecraft **1.26.51.01** 与 LeviLamina **26.51.9 客户端版**。地形配方、内核 **2.211**、海平面 **Y100** 与建造范围 **Y-64..511** 不变。启用失败期间创建的世界仍是原版世界，更新后请创建普通新世界。
 
-地形配方、内核 **2.211**、海平面 **Y100** 与建造范围 **Y-64..511** 不变。首次进入与探索中仍可能出现加载停顿或可见缺块；本次兼容更新不代表这些加载问题已经解决。
+已知问题：首次进入与探索中仍可能出现加载停顿或可见缺块，本次更新不宣称解决这些独立的性能问题。
 
 加载问题可附模组目录的 `diagnostics/world-session.json`。创建失败可附 `diagnostics/world-startup.json`、`diagnostics/world-error.txt`、创建任务 `handoff.jsonl`、`failure.json`、`height-pack-discovery.json` 和世界 `karma/fatal-runtime.json`。
 

@@ -28,6 +28,7 @@
 #include "mc/deps/core/file/PathView.h"
 #include "WorldStartup.h"
 #include "HookTransaction.h"
+#include "ClientActivation.h"
 #include "CloudHeight.inc"
 
 namespace client {
@@ -211,6 +212,16 @@ LL_TYPE_INSTANCE_HOOK(WorldClose, ll::memory::HookPriority::Normal, ServerLevel,
 } // namespace client
 #include "NewWorldCreation.inc"
 namespace client {
+void activationStatus(char const* phase, bool ready, char const* reason = nullptr) noexcept {
+    // Optional diagnostics must not turn a successful activation into a failure,
+    // or replace the exception that caused a hook transaction to roll back.
+    try {
+        Json status{{"version", shanhai_release::Windows}, {"ready", ready}, {"phase", phase}};
+        if (ready) status["newWorldsUseKarma"] = creation::enabled;
+        if (reason) status["reason"] = reason;
+        std::ofstream(diagnostics / "activation.json") << status.dump(2);
+    } catch (...) {}
+}
 class Mod {
   public:
     static Mod &getInstance() {
@@ -226,7 +237,9 @@ class Mod {
             return false;
         lab::clientVanillaPath(std::filesystem::path(std::wstring(exe.data(), n)).parent_path() / "data/behavior_packs/vanilla");
         std::filesystem::create_directories(diagnostics);
+        activationStatus("validating", false);
         if (!creation::supportedFacetLayout()) {
+            activationStatus("failed", false, "Unsupported Minecraft executable");
             m.getLogger().error(
                 "Unsupported Minecraft executable; this adapter requires Windows "
 #ifdef SHANHAI_MC_26_51
@@ -237,35 +250,43 @@ class Mod {
             );
             return false;
         }
-        m.getLogger().info("Karma Windows client {}; local world creation enabled", shanhai_release::Windows);
+        m.getLogger().info("Karma Windows client {} loaded; adapters pending activation", shanhai_release::Windows);
         return true;
     }
     bool enable() {
-        terrain_runtime::HookTransaction hooks;
-
-        hooks.add<WorldOpen>("WorldOpen");
-        hooks.add<WorldClose>("WorldClose");
-        terrain::clientHooks(hooks);
-        lab::clientHooks(hooks);
-        clouds::install(hooks);
-        creation::enable();
-        hooks.onRollback([] { creation::disable(); });
-        listener =
-            ll::event::EventBus::getInstance().emplaceListener<ll::event::ServerLevelTickEvent>([](auto &e) {
-                if (current != &e.level())
-                    return;
-                ++sessionTicks;
-                try {
-                    lab::clientTick(e.level());
-                    terrain::clientTick(e.level());
-                } catch (std::exception const &ex) {
-                    if (++tickErrors == 1 || tickErrors % 200 == 0)
-                        terrain::log().error("Karma client tick ({} errors): {}", tickErrors, ex.what());
-                }
-                if (sessionTicks % 100 == 0)
-                    writeStatus(e.level());
-            });
-        hooks.commit();
+        activationStatus("installing", false);
+        try {
+            terrain_runtime::HookTransaction hooks;
+            activation::install(hooks, [] { creation::enable(); }, [] { creation::disable(); },
+                [](auto& runtimeHooks) {
+                    runtimeHooks.template add<WorldOpen>("WorldOpen");
+                    runtimeHooks.template add<WorldClose>("WorldClose");
+                    terrain::clientHooks(runtimeHooks);
+                    lab::clientHooks(runtimeHooks);
+                    clouds::install(runtimeHooks);
+                });
+            listener =
+                ll::event::EventBus::getInstance().emplaceListener<ll::event::ServerLevelTickEvent>([](auto &e) {
+                    if (current != &e.level())
+                        return;
+                    ++sessionTicks;
+                    try {
+                        lab::clientTick(e.level());
+                        terrain::clientTick(e.level());
+                    } catch (std::exception const &ex) {
+                        if (++tickErrors == 1 || tickErrors % 200 == 0)
+                            terrain::log().error("Karma client tick ({} errors): {}", tickErrors, ex.what());
+                    }
+                    if (sessionTicks % 100 == 0)
+                        writeStatus(e.level());
+                });
+            hooks.commit();
+        } catch (std::exception const& error) {
+            activationStatus("failed", false, error.what());
+            throw;
+        }
+        activationStatus("enabled", true);
+        terrain::log().info("Karma Windows client fully enabled; creation, terrain, structures and cloud hooks installed");
         return true;
     }
     bool disable() {
@@ -278,6 +299,7 @@ class Mod {
         clouds::remove();
         terrain::clientUnhook();
         lab::clientUnhook();
+        activationStatus("disabled", false);
         return true;
     }
     bool unload() {

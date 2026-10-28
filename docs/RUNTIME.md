@@ -109,3 +109,7 @@ The Y500 cloud adjustment uses the two native cloud-height call sites shared by 
 Terrain recipes, kernel **2.211**, sea level **Y100** and building range **Y-64..511** are unchanged. Existing supported recipes remain pinned. Known issue: first entry and exploration can still show loading stalls or visible chunk gaps; this compatibility update does not establish that those problems are resolved.
 
 The new adapter times native load, structure, decoration and lighting closures without changing their results. `nativeWork.*.available` distinguishes unsupported metrics from zero samples. `pipeline.dispatchPredicateTraceAvailable` and `pipeline.neighbourPredicateTraceAvailable` are false on 26.51 because those native helpers were inlined. Queue snapshots remain read-only and bounded; client mesh timing excludes GPU publication.
+
+## Windows activation diagnostics (0.3.1)
+
+`diagnostics/activation.json` separates executable validation, hook installation, enabled, failed and disabled states. `ready: true` means all required hook installers completed, not that a world has finished generating. With the module fully enabled, `newWorldsUseKarma` reflects the creation setting. Creation validation runs before rendering detours modify the pinned cloud call sites. If another installer fails, runtime hooks are restored before creation hooks are removed.
