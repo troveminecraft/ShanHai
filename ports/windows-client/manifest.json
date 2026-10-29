@@ -1,7 +1,7 @@
 {
   "name": "mountains&seas",
   "entry": "karma-worldgen-client.dll",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "type": "native",
   "platform": "client",
   "description": "mountains&seas（山&海）：Minecraft 基岩版主世界地形与结构生成",

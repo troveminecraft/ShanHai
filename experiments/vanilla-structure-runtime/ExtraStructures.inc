@@ -1144,7 +1144,7 @@ void placeExtras(Dimension &d, BlockSource &blocks, ChunkPos cp,
             piece->addHardcodedSpawnAreas(*ch);
         bedrock_compat::requestSave(*ch);
         if (!auditPlanningStarts)
-            std::ofstream(folder / "extra-placements.jsonl", std::ios::app)
+            terrain_runtime::DeferredDiagnosticLine(folder / "extra-placements.jsonl")
                 << J{{"family", extraNames[type]},
                      {"anchor", {anchor.x * 16, anchor.z * 16}},
                      {"chunk", {cp.x, cp.z}},

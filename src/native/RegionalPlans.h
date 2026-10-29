@@ -3,6 +3,7 @@
 #include "RegionalPlanStore.h"
 #include "../RegionalAlgorithms.h"
 #include "DrainageCurves.h"
+#include "LakeBoundary.h"
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -62,7 +63,12 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
   }
   if(!accepted)continue;
   J rows=J::array();
-  for(int zz=0;zz<Side;++zz)for(int xx=0;xx<Side;){if(!wet[zz*Side+xx]){++xx;continue;}int begin=xx;while(xx+1<Side&&wet[zz*Side+xx+1])++xx;
+  if(refresh){
+   int side=(Side-1)*Step+1;
+   auto verified=closedLake(X-16*Step,Z-16*Step,side,(start%Side)*Step,(start/Side)*Step,level,low+2,sample,eligible);
+   if(verified.rows.empty())continue;
+   level=verified.level;for(auto const&row:verified.rows)rows.push_back(row);
+  }else for(int zz=0;zz<Side;++zz)for(int xx=0;xx<Side;){if(!wet[zz*Side+xx]){++xx;continue;}int begin=xx;while(xx+1<Side&&wet[zz*Side+xx+1])++xx;
    for(int dz=0;dz<Step;++dz)rows.push_back({Z+(zz-16)*Step-Step/2+dz,X+(begin-16)*Step-Step/2,X+(xx-16)*Step+(Step-1)/2});++xx;
   }
   lakes.push_back({{"level",level},{"center",{X+(refresh?(start%Side-16)*Step:0),Z+(refresh?(start/Side-16)*Step:0)}},{"rows",rows},{"frozen",s.temperature<.42}});sink[i]=level;

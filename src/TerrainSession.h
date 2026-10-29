@@ -21,6 +21,7 @@ template<unsigned Workers, size_t MemoryChunks> struct TerrainSession {
     terrain_kernel::ContextPtr kernelContext;
     std::array<NativeRuntime, Workers> runtimes;
     WorkerPool<Workers> calculatorPool;
+    unsigned activeWorkers=Workers;
     terrain_cache::ChunkCache<Chunk, MemoryChunks, CacheShards, terrain_cache::MixedShard, uint64_t> memoryCache;
     std::array<std::mutex, ChunkGateCount> chunkGates;
     terrain_cache::CacheWriter cacheWriter;
@@ -52,13 +53,15 @@ template<unsigned Workers, size_t MemoryChunks> struct TerrainSession {
     }
     bool belongsTo(void const* level) const { return level && levelIdentity.load()==level; }
 
-    void start(std::filesystem::path const& regionalDirectory) {
+    void start(std::filesystem::path const& regionalDirectory,unsigned requestedWorkers=Workers) {
+        activeWorkers=std::clamp(requestedWorkers,1u,Workers);
+        calculatorPool.configure(activeWorkers);
         kernelContext = std::make_shared<terrain_kernel::Context>();
         kernelContext->storage(nativeData, regionalDirectory);
         std::array<std::future<void>, Workers> starts;
-        for (unsigned i=0; i<Workers; ++i)
+        for (unsigned i=0; i<activeWorkers; ++i)
             starts[i] = std::async(std::launch::async,[this,i]{runtimes[i].start(nativeData,kernelContext);});
-        for (auto& job : starts) job.get();
+        for (unsigned i=0;i<activeWorkers;++i) starts[i].get();
         cacheWriter.start();
         tasks.open();
     }

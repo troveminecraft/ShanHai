@@ -1,3 +1,10 @@
+using SeededReads=terrain_runtime::SeededColumnCache<terrain_kernel::Surface,Block const*>;
+thread_local SeededReads* seededTerrainReads=nullptr;
+struct SeededReadScope {
+ SeededReads values;SeededReads* previous=seededTerrainReads;
+ SeededReadScope(){seededTerrainReads=&values;}
+ ~SeededReadScope(){seededTerrainReads=previous;}
+};
 // Native chunk decoration, before a chunk can become Loaded.
 worldgen_rules::StructureStageMutex stageMutex;
 #include "StructureCheckpoints.inc"
@@ -614,14 +621,16 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
         for(auto const& [type,c]:extras)warming.push_back(c);
         warming.push_back(*cp);
         warmStructureRegions(warming);
+        terrain_runtime::DeferredDiagnosticBatch deferredLogs; // destroyed after the registry guard
         std::lock_guard guard(stageMutex);
+        SeededReadScope seededReads;
         if (structureStageFailed)
             return false;
         bool alreadyFiltered;
         { std::lock_guard lock(prefilteredMutex); alreadyFiltered = prefilteredChunks.erase({cp->x, cp->z}) > 0; }
         // Bound startup diagnostics; do not open a log file for every ordinary chunk.
         if (storageLogRows++ < 128)
-            std::ofstream(folder / "automatic-storage-checks.jsonl", std::ios::app)
+            terrain_runtime::DeferredDiagnosticLine(folder / "automatic-storage-checks.jsonl")
                 << J{{"chunk", {cp->x, cp->z}},
                      {"stored", stored},
                      {"world", bedrock_compat::levelName(level.getLevelData())}}
@@ -666,7 +675,7 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
                     p.start, {{cp->x * 16, -64, cp->z * 16}, {cp->x * 16 + 15, field->generationHeight()-65, cp->z * 16 + 15}},
                     "village", anchor, seed);
             bedrock_compat::requestSave(*center);
-            std::ofstream(folder / "village-placements.jsonl", std::ios::app)
+            terrain_runtime::DeferredDiagnosticLine(folder / "village-placements.jsonl")
                 << J{{"anchor", {anchor.x * 16, anchor.z * 16}},
                      {"chunk", {cp->x, cp->z}},
                      {"pieces", pieces},
@@ -700,7 +709,7 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
                 if (cleared) {
                     bedrock_compat::requestSave(*center);
                 }
-                std::ofstream(folder / "vegetation-reservations.jsonl", std::ios::app)
+                terrain_runtime::DeferredDiagnosticLine(folder / "vegetation-reservations.jsonl")
                     << J{{"anchor", {x * 16, z * 16}},
                          {"chunk", {cp->x, cp->z}},
                          {"cleared", cleared},
@@ -726,7 +735,7 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
             }
             double ms =
                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t).count();
-            std::ofstream(folder / "automatic-placements.jsonl", std::ios::app)
+            terrain_runtime::DeferredDiagnosticLine(folder / "automatic-placements.jsonl")
                 << J{{"type", plan.start->getStructureName()},
                      {"anchor", {x * 16, z * 16}},
                      {"chunk", {cp->x, cp->z}},
@@ -799,10 +808,12 @@ std::optional<bool> locateNativeStructure(Dimension &d, HashedString type, Block
     if (!work || structureStageFailed)
         return false;
     try {
+        terrain_runtime::DeferredDiagnosticBatch deferredLogs; // destroyed after the registry guard
         std::lock_guard guard(stageMutex);
+        SeededReadScope seededReads;
         initialize();
         auto &f = registeredFeature(d);
-        std::ofstream(folder / "locate-requests.jsonl", std::ios::app)
+        terrain_runtime::DeferredDiagnosticLine(folder / "locate-requests.jsonl")
             << J{{"type", type.getString()},
                  {"registeredType", f.mStructureFeatureType->getString()},
                  {"from", {from.x, from.y, from.z}}}

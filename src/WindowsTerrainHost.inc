@@ -74,7 +74,7 @@ Json clientStatus() {
     result["streaming"].update({{"nearPending",nearPending},{"farPending",farPending},{"oldestPendingMs",oldestPendingMs},
         {"calculatorWaiting",worldSession->waitingCalculators.load()},{"calculatorBusy",worldSession->busyCalculators.load()},
         {"repairsPerPlayer",terrain_runtime::RepairSlots},{"stallSeconds",8},{"frontierRepair",false},
-        {"clientMeshMeasured",true},{"states",Json::array()}});
+        {"clientMeshMeasured",worldSession->nativeWorkLatency[4].snapshot().count>0},{"calculatorWorkers",worldSession->activeWorkers},{"states",Json::array()}});
     for(int i=0;i<14;++i)result["streaming"]["states"].push_back({{"name",loadStateName(i)},
         {"pending",pendingByState[i]},{"residence",latencyJson(worldSession->stageLatency[i])}});
     result["playerViews"]=Json::array();

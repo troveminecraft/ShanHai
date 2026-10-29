@@ -41,7 +41,7 @@ double streamingDesertWeight(double wx,double wz){
 std::shared_ptr<J const> regionalWaterPlan(int a,int b){
  auto algorithm=data.at("regionalGeneration").value("algorithm",std::string{});
  bool curved=algorithm!="regional-drainage-v1";
- return regional::get(streamingIdentity,"water",a,b,[&]{return regional::drainage(a,b,terrainSeed,[&](int x,int z){
+ return regional::get(streamingIdentity,landformRefresh?"water-v2":"water",a,b,[&]{return regional::drainage(a,b,terrainSeed,[&](int x,int z){
   auto s=regionalClimateSample(x+32768,z+32768);return regional::Ground{s.height,s.H,s.T,s.stone,s.volcanic,s.closedBasin,s.water};
  },curved,seaLevelValue,generatedMaxYExclusive-1,algorithm=="regional-drainage-v3",C.value("riverBankSurvey",0)>=1,landformRefresh);});
 }

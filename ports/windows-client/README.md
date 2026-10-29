@@ -1,26 +1,30 @@
-# 山&海 · mountains&seas 0.3.3
+# mountains&seas · 山&海 0.3.4
 
-Minecraft 基岩版 Windows 客户端地形生成模组。
+Minecraft 基岩版 Windows 地形与结构生成模组。作者：troveminecraft。
+
+## 兼容版本
+
+| Minecraft for Windows | LeviLamina client | Package |
+|---|---|---|
+| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.3.4.zip` |
+| 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.3.4.zip` |
+
+Windows x64、AVX2 CPU。根据游戏版本选择 ZIP，DLL 不可混用。
 
 ## 安装
 
-需要 Minecraft for Windows **1.26.51.01**、LeviLamina **26.51.9 客户端版**、Windows x64 和支持 AVX2 的 CPU。
+保存并完全退出 Minecraft，在 LeviLauncher 对应实例导入完整 ZIP。确认 mountains&seas 已启用，创建普通新世界并填写种子。不要选择超平坦。
 
-1. 保存并完全退出 Minecraft；旧版升级请先按下面的迁移步骤处理。
-2. 在 LeviLauncher 对应实例的模组管理中导入 `ShanHai-Windows-0.3.3.zip`。
-3. 确认 **mountains&seas** 已启用，作者为 **troveminecraft**，版本为 **0.3.3**。
-4. 启动游戏，创建普通新世界，可自行填写种子；不要选择超平坦。
+从旧 karma-worldgen-client 条目升级时，先备份并将旧文件夹移出 mods，再导入新包；保留 client-config.json 和可选的 seed-cache。不要同时启用两份模组。ZIP 已包含 Python/Node.js 依赖，无需另行安装。
 
-ZIP 包含完整种子生成运行依赖，无需另装 Python 或 Node.js。请安装完整包，不要只复制 DLL。
+## 本版变化
 
-## 本版变化与升级
+修正 Minecraft 1.26.51.01 的区块完成状态识别，避免已完成区块被计入积压并关闭预读。拥有至少 12 个逻辑处理器的 CPU 使用四个有界地形计算槽，其他 CPU 保留两个。结构邻区读取复用有界地形列缓存，诊断日志在释放原生结构锁后写入。
 
-修复 Minecraft **1.26.51.01** 进入世界时因种子读取失败而退出：此前把存档 NBT 的字段名用于运行时查询；现在地形和结构统一读取原生 64 位种子，并在世界初始化后核对创建设置。可选诊断写入失败也不会再阻断世界退出清理。
+区域湖泊按逐格地形验证连通岸线，修复水位以下相邻地面突然断水的硬切边；湖床改用连续沉积分区。内核更新为 **2.212**，海平面仍为 **Y100**，建造范围仍为 **Y-64..511**。
 
-LeviLauncher 现在显示 **mountains&seas**，作者为 **troveminecraft**。安装目录改为 `mods/mountains&seas`，DLL 文件名及世界标记保持兼容。从 0.3.2 或更早版本升级时，完全退出 Minecraft，备份并将旧 `karma-worldgen-client` 文件夹移到 `mods` 外，再导入新 ZIP。把备份中的 `client-config.json` 和可选的 `seed-cache` 复制到新目录；不要同时启用两份模组。
+已生成区块保留。湖泊修正作用于受支持区域世界的新生成地形，与旧区块交界处可能仍有接缝。更新前请备份世界。密集地形和较大视距下仍可能加载缓慢，本版不宣称消除了所有停顿。原版世界不会自动转换。
 
-适用于 LeviLamina **26.51.9 客户端版**、Windows x64 与 AVX2 CPU。内核 **2.211**、地形配方、海平面 **Y100** 和建造范围 **Y-64..511** 不变。首次进入与探索中的加载停顿和可见缺块仍是已知问题；原版世界不会自动转换。
+问题反馈可提供游戏和模组版本、种子、坐标、复现步骤，以及模组 diagnostics 下的 world-session.json、world-startup.json、world-error.txt。
 
-加载问题可附模组目录的 `diagnostics/world-session.json`、`diagnostics/world-seed.json`、`diagnostics/world-startup.json` 和 `diagnostics/world-error.txt`。创建失败可附创建任务的 `handoff.jsonl`、`failure.json`、`height-pack-discovery.json`；结构失败请同时附世界的 `karma/structures/structure-failure.json` 和 `karma/fatal-runtime.json`。
-
-本包仅用于上述 Windows 客户端环境。原版结构模板从本机游戏读取，不分发游戏本体。下载与反馈：[mountains&seas](https://github.com/troveminecraft/ShanHai)。原创代码采用随包 MIT 协议，第三方运行库保留各自许可。
+下载与反馈：[mountains&seas](https://github.com/troveminecraft/ShanHai)。原创代码使用 MIT 协议，第三方组件保留各自许可。安卓封档。

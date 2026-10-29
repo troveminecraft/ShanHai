@@ -166,7 +166,8 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
                 std::vector<ChunkPos> warming=vc;warming.insert(warming.end(),sc.begin(),sc.end());
                 for(auto const& [type,c]:ec)warming.push_back(c);
                 warmStructureRegions(warming);
-                std::lock_guard guard(stageMutex);
+                terrain_runtime::DeferredDiagnosticBatch deferredLogs;
+    std::lock_guard guard(stageMutex);
                 if (structureStageFailed) throw std::runtime_error("Structure generation paused");
                 auto save=[&](auto key,StructureStart const* start,bool scattered=false){
                     worldgen_rules::StructureReservationCache::Entry e;
@@ -202,7 +203,7 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
                 throw std::runtime_error("Structure generation paused during prefill");
             prefilteredChunks.insert({cp.x, cp.z});
             if (prefillLogRows++ < 2048)
-                std::ofstream(folder / "structure-prefill.jsonl", std::ios::app)
+                terrain_runtime::DeferredDiagnosticLine(folder / "structure-prefill.jsonl")
                     << J{{"chunk", {cp.x, cp.z}},
                          {"cleared", cleared},
                          {"plans", groups.size()},

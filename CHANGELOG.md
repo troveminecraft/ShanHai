@@ -1,3 +1,13 @@
+## 0.3.4 — loading state, bounded workers and lake shorelines
+
+Corrects chunk completion tracking on Minecraft 1.26.51.01, preventing completed chunks from inflating the loading backlog and disabling look-ahead work. Terrain calculations use four bounded workers on CPUs with at least 12 logical processors, and two on smaller CPUs. Structure terrain reads reuse bounded column caches, and buffered diagnostic writes run after the native structure lock is released.
+
+Regional lakes now verify connected shorelines at block resolution. This fixes straight mask edges that left adjacent ground below the water level dry. Lakebed sediment uses continuous patches. The kernel is **2.212**; sea level remains **Y100** and the building range remains **Y-64..511**.
+
+Already generated chunks are preserved. Lake corrections affect newly generated terrain in supported regional worlds; borders with older saved terrain may remain visible. Back up worlds before updating. Dense areas and large view distances can still load slowly; this release does not claim to eliminate every loading stall. Vanilla worlds are not automatically converted.
+
+Separate Windows packages support 1.26.51.01 / LeviLamina 26.51.9 and 1.26.20.04 / LeviLamina 26.20.7. Do not mix their DLLs.
+
 ## 0.3.3 — world-entry seed fix and launcher name
 
 Fixes a world-entry failure on Minecraft **1.26.51.01** caused by reading the saved NBT seed name instead of the runtime seed property. Terrain and structures now read the native 64-bit seed consistently, and world initialization checks it against the creation settings. Optional session diagnostics no longer interrupt world cleanup.

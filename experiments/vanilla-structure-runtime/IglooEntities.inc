@@ -357,7 +357,7 @@ void tickIglooEntities(Level &level) {
         entityLedger["entries"][key]["state"] = after.size() == 2 ? "completed" : "review-count";
         entityLedger["entries"][key]["actors"] = after;
         persistEntityLedger();
-        std::ofstream(folder / "igloo-entity-events.jsonl", std::ios::app)
+        terrain_runtime::DeferredDiagnosticLine(folder / "igloo-entity-events.jsonl")
             << entityLedger["entries"][key].dump() << '\n';
         break;
     }

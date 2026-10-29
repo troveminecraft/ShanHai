@@ -5,11 +5,13 @@
 #include <cstdint>
 #include <mutex>
 #include <utility>
+#include <stdexcept>
 namespace terrain_runtime {
 template<size_t N>class WorkerPool {
- std::mutex mutex;std::condition_variable ready;std::array<bool,N> busy{};uint64_t next=0,serving=0;
+ std::mutex mutex;std::condition_variable ready;std::array<bool,N> busy{};uint64_t next=0,serving=0;size_t enabled=N;
  void release(size_t i){{std::lock_guard lock(mutex);busy[i]=false;}ready.notify_all();}
 public:
+ void configure(size_t count){std::lock_guard lock(mutex);if(!count||count>N||next!=serving||std::any_of(busy.begin(),busy.end(),[](bool value){return value;}))throw std::logic_error("Worker pool reconfiguration requires idle workers");enabled=count;}
  class Lease {
   WorkerPool* pool;friend class WorkerPool;
   Lease(WorkerPool* p,size_t index):pool(p),i(index){}
@@ -20,8 +22,8 @@ public:
  };
  Lease acquire(){
   std::unique_lock lock(mutex);auto ticket=next++;
-  ready.wait(lock,[&]{return ticket==serving&&std::find(busy.begin(),busy.end(),false)!=busy.end();});
-  auto i=size_t(std::find(busy.begin(),busy.end(),false)-busy.begin());busy[i]=true;++serving;ready.notify_all();return Lease(this,i);
+  ready.wait(lock,[&]{return ticket==serving&&std::find(busy.begin(),busy.begin()+enabled,false)!=busy.begin()+enabled;});
+  auto i=size_t(std::find(busy.begin(),busy.begin()+enabled,false)-busy.begin());busy[i]=true;++serving;ready.notify_all();return Lease(this,i);
  }
 };
 }

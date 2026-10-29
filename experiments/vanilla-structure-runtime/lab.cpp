@@ -1,3 +1,5 @@
+#include "SeededColumnCache.h"
+#include "DeferredDiagnosticLog.h"
 #include "BedrockStructure.h"
 #include "BedrockAccess.h"
 #include "rules/StructureReservations.h"

@@ -1,18 +1,18 @@
-当前版本：0.3.3。修复 26.51 进入世界时的种子读取失败，启动器名称改为 mountains&seas。探索中的加载停顿或可见缺块仍是已知问题。
+当前版本：0.3.4。修正区块完成状态识别、减少重复地形读取，并修复湖泊岸线。探索中的加载停顿或可见缺块仍是已知问题。
 
 <p align="center">
   <img src="docs/assets/shan-hai.png" alt="山&amp;海" width="720">
 </p>
 
 <p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.3"><img src="https://img.shields.io/badge/release-0.3.3-2ea44f" alt="0.3.3"></a>
+  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.4"><img src="https://img.shields.io/badge/release-0.3.4-2ea44f" alt="0.3.4"></a>
   <img src="https://img.shields.io/badge/Minecraft_Bedrock-1.26.51.01-62b47a" alt="Minecraft Bedrock 1.26.51.01">
   <img src="https://img.shields.io/badge/LeviLamina-26.51.9-00a896" alt="LeviLamina 26.51.9">
   <img src="https://img.shields.io/badge/Windows-x64-0078d4" alt="Windows x64">
 </p>
 
 <p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.3">下载安装</a> ·
+  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.4">下载安装</a> ·
   <a href="docs/BUILDING.md">从源码构建</a> ·
   <a href="https://github.com/troveminecraft/ShanHai/issues">反馈问题</a>
 </p>
@@ -36,38 +36,43 @@
 
 ## 安装
 
-需要 **Minecraft for Windows 1.26.51.01**、**LeviLamina 26.51.9 客户端版**和支持 AVX2 的 Windows x64 电脑。可通过 LeviLauncher 管理游戏实例和模组。
+支持 **Minecraft for Windows 1.26.51.01 / LeviLamina 26.51.9** 与 **1.26.20.04 / LeviLamina 26.20.7** 两套客户端组合，需要支持 AVX2 的 Windows x64 电脑。可通过 LeviLauncher 管理游戏实例和模组。
 
-1. 下载 [ShanHai-Windows-0.3.3.zip](https://github.com/troveminecraft/ShanHai/releases/download/v0.3.3/ShanHai-Windows-0.3.3.zip)。
+1. 在 [0.3.4 下载页](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.4) 选择与下表游戏版本对应的 ZIP。
 2. 完全退出 Minecraft，在 LeviLauncher 对应实例的模组管理中导入 ZIP。
 3. 确认模组已启用，启动游戏，创建一个普通新世界；不要选择超平坦。
 
 请下载 Releases 中的安装包，GitHub 自动生成的 **Source code** 是源码。安装包已带齐运行依赖，无需另装 Python 或 Node.js，也不要只复制 DLL。
 
-模组管理中的名称为 **mountains&seas**，作者为 **troveminecraft**。旧版升级需要按下面的步骤迁移目录。
+模组管理中的名称为 **mountains&seas**，作者为 **troveminecraft**。从旧名称升级时，先备份并将 `karma-worldgen-client` 文件夹移出 `mods`，再导入新包；不要同时启用两个条目。
 
 本次更新见 [更新记录](CHANGELOG.md)，生成和存档机制见 [说明](docs/RUNTIME.md)。
 
-## 0.3.3 更新
+## 0.3.4 更新
 
-修复 Minecraft **1.26.51.01** 进入世界时因种子读取失败而退出：此前把存档 NBT 的字段名用于运行时查询；现在地形和结构统一读取原生 64 位种子，并在世界初始化后核对创建设置。可选诊断写入失败也不会再阻断世界退出清理。
+修正 Minecraft 1.26.51.01 的区块完成状态识别，避免已完成区块被计入积压并关闭预读。拥有至少 12 个逻辑处理器的 CPU 使用四个有界地形计算槽，其他 CPU 保留两个。结构邻区读取复用有界地形列缓存，诊断日志在释放原生结构锁后写入。
 
-LeviLauncher 现在显示 **mountains&seas**，作者为 **troveminecraft**。安装目录改为 `mods/mountains&seas`，DLL 文件名及世界标记保持兼容。从 0.3.2 或更早版本升级时，完全退出 Minecraft，备份并将旧 `karma-worldgen-client` 文件夹移到 `mods` 外，再导入新 ZIP。把备份中的 `client-config.json` 和可选的 `seed-cache` 复制到新目录；不要同时启用两份模组。
+区域湖泊按逐格地形验证连通岸线，修复水位以下相邻地面突然断水的硬切边；湖床改用连续沉积分区。内核更新为 **2.212**，海平面仍为 **Y100**，建造范围仍为 **Y-64..511**。
 
-适用于 LeviLamina **26.51.9 客户端版**、Windows x64 与 AVX2 CPU。内核 **2.211**、地形配方、海平面 **Y100** 和建造范围 **Y-64..511** 不变。首次进入与探索中的加载停顿和可见缺块仍是已知问题；原版世界不会自动转换。
+已生成区块保留。湖泊修正作用于受支持区域世界的新生成地形，与旧区块交界处可能仍有接缝。更新前请备份世界。密集地形和较大视距下仍可能加载缓慢，本版不宣称消除了所有停顿。原版世界不会自动转换。
+
+| Minecraft for Windows | LeviLamina client | Package |
+|---|---|---|
+| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.3.4.zip` |
+| 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.3.4.zip` |
 
 ## 使用前
 
-**0.3.3 是公开测试版本。** 结构与复杂坡地的衔接仍可能出现异常，欢迎带上种子、坐标和截图反馈。建议备份存档，并用新世界体验；已经生成的原版区块不会自动变成新地形。
+**0.3.4 是公开测试版本。** 结构与复杂坡地的衔接仍可能出现异常，欢迎带上种子、坐标和截图反馈。建议备份存档，并用新世界体验；已经生成的原版区块不会自动变成新地形。
 
 继续游玩模组世界时，请保持模组启用。这个安装包仅用于上面列出的 Windows 客户端环境，不适用于 BDS、Android 或 Java 版。
 
 ## 源码
 
-本仓库包含 0.3.3 的地形内核、结构生成、Windows 接口和构建脚本。种子生成需要用到 Python 与 JavaScript，它们也是模组的一部分。构建方法见 [BUILDING.md](docs/BUILDING.md)。
+本仓库包含 0.3.4 的地形内核、结构生成、Windows 接口和构建脚本。种子生成需要用到 Python 与 JavaScript，它们也是模组的一部分。构建方法见 [BUILDING.md](docs/BUILDING.md)。
 
 第三方组件及许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。项目原创代码采用 [MIT 协议](LICENSE)；第三方组件及派生资源保留各自许可。安装包不包含 Minecraft 游戏本体或原版结构资源，结构模板从本机游戏读取。
 
 本系列基于 0.1.13 的源码重新实现：新世界海面 Y100、Y60～100 内陆盆地、海拔与覆雪变种、三档裂谷和火山海岸接触带。0.1.14/0.1.15 实验世界请使用留存的对应版本，不静默迁移。
 
-已有 0.1.16 模组世界保持原配方，不重写已有区块。日志应显示 `Karma Windows client 0.3.3; local world creation enabled`，随后模组启用成功；若启用失败，请连同日志与 `diagnostics/game-image.json` 反馈。
+已有 0.1.16 模组世界保持原配方，不重写已有区块。日志应显示 `Karma Windows client 0.3.4; local world creation enabled`，随后模组启用成功；若启用失败，请连同日志与 `diagnostics/game-image.json` 反馈。

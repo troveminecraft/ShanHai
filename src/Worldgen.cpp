@@ -1,3 +1,4 @@
+#include "ChunkStateLayout.h"
 #include "BedrockStreaming.h"
 #include <Windows.h>
 #ifdef KARMA_CLIENT
@@ -102,7 +103,7 @@ const std::filesystem::path Base="plugins/karma-worldgen";
 #endif
 using Chunk=terrain_runtime::Chunk;
 #ifdef KARMA_CLIENT
-constexpr unsigned Workers=2;
+constexpr unsigned Workers=4;
 #else
 constexpr unsigned Workers=4;
 #endif
@@ -168,7 +169,6 @@ Clock::time_point lastTick{};
 uint64_t observedDetached=0,observedCoalesced=0;std::atomic_uint64_t observationDrops=0;
 uint64_t oldestPendingMs=0;std::array<unsigned,15> pendingByState{};
 
-#include "ChunkStateLayout.h"
 using NativeChunkStates=terrain_runtime::ChunkStateLayout<int(ChunkState::Loaded)>;
 #include "NativeQueueSnapshot.inc"
 #include "PlayerStreaming.inc"
@@ -274,8 +274,12 @@ void readData(){
  generationMode=terrain_runtime::WorldGenerationMode::read(metadata,worldSession->nativeData);
  unboundedWorld=generationMode.unbounded;
  if(!NativeRuntime::supports(worldSession->nativeData.at("version").get<std::string>())||worldSession->nativeData.at("version")!=metadata.at("version")||!worldSession->nativeData.at("seedManifest").value("ready",false)||!worldSession->nativeData.at("seedManifest").value("riversReady",false)||worldSession->nativeData.at("seedManifest").at("terrainSeed")!=metadata.at("terrainSeed"))throw std::runtime_error("Native data identity mismatch");
+ #ifdef KARMA_CLIENT
+ worldSession->start(Base/"regional-cache",std::thread::hardware_concurrency()>=12?4u:2u);
+#else
  worldSession->start(Base/"regional-cache");
- log().info("{} 个计算器已就绪，seed={}，内存及磁盘缓存启用",Workers,metadata.at("terrainSeed").get<std::string>());
+#endif
+ log().info("{} 个计算器已就绪，seed={}，内存及磁盘缓存启用",worldSession->activeWorkers,metadata.at("terrainSeed").get<std::string>());
 }
 Chunk decodeChunk(std::vector<uint8_t>const&bytes){return terrain_runtime::decodeChunk(bytes,metadata.at("palette").size(),metadata.at("biomeNames").size(),buildHeight.generatedHeight());}
 std::shared_ptr<Chunk const> getChunk(int x,int z){
@@ -470,6 +474,7 @@ Json latencyJson(terrain_runtime::Latency& latency){auto s=latency.snapshot();Js
 Json workReport(){
  static constexpr std::array names={"loadTask","structureTask","decorationTask","lightingTask","clientMeshBuild"};
  Json r;for(size_t i=0;i<names.size();++i){r[names[i]]=latencyJson(worldSession->nativeWorkLatency[i]);
+  r[names[i]]["sampled"]=r[names[i]]["count"].get<uint64_t>()>0;
 #ifdef KARMA_CLIENT
   r[names[i]]["available"]=true;
 #else
@@ -484,7 +489,7 @@ Json workReport(){
 }
 void writeReport(){
  unsigned restarts=0;for(auto& runtime:worldSession->runtimes)restarts+=runtime.restarts.load();
- Json report={{"worldName",worldName},{"terrainSeed",metadata.at("terrainSeed")},{"totalChunks",Count},{"pendingLoads",pendingLoads.size()},{"loadRequests",loadRequests},{"loadsReady",loadReady},{"sha256",metadata.at("sha256")},{"generatedThisSession",generated.load()},{"calculationWaitMs",worldSession->calculationMs.load()},{"calculatorRestarts",restarts},{"calculatorWorkers",Workers},{"cacheMemoryHits",worldSession->cacheMemoryHits.load()},{"cacheDiskHits",worldSession->cacheDiskHits.load()},{"cacheComputed",worldSession->cacheComputed.load()},{"cacheInvalid",worldSession->cacheInvalid.load()},{"missingSavedChunks",missingSavedChunks},{"completedChunks",completed},{"checkedBlocks",checked},{"errors",errors.load()},{"mode","on-demand"},{"ready",active.load()},{"automaticPregen",false},{"probeRunning",requested}};
+ Json report={{"worldName",worldName},{"terrainSeed",metadata.at("terrainSeed")},{"totalChunks",Count},{"pendingLoads",pendingLoads.size()},{"loadRequests",loadRequests},{"loadsReady",loadReady},{"sha256",metadata.at("sha256")},{"generatedThisSession",generated.load()},{"calculationWaitMs",worldSession->calculationMs.load()},{"calculatorRestarts",restarts},{"calculatorWorkers",worldSession->activeWorkers},{"cacheMemoryHits",worldSession->cacheMemoryHits.load()},{"cacheDiskHits",worldSession->cacheDiskHits.load()},{"cacheComputed",worldSession->cacheComputed.load()},{"cacheInvalid",worldSession->cacheInvalid.load()},{"missingSavedChunks",missingSavedChunks},{"completedChunks",completed},{"checkedBlocks",checked},{"errors",errors.load()},{"mode","on-demand"},{"ready",active.load()},{"automaticPregen",false},{"probeRunning",requested}};
  report["backend"]="native-cpp";
  report["height"]={{"minY",buildHeight.MinY},{"buildMaxYExclusive",buildHeight.maxYExclusive},{"generatedMaxYExclusive",buildHeight.generatedMaxYExclusive},{"subchunks",buildHeight.subchunks()},{"observedMinY",observedMinY.load()},{"observedMaxYExclusive",observedMaxYExclusive.load()},{"flatGeneratorChunks",flatGenerated.load()},{"voidGeneratorChunks",voidGenerated.load()}};
  report["arrivalRecovery"]={{"started",arrivalStarts},{"resends",arrivalResends},{"rebinds",arrivalRebinds},{"timeouts",arrivalTimeouts}};
