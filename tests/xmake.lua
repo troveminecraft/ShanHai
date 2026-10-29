@@ -19,6 +19,11 @@ for _, name in ipairs({"native_cloud_callsite", "cloud_native_image", "native_ge
         add_files(name .. ".cpp")
     target_end()
 end
+target("chunk_state_layout")
+    set_kind("binary")
+    add_files("chunk_state_layout.cpp")
+target_end()
+
 target("streaming_pipeline")
     set_kind("binary")
     add_files("streaming_pipeline.cpp")

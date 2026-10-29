@@ -90,7 +90,7 @@ Json pipelineReport(){
         {"visibleUnfinished",pipelinePressure.unfinished},{"unfinishedScope","interior dependency halo or enclosed holes; frontier reported separately"},{"supplementalOpen",supplementalBudget.open},
         {"supplementalThrottles",supplementalThrottles},{"queuePumps",queuePumps},{"sampleSkips",queueSampleSkips},
         {"activeSeconds",streamingClock.seconds},{"excludedTickGapSeconds",streamingClock.excluded},
-        {"stalled",stalledChunkSample},{"trace",events},{"timeline",pipelineTimeline},{"firstNearReadyWallSeconds",firstNearReadySeconds},
+        {"stalled",stalledChunkSample},{"stalledStateLayout","canonical-26.20"},{"nativeLoadedState",int(ChunkState::Loaded)},{"traceStateLayout","native"},{"trace",events},{"timeline",pipelineTimeline},{"firstNearReadyWallSeconds",firstNearReadySeconds},
         {"traceKinds",traceKinds},{"dispatchPredicateTraceAvailable",predicateTraceAvailable},
         {"neighbourPredicateTraceAvailable",predicateTraceAvailable},
         {"scope","bounded read-only engine queue sample and native task trace; predicate coverage reported separately; no GPU publication measurement"}};

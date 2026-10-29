@@ -168,6 +168,8 @@ Clock::time_point lastTick{};
 uint64_t observedDetached=0,observedCoalesced=0;std::atomic_uint64_t observationDrops=0;
 uint64_t oldestPendingMs=0;std::array<unsigned,15> pendingByState{};
 
+#include "ChunkStateLayout.h"
+using NativeChunkStates=terrain_runtime::ChunkStateLayout<int(ChunkState::Loaded)>;
 #include "NativeQueueSnapshot.inc"
 #include "PlayerStreaming.inc"
 #ifdef SHANHAI_MC_26_51
@@ -212,7 +214,7 @@ void pollLoads(Level& level){
  }
  for(auto it=pendingLoads.begin();it!=pendingLoads.end();){
   auto& p=it->second;auto c=dim->getChunkSource().getExistingChunk(ChunkPos{p.event.x,p.event.z});
-  auto age=uint64_t(std::chrono::duration_cast<std::chrono::milliseconds>(now-p.event.started).count());int state=c?int(bedrock_compat::loadState(*c).load()):-1;
+  auto age=uint64_t(std::chrono::duration_cast<std::chrono::milliseconds>(now-p.event.started).count());int state=c?NativeChunkStates::canonical(int(bedrock_compat::loadState(*c).load())):-1;
   if(state!=p.state){if(p.state>=0&&p.state<14)worldSession->stageLatency[p.state].observe(std::chrono::duration_cast<std::chrono::microseconds>(now-p.changed).count());p.state=state;p.changed=now;}
   if(c&&bedrock_compat::loadState(*c).load()==ChunkState::Loaded){++ready;++loadReady;worldSession->readyLatency.observe(std::chrono::duration_cast<std::chrono::microseconds>(now-p.event.started).count());it=pendingLoads.erase(it);continue;}
   if(!c&&age>5000){++released;++loadReleased;it=pendingLoads.erase(it);continue;}

@@ -123,8 +123,8 @@ void updatePlayerStreaming(Level& level){
    for(int z=0;z<side;++z)for(int x=0;x<side;++x)if(states[z*side+x]!=-2){
     bool enclosed=rowMin[z]<x&&x<rowMax[z]&&colMin[x]<z&&z<colMax[x];
     bool interior=terrain_runtime::interiorDependencyChunk(x-radius,z-radius,radius,enclosed);
-    if(!interior&&states[z*side+x]>=0&&states[z*side+x]<13)++s.frontierPending;
-    s.visible.observe(cx+x-radius,cz+z-radius,states[z*side+x],enclosed,seconds,interior);
+    if(!interior&&states[z*side+x]>=0&&states[z*side+x]<int(ChunkState::Loaded))++s.frontierPending;
+    s.visible.observe(cx+x-radius,cz+z-radius,NativeChunkStates::canonical(states[z*side+x]),enclosed,seconds,interior);
    }
    s.visible.end();
    for(auto&patch:s.patches){
@@ -183,12 +183,12 @@ void updatePlayerStreaming(Level& level){
  std::vector<uint64_t> watched;stalledChunkSample=Json::array();
  for(size_t i=0;i<std::min<size_t>(16,stalled.size());++i){
   auto const&c=stalled[i];watched.push_back(terrain_runtime::streamingKey(c.x,c.z));
-  Json queued=Json::array();for(auto const&q:nativeReadySample)if(q.x==c.x&&q.z==c.z)queued.push_back(q.state);
+  Json queued=Json::array();for(auto const&q:nativeReadySample)if(q.x==c.x&&q.z==c.z)queued.push_back(NativeChunkStates::canonical(q.state));
   // Surrounding state evidence is explicitly a probe, not an invented engine
   // dependency list. Failed native predicates are separately captured below.
   Json neighbours=Json::array();for(int z=c.z-1;z<=c.z+1;++z)for(int x=c.x-1;x<=c.x+1;++x){
    if(x==c.x&&z==c.z)continue;auto n=dim->getChunkSource().getExistingChunk({x,z});
-   neighbours.push_back({x,z,n?int(bedrock_compat::loadState(*n).load()):-1});
+   neighbours.push_back({x,z,n?NativeChunkStates::canonical(int(bedrock_compat::loadState(*n).load())):-1});
   }
   stalledChunkSample.push_back({{"chunk",{c.x,c.z}},{"state",c.state},{"activeStageSeconds",c.age},
    {"queuedExpectedStates",queued},{"neighbourProbe",neighbours}});
