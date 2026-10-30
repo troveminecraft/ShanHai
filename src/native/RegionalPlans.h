@@ -89,6 +89,15 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
    int i=iz*N+ix;lakeAnchors[i]={x,z};ground[i]=sample(x,z);sink[i]=lake.at("level");
   }
  }
+ std::vector<std::pair<int,int>> fallEdges;std::set<int> fallSources;
+ if(resolvedLakes&&resolvedLakes->contains("falls"))for(auto const&f:resolvedLakes->at("falls")){
+  int ax=f[0],az=f[1],bx=f[2],bz=f[3];
+  int ix=roundJS(double(ax-originX)/Pitch),iz=roundJS(double(az-originZ)/Pitch),jx=roundJS(double(bx-originX)/Pitch),jz=roundJS(double(bz-originZ)/Pitch);
+  if(ix<1||iz<1||jx<1||jz<1||ix>=N-1||iz>=N-1||jx>=N-1||jz>=N-1)continue;
+  int a=iz*N+ix,b=jz*N+jx;if(a==b||sink[a]>=0||sink[b]>=0||lakeAnchors.contains(a)||lakeAnchors.contains(b))continue;
+  auto A=sample(ax,az),B=sample(bx,bz);if(!eligible(A)||!eligible(B)||A.humidity<.4||A.height-B.height<30||B.height<=seaLevel)continue;
+  lakeAnchors[a]={ax,az};lakeAnchors[b]={bx,bz};ground[a]=A;ground[b]=B;fallEdges.emplace_back(a,b);
+ }
  std::array<double,Total> distance;distance.fill(INFINITY);
  std::array<int,Total> parent,root;parent.fill(-1);root.fill(-1);
  using Entry=std::pair<double,int>;std::priority_queue<Entry,std::vector<Entry>,std::greater<Entry>> heap;
@@ -104,9 +113,17 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
    if(next<distance[k]){distance[k]=next;parent[k]=i;root[k]=root[i];heap.push({next,k});}
   }
  }
+ // Mountain springs may start above a measured cliff. The toe still has to
+ // follow a real drainage path to a lake, sea or established river; never
+ // join back through the source or introduce a closed circulation.
+ for(auto[a,b]:fallEdges)if(std::isfinite(distance[b])){
+  bool cycle=false;for(int i=b,n=0;i>=0&&n<Total;i=parent[i],++n)if(i==a){cycle=true;break;}
+  if(cycle)continue;parent[a]=b;auto[x,z]=point(a);auto[X,Z]=point(b);distance[a]=distance[b]+std::hypot(double(x-X),double(z-Z));fallSources.insert(a);
+ }
+ if(!fallSources.empty())std::sort(order.begin(),order.end(),[&](int a,int b){return std::tie(distance[a],a)<std::tie(distance[b],b);});
  std::array<int,Total> flow;flow.fill(1);for(auto i=order.rbegin();i!=order.rend();++i)if(parent[*i]>=0)flow[parent[*i]]+=flow[*i];
  if(curved){
-  auto result=curvedDrainage(gx,gz,seed,order,ground,parent,flow,distance,sink,point,sample,seaLevel,maxSurfaceY,meanders,confinedBanks,resolvedLakes?resolvedLakes->at("nearby"):lakes,uplandWaterways,resolvedLakes!=nullptr);
+  auto result=curvedDrainage(gx,gz,seed,order,ground,parent,flow,distance,sink,point,sample,seaLevel,maxSurfaceY,meanders,confinedBanks,resolvedLakes?resolvedLakes->at("nearby"):lakes,uplandWaterways,resolvedLakes!=nullptr,&fallSources);
   result["region"]={gx,gz};result["lakes"]=lakes;result["samples"]=Total;return result;
  }
  std::vector<int> sources;

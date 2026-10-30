@@ -69,7 +69,7 @@ struct WaterContainmentRegression {
  }
  static J audit(J data){
   Field f(data);J out=J::array();
-  for(auto [gx,gz]:{std::pair{0,0},{1,2},{2,2},{-1,0}}){
+  for(auto [gx,gz]:{std::pair{0,0},{1,2},{2,2},{-1,0},{-2,-2}}){
    auto plan=f.inspectRegionalDrainage(gx,gz);int lakes=0,edges=0,riverSamples=0,falls=0;J failures=J::array();
    for(auto const&l:plan["lakes"]){
     std::set<std::pair<int,int>> wet;for(auto const&r:l["rows"])for(int x=r[1];x<=r[2];++x)wet.emplace(x,r[0]);
@@ -86,6 +86,15 @@ struct WaterContainmentRegression {
     falls+=s.size()>11&&double(s[11])>0&&double(s[4])-double(s[5])>=30;
    }
    J row={{"region",{gx,gz}},{"lakes",lakes},{"lakeEdges",edges},{"riverSamples",riverSamples},{"falls30to100",falls},{"failures",failures}};out.push_back(row);std::cout<<row.dump()<<std::endl;
+  }
+  if(data.at("seedManifest").at("terrainSeed")=="31"){
+   auto check=shores(f,-2611,-2248,12);int drop=0;
+   for(int z=-2260;z<=-2236;++z)for(int x=-2623;x<=-2599;++x){
+    auto a=f.surface(x+32768,z+32768,false);if(a.river<=0)continue;
+    for(auto[dx,dz]:{std::pair{1,0},std::pair{0,1}}){auto b=f.surface(x+dx+32768,z+dz+32768,false);if(b.river>0)drop=std::max(drop,std::abs(a.water-b.water));}
+   }
+   J failures=J::array();if(drop<30||drop>100||check["dryOpenFaces"]!=0||check["disconnected"]!=0)failures.push_back(check);
+   out.push_back({{"actualWaterfall",{-2611,-2248}},{"maximumAdjacentDrop",drop},{"shores",check},{"failures",failures}});std::cout<<out.back()<<std::endl;
   }
   return out;
  }

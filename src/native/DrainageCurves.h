@@ -62,7 +62,7 @@ template<class Point,class Sample,class GroundArray,class ParentArray,class Flow
 J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,GroundArray const&ground,
                  ParentArray const&parent,FlowArray const&flow,DistanceArray const&distance,
                  SinkArray const&sink,Point point,Sample sample,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,
-                 bool confinedBanks=false,J const&lakes=J::array(),bool uplandWaterways=false,bool containedWaterways=false){
+                 bool confinedBanks=false,J const&lakes=J::array(),bool uplandWaterways=false,bool containedWaterways=false,std::set<int> const*fallSources=nullptr){
  auto eligible=[](auto const&s){return s.stone<=.001&&s.volcanic<=0;};
  // Survey the complete raster corridor, including the one-block dry rim.
  // Three samples at spline vertices miss shallow hollows between vertices.
@@ -88,11 +88,13 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
  };
  std::vector<int> sources;
  for(int i:order){auto[x,z]=point(i);auto const&s=ground[i];
+  bool fallSource=fallSources&&fallSources->contains(i);
   if(x<gx*2048+128||x>=(gx+1)*2048-128||z<gz*2048+128||z>=(gz+1)*2048-128||
-     s.height<65||s.height>maxSurfaceY-74||s.humidity<.40||flow[i]<3||distance[i]<200||parent[i]<0)continue;
-  if(hash01(x,z,seed^63107)<.55)sources.push_back(i);
+     s.height<65||s.height>maxSurfaceY-74||s.humidity<.40||(!fallSource&&(flow[i]<3||distance[i]<200))||parent[i]<0)continue;
+  if(fallSource||hash01(x,z,seed^63107)<.55)sources.push_back(i);
  }
  std::sort(sources.begin(),sources.end(),[&](int a,int b){
+  if(fallSources&&fallSources->contains(a)!=fallSources->contains(b))return fallSources->contains(a);
   double A=ground[a].height*std::pow(flow[a],.18),B=ground[b].height*std::pow(flow[b],.18);return A==B?a<b:A>B;
  });
  std::map<int,RiverAnchor> network;

@@ -58,6 +58,15 @@ std::shared_ptr<J const> regionalWaterPlan(int a,int b){
    auto owned=regionalLakePlan(a,b);
    lakes={{"owned",owned->at("lakes")},{"nearby",owned->at("lakes")}};
    if(owned->contains("ground"))lakes["ground"]=owned->at("ground");
+   if(C.value("waterfallSources",0)>=1){
+    lakes["falls"]=J::array();int grid=int(num(C.at("cliffs"),"grid"));
+    for(int z=(b*regional::Core+32768)/grid;z<((b+1)*regional::Core+32768)/grid;++z)
+     for(int x=(a*regional::Core+32768)/grid;x<((a+1)*regional::Core+32768)/grid;++x){
+      auto cliff=patch(x,z);if(!cliff.valid)continue;
+      lakes["falls"].push_back({roundJS(cliff.x+cliff.nx*56)-32768,roundJS(cliff.z+cliff.nz*56)-32768,
+                               roundJS(cliff.x-cliff.nx*56)-32768,roundJS(cliff.z-cliff.nz*56)-32768});
+     }
+   }
   }
   std::unordered_map<uint64_t,regional::Ground> routeSurvey;
   auto build=[&]{return regional::drainage(a,b,terrainSeed,[&](int x,int z){

@@ -15,7 +15,7 @@ namespace nativegen {
 inline double num(J const&j,char const*k){return j.at(k).get<double>();}
 
 struct ReliefNode{double v,relief,pos,corr;};
-struct Cliff{bool valid=false;double x=0,z=0,h=0,slope=0,nx=0,nz=0,crest=0;};
+struct Cliff{bool valid=false;double x=0,z=0,h=0,slope=0,nx=0,nz=0,crest=0,warp=0;};
 class Field {
  friend struct GlacierEcologyRegression;
  friend struct CompletedBiomesTest;
@@ -88,7 +88,13 @@ class Field {
  return elevationVariants?elevation::raise(result):result;
  }
  double uncliff(double x,double z){return shaped(x,z,vcont(x,z));}
- Cliff patch(int gx,int gz){return cliffs.get(key2(gx,gz),[&]{Cliff a;auto const&q=C.at("cliffs");auto const&s=C.at("stoneForest");if(hash01(gx,gz,terrainSeed^int(num(q,"seed")))>=num(q,"chance"))return a;double cx=(gx+.5)*num(q,"grid"),cz=(gz+.5)*num(q,"grid");if(largeStoneForestEnabled()&&std::hypot(cx-32768-num(s,"centerX"),cz-32768-num(s,"centerZ"))<=num(s,"outerRadius")+num(s,"edgeWarp")+num(q,"grid"))return a;for(int dz:{-12,0,12})for(int dx:{-12,0,12}){double x=cx+dx,z=cz+dz,h=uncliff(x,z);if(h<num(q,"minHeight")||h>num(q,"maxHeight"))continue;double ex=(uncliff(x+8,z)-uncliff(x-8,z))/16,ez=(uncliff(x,z+8)-uncliff(x,z-8))/16,sl=std::hypot(ex,ez);if(sl<num(q,"minSlope")||sl>num(q,"maxSlope")||(a.valid&&sl<=a.slope))continue;a={true,x,z,h,sl,ex/sl,ez/sl,0};}if(a.valid)a.crest=std::max(a.h,uncliff(a.x+a.nx*24,a.z+a.nz*24));return a;});}
+ Cliff patch(int gx,int gz){return cliffs.get(key2(gx,gz),[&]{Cliff a;auto const&q=C.at("cliffs");auto const&s=C.at("stoneForest");if(hash01(gx,gz,terrainSeed^int(num(q,"seed")))>=num(q,"chance"))return a;double cx=(gx+.5)*num(q,"grid"),cz=(gz+.5)*num(q,"grid");if(largeStoneForestEnabled()&&std::hypot(cx-32768-num(s,"centerX"),cz-32768-num(s,"centerZ"))<=num(s,"outerRadius")+num(s,"edgeWarp")+num(q,"grid"))return a;for(int dz:{-12,0,12})for(int dx:{-12,0,12}){double x=cx+dx,z=cz+dz,h=uncliff(x,z);if(h<num(q,"minHeight")||h>num(q,"maxHeight"))continue;double ex=(uncliff(x+8,z)-uncliff(x-8,z))/16,ez=(uncliff(x,z+8)-uncliff(x,z-8))/16,sl=std::hypot(ex,ez);if(sl<num(q,"minSlope")||sl>num(q,"maxSlope")||(a.valid&&sl<=a.slope))continue;a={true,x,z,h,sl,ex/sl,ez/sl,0};}if(a.valid)a.crest=std::max(a.h,uncliff(a.x+a.nx*24,a.z+a.nz*24));
+ if(a.valid&&C.value("cliffRevision",0)>=1){
+  a.warp=std::min(40.,(70.+20.*hash01(gx,gz,terrainSeed^611))/(2*a.slope));
+  double low=uncliff(a.x-a.nx*a.warp,a.z-a.nz*a.warp),high=uncliff(a.x+a.nx*a.warp,a.z+a.nz*a.warp);
+  if(high-low<60||high-low>100||low<seaLevelValue+4||high>470)a.valid=false;
+ }
+ return a;});}
  Surface compute(int wx,int wz,bool drainage=true){double x=(wx-32768)*num(C.at("epic"),"horizontalScale"),z=(wz-32768)*num(C.at("epic"),"horizontalScale");Surface s;s.seaLevel=seaLevelValue;double er=erosion(x,0,z);s.ridge=ridge(x,0,z);s.raw=224+192*offset(x,0,z);double v=shaped(wx,wz,-64+(s.raw+64)*.75);
  smallStoneRelief(s,v,wx,wz);
  auto const&q=C.at("stoneForest");double px=wx-32768-num(q,"centerX"),pz=wz-32768-num(q,"centerZ"),d=std::hypot(px,pz);if(largeStoneForestEnabled()&&d<num(q,"outerRadius")+num(q,"edgeWarp")){
@@ -104,19 +110,23 @@ class Field {
   int gx=int(std::floor(wx/grid)),gz=int(std::floor(wz/grid));
   for(int iz=gz-1;iz<=gz+1;++iz)for(int ix=gx-1;ix<=gx+1;++ix){
    double cx=(ix+.5)*grid,cz=(iz+.5)*grid;
-   if(std::abs(wx-cx)>64||std::abs(wz-cz)>64)continue;
+   bool sharp=C.value("cliffRevision",0)>=1;
+   if(std::abs(wx-cx)>(sharp?112:64)||std::abs(wz-cz)>(sharp?112:64))continue;
    auto a=patch(ix,iz);if(!a.valid)continue;
    double dx=wx-a.x,dz=wz-a.z,w=-dx*a.nz+dz*a.nx;
    double u=dx*a.nx+dz*a.nz-1.3*std::sin(w/13+a.h),front=num(c,"front"),len=num(c,"halfLength");
    if(std::abs(u)>=front||std::abs(w)>=len)continue;
    double strength=(1-smooth(front-16,front,std::abs(u)))*(1-smooth(len-14,len,std::abs(w)));
-   bool sharp=C.value("cliffRevision",0)>=1;
-   // A narrow scarp core spans about 70..90 vertical blocks, including
-   // the pre-existing two-block slope. Its ends and back slopes fade to zero
-   // within the same continuous patch support, independently of chunk borders.
-   double rise=(sharp?std::min(num(c,"maxShift"),35.+10.*hash01(ix,iz,terrainSeed^611)-a.slope):std::min(num(c,"maxShift"),a.slope*6))*strength;
-   // Nonzero transition width retains steep faces, without a discontinuous height step.
-   shift+=rise*(2*smooth(sharp?-.45:-1.5,sharp?.45:1.5,u)-1);
+   if(sharp){
+    // Compress a measured hillside into a scarp by remapping horizontal
+    // distance. The return ramp stays monotone (max warp 40, fade 72), so
+    // the old +/- height displacement cannot create a dam or a toe basin.
+    double warp=a.warp*(2*smooth(-.45,.45,u)-1)*(1-smooth(8.,front,std::abs(u)))*(1-smooth(len-14,len,std::abs(w)));
+    shift+=uncliff(wx+a.nx*warp,wz+a.nz*warp)-v;
+   }else{
+    double rise=std::min(num(c,"maxShift"),a.slope*6)*strength;
+    shift+=rise*(2*smooth(-1.5,1.5,u)-1);
+   }
    if(C.contains("alcoves")){
     auto const& q=C.at("alcoves");
     if(q.value("enabled",false)&&a.h>=num(q,"minHeight")&&hash01(ix,iz,terrainSeed^607)<num(q,"chance")){
