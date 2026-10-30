@@ -38,9 +38,15 @@ double streamingDesertWeight(double wx,double wz){
  for(auto const&r:regionalProtected)if(r.radius>=0)weight*=smooth(r.radius+100,r.radius+480,std::hypot(X-r.x,Z-r.z));
  return weight;
 }
+Cache<uint64_t,regional::Ground> waterSurveyNodes{16384};
+regional::Ground waterSurvey(int x,int z){
+ auto sample=[&]{auto s=regionalClimateSample(x+32768,z+32768);return regional::Ground{s.height,s.H,s.T,s.stone,s.volcanic,s.closedBasin,s.water};};
+ // Adjacent owner grids overlap. Preserve their small coarse descriptors
+ // separately from fine shoreline samples, which churn the base-field cache.
+ return containedWaterways&&x%regional::Pitch==0&&z%regional::Pitch==0?waterSurveyNodes.get(key2(x,z),sample):sample();
+}
 std::shared_ptr<J const> regionalLakePlan(int a,int b){
- return regional::get(streamingIdentity,"lakes-v1",a,b,[&]{return regional::drainage(a,b,terrainSeed,[&](int x,int z){
-  auto s=regionalClimateSample(x+32768,z+32768);return regional::Ground{s.height,s.H,s.T,s.stone,s.volcanic,s.closedBasin,s.water};
+ return regional::get(streamingIdentity,"lakes-v1",a,b,[&]{return regional::drainage(a,b,terrainSeed,[&](int x,int z){return waterSurvey(x,z);
  },true,seaLevelValue,generatedMaxYExclusive-1,true,true,landformRefresh,true,nullptr,true);});
 }
 std::shared_ptr<J const> regionalWaterPlan(int a,int b){
@@ -56,7 +62,7 @@ std::shared_ptr<J const> regionalWaterPlan(int a,int b){
   std::unordered_map<uint64_t,regional::Ground> routeSurvey;
   auto build=[&]{return regional::drainage(a,b,terrainSeed,[&](int x,int z){
   auto key=key2(x,z);if(containedWaterways)if(auto p=routeSurvey.find(key);p!=routeSurvey.end())return p->second;
-  auto s=regionalClimateSample(x+32768,z+32768);regional::Ground ground{s.height,s.H,s.T,s.stone,s.volcanic,s.closedBasin,s.water};
+  auto ground=waterSurvey(x,z);
   // Rerouting against an added lake reuses the same terrain samples. This
   // cache is scoped to one bounded owner build and has a hard entry limit.
   if(containedWaterways&&routeSurvey.size()<262144)routeSurvey.emplace(key,ground);return ground;
