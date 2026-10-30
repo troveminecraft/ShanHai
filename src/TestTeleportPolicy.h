@@ -60,13 +60,13 @@ inline std::optional<Destination> destination(int id, int biomeCount) {
 }
 struct Update { int id; char const* name; char const* content; };
 inline constexpr Update updates[]{
-    {124, "超级冰川", "新世界恢复细长、明显倾斜的大冰刺；越靠近冰川植被越稀疏"},
-    {110, "沼泽", "覆雪结冰时移除失去水面支撑的睡莲"},
-    {117, "冰冻河流/湖泊", "禁止北极熊自然生成；冰川和冰洋保留"},
-    {109, "森林", "冰川周围统一降低树木、灌木和地表植被密度"}
+    {124, "超级冰川", "新世界的高原可生成细长倾斜的大型冰刺；外围覆雪与植被影响收至32区块"},
+    {132, "高原", "允许通向真实湖泊或下游河网的高原河流"},
+    {116, "河流", "陡坎处允许连续瀑布，保留曲线河道与支流汇合"},
+    {114, "山地", "增加坡面悬崖，候选范围扩展至Y420"}
 };
 inline std::string joinMessage() {
-    std::string result = std::string("§9[山&海] 最近地形更新（") + shanhai_release::Windows + "，待游戏内验收）";
+    std::string result = std::string("§9[山&海] 最近地形更新（") + shanhai_release::Windows + "）";
     for (auto const& u : updates)
         result += "\n§9[" + std::to_string(u.id) + "] " + u.name + "：" + u.content;
     return result + "\n§9/karma 查看全部群系/结构；/karma tp <序号> [模式]（1 创造 / 0 观察者；省略保持当前模式）。§r";

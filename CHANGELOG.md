@@ -1,3 +1,11 @@
+## 0.3.8 — 2026-10-30
+
+New worlds extend super-glacier ice bodies and tall, leaning ice spires onto cold plateaus. The glacier's surrounding snow and vegetation influence now fades out within **32 chunks (512 blocks)**. Natural cold-climate snow outside that distance is unchanged.
+
+Plateau rivers can descend real terrain ledges as connected cascades. Channels still need a real lake, ocean or receiving river; their water cannot climb toward an outlet or float above a lower bank. Hillside cliffs are more frequent and can form up to **Y420**. Sea level remains **Y100**, with a building range of **Y-64..511**.
+
+Kernel **2.214** keeps existing worlds' saved generation recipes. These terrain changes require a new world; existing blocks are not rewritten. The previous loading scheduler and jungle tree cache remain in place. Dense terrain, large view distances or memory pressure can still cause loading stalls; offline generation checks do not establish full game loading performance.
+
 ## 0.3.7 — 2026-10-30
 
 Chunk scheduling now retains waiting time across generation stages, bounds the priority bonus of old requests, and promotes eligible structure, decoration and lighting work so nearby terrain can finish before the full distant view is generated. The nearest dependency window includes both edges at fractional and negative player coordinates. Native dependency checks remain authoritative.
