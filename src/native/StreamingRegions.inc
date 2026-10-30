@@ -38,12 +38,60 @@ double streamingDesertWeight(double wx,double wz){
  for(auto const&r:regionalProtected)if(r.radius>=0)weight*=smooth(r.radius+100,r.radius+480,std::hypot(X-r.x,Z-r.z));
  return weight;
 }
+std::shared_ptr<J const> regionalLakePlan(int a,int b){
+ return regional::get(streamingIdentity,"lakes-v1",a,b,[&]{return regional::drainage(a,b,terrainSeed,[&](int x,int z){
+  auto s=regionalClimateSample(x+32768,z+32768);return regional::Ground{s.height,s.H,s.T,s.stone,s.volcanic,s.closedBasin,s.water};
+ },true,seaLevelValue,generatedMaxYExclusive-1,true,true,landformRefresh,true,nullptr,true);});
+}
 std::shared_ptr<J const> regionalWaterPlan(int a,int b){
  auto algorithm=data.at("regionalGeneration").value("algorithm",std::string{});
  bool curved=algorithm!="regional-drainage-v1";
- return regional::get(streamingIdentity,landformRefresh?"water-v2":"water",a,b,[&]{return regional::drainage(a,b,terrainSeed,[&](int x,int z){
-  auto s=regionalClimateSample(x+32768,z+32768);return regional::Ground{s.height,s.H,s.T,s.stone,s.volcanic,s.closedBasin,s.water};
- },curved,seaLevelValue,generatedMaxYExclusive-1,algorithm=="regional-drainage-v3",C.value("riverBankSurvey",0)>=1,landformRefresh,C.value("uplandWaterways",0)>=1);});
+ return regional::get(streamingIdentity,containedWaterways?"water-v3":landformRefresh?"water-v2":"water",a,b,[&]{
+  J lakes;
+  if(containedWaterways){
+   auto owned=regionalLakePlan(a,b);
+   lakes={{"owned",owned->at("lakes")},{"nearby",owned->at("lakes")}};
+   if(owned->contains("ground"))lakes["ground"]=owned->at("ground");
+  }
+  std::unordered_map<uint64_t,regional::Ground> routeSurvey;
+  auto build=[&]{return regional::drainage(a,b,terrainSeed,[&](int x,int z){
+  auto key=key2(x,z);if(containedWaterways)if(auto p=routeSurvey.find(key);p!=routeSurvey.end())return p->second;
+  auto s=regionalClimateSample(x+32768,z+32768);regional::Ground ground{s.height,s.H,s.T,s.stone,s.volcanic,s.closedBasin,s.water};
+  // Rerouting against an added lake reuses the same terrain samples. This
+  // cache is scoped to one bounded owner build and has a hard entry limit.
+  if(containedWaterways&&routeSurvey.size()<262144)routeSurvey.emplace(key,ground);return ground;
+ },curved,seaLevelValue,generatedMaxYExclusive-1,algorithm=="regional-drainage-v3",C.value("riverBankSurvey",0)>=1,landformRefresh,C.value("uplandWaterways",0)>=1,containedWaterways?&lakes:nullptr);};
+  auto plan=build();if(!containedWaterways)return plan;
+  // Lakes stay inside their owner's core. Resolve only owners touched by
+  // the planned wet corridor and bank halo; do not eagerly survey nine full
+  // lake regions for every new river region. Rerouting can add dependencies,
+  // but each of the eight neighbours is visited at most once.
+  std::map<std::pair<int,int>,std::shared_ptr<J const>> neighbours;
+  std::set<std::pair<int,int>> included;
+  for(int pass=0;pass<65;++pass){bool added=false;
+   for(int dz=-1;dz<=1;++dz)for(int dx=-1;dx<=1;++dx){int x=a+dx,z=b+dz;
+    if(!dx&&!dz)continue;bool touches=false;
+    for(auto const&s:plan.at("segments")){
+     touches|=std::min(double(s[0]),double(s[2]))-64<=(x+1)*regional::Core&&std::max(double(s[0]),double(s[2]))+64>=x*regional::Core&&
+              std::min(double(s[1]),double(s[3]))-64<=(z+1)*regional::Core&&std::max(double(s[1]),double(s[3]))+64>=z*regional::Core;
+    }
+    if(!touches)continue;
+    auto&catalog=neighbours[{x,z}];if(!catalog)catalog=regionalLakePlan(x,z);
+    for(auto const&lake:catalog->at("lakes")){
+     std::pair<int,int> center{lake.at("center").at(0),lake.at("center").at(1)};
+     if(included.contains(center))continue;
+     int x0=INT_MAX,z0=INT_MAX,x1=INT_MIN,z1=INT_MIN;
+     for(auto const&r:lake.at("rows")){x0=std::min(x0,int(r[1]));x1=std::max(x1,int(r[2]));z0=std::min(z0,int(r[0]));z1=std::max(z1,int(r[0]));}
+     bool meets=false;for(auto const&s:plan.at("segments"))
+      meets|=std::min(double(s[0]),double(s[2]))-64<=x1&&std::max(double(s[0]),double(s[2]))+64>=x0&&
+             std::min(double(s[1]),double(s[3]))-64<=z1&&std::max(double(s[1]),double(s[3]))+64>=z0;
+     if(meets){included.insert(center);lakes["nearby"].push_back(lake);added=true;}
+    }
+   }
+   if(!added)return plan;plan=build();
+  }
+  return plan;
+ });
 }
 void ensureStreamingRegions(int wx,int wz){
  if(!streamingRegions)return;

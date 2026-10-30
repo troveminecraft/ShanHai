@@ -23,6 +23,7 @@ class Field {
  friend struct ElevationVariantsTest;
  friend struct CoastalContinuityTest;
  friend struct UplandTerrainRegression;
+ friend struct WaterContainmentRegression;
  // Only owners whose conservative influence bounds touch a sample are needed.
  bool localPlanningCulling=false;
  J const&data;J const&C;uint32_t terrainSeed;Density graph,caves;
@@ -33,6 +34,7 @@ class Field {
  bool elevationVariants=C.value("elevationRevision",0)>=1;
  bool landformRefresh=C.value("elevationRevision",0)>=2;
  bool continuousCoast=C.value("coastalContinuity",0)>=1;
+ bool containedWaterways=C.value("waterContainment",0)>=1;
  double landscapeAltitude(double height)const{return elevationVariants?height-60.:elevatedLandscape?height-24.:height;}
  bool raisedSnowline=C.value("mountainSnowline",0)>=1;
  bool raisedEcology=C.value("mountainEcology",0)>=1;
@@ -108,9 +110,13 @@ class Field {
    double u=dx*a.nx+dz*a.nz-1.3*std::sin(w/13+a.h),front=num(c,"front"),len=num(c,"halfLength");
    if(std::abs(u)>=front||std::abs(w)>=len)continue;
    double strength=(1-smooth(front-16,front,std::abs(u)))*(1-smooth(len-14,len,std::abs(w)));
-   double rise=std::min(num(c,"maxShift"),a.slope*6)*strength;
+   bool sharp=C.value("cliffRevision",0)>=1;
+   // A narrow scarp core spans about 70..90 vertical blocks, including
+   // the pre-existing two-block slope. Its ends and back slopes fade to zero
+   // within the same continuous patch support, independently of chunk borders.
+   double rise=(sharp?std::min(num(c,"maxShift"),35.+10.*hash01(ix,iz,terrainSeed^611)-a.slope):std::min(num(c,"maxShift"),a.slope*6))*strength;
    // Nonzero transition width retains steep faces, without a discontinuous height step.
-   shift+=rise*(2*smooth(-1.5,1.5,u)-1);
+   shift+=rise*(2*smooth(sharp?-.45:-1.5,sharp?.45:1.5,u)-1);
    if(C.contains("alcoves")){
     auto const& q=C.at("alcoves");
     if(q.value("enabled",false)&&a.h>=num(q,"minHeight")&&hash01(ix,iz,terrainSeed^607)<num(q,"chance")){

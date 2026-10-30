@@ -24,7 +24,8 @@ def finish_recipe(data):
     data["config"]["tallIceSpires"]=True
     data["config"]["glacierEcologyRevision"]=1
     data["config"].update(glacierAltitudeRevision=1,glacierHaloBlocks=512,uplandWaterways=1)
-    data["config"]["cliffs"].update(chance=.52,maxHeight=420,minSlope=.65,maxShift=12)
+    data["config"].update(waterContainment=1,cliffRevision=1)
+    data["config"]["cliffs"].update(chance=.52,minHeight=160,maxHeight=420,minSlope=.65,maxShift=48)
     data['regionalGeneration']=dict(algorithm='regional-drainage-v3',coreBlocks=2048,haloBlocks=512,
                                     samplePitch=64,worldBounds=None,boundsMode='infinite',persistentPlans=True)
     data['rivers']=dict(algorithm='regional-drainage-v3',cutBanks=10,naturalBankSlope=1,sectionProfiles=1,

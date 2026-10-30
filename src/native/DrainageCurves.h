@@ -62,7 +62,7 @@ template<class Point,class Sample,class GroundArray,class ParentArray,class Flow
 J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,GroundArray const&ground,
                  ParentArray const&parent,FlowArray const&flow,DistanceArray const&distance,
                  SinkArray const&sink,Point point,Sample sample,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,
-                 bool confinedBanks=false,J const&lakes=J::array(),bool uplandWaterways=false){
+                 bool confinedBanks=false,J const&lakes=J::array(),bool uplandWaterways=false,bool containedWaterways=false){
  auto eligible=[](auto const&s){return s.stone<=.001&&s.volcanic<=0;};
  // Survey the complete raster corridor, including the one-block dry rim.
  // Three samples at spline vertices miss shallow hollows between vertices.
@@ -79,6 +79,11 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
   if(s.closedBasin){if(s.water>=receiver&&height<s.water)return true;}else if(receiver==seaLevel&&height<seaLevel)return true;
   auto it=lakeRows.find(z);if(it==lakeRows.end())return false;
   for(auto const&r:it->second)if(x>=r[0]&&x<=r[1]&&r[2]>=receiver)return true;
+  return false;
+ };
+ auto foreignLake=[&](int x,int z,double receiver){
+  auto it=lakeRows.find(z);if(it==lakeRows.end())return false;
+  for(auto const&r:it->second)if(x>=r[0]&&x<=r[1]&&r[2]!=receiver)return true;
   return false;
  };
  std::vector<int> sources;
@@ -145,6 +150,9 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
      if(length(RiverPoint{double(x),double(z)}-(a+v*t))>reach)continue;
      auto s=groundAt(x,z);
      if(!eligible(s)){bad=true;break;}
+     // Crossing another lake at a different level would cut an unplanned
+     // outlet through its retaining rim. Select another route instead.
+     if(containedWaterways&&foreignLake(x,z,receiver)){bad=true;break;}
      if(receivingWater(x,z,s.height,receiver))continue;
      ceiling=std::min(ceiling,double(s.height));
      // A river cannot climb out of a low hollow to its receiving lake.
@@ -168,7 +176,7 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
   // large last-segment waterfall just to reach a lake or existing tributary.
   for(size_t i=water.size()-1;i>0;--i){
    double fall=.75*(run[i]-run[i-1]);
-   if(steep[i])fall=std::max(fall,clamp(terrain[i-1]-terrain[i]+2.,0.,64.));
+   if(steep[i])fall=std::max(fall,clamp(terrain[i-1]-terrain[i]+2.,0.,containedWaterways?100.:64.));
    water[i-1]=std::min(water[i-1],water[i]+fall);
   }
   for(size_t i=1;i<water.size();++i)water[i]=std::min(water[i],water[i-1]);

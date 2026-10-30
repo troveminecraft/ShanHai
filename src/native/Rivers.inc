@@ -11,6 +11,8 @@ std::unordered_map<uint64_t,std::vector<size_t>> riverBins;
 bool fittedRiverBanks=false,cutBanksEnabled=false,submergedCutBanks=false,naturalBendBanks=false,soilCutBanks=false,coherentBankProfiles=false;
 bool alluvialBanks=false,matchedRiverBanks=false,localRiverBeds=false;
 bool progressiveRiverBeds=false,naturalBankSlope=false,gradedJunctionBeds=false,deepMainstemBeds=false;
+Cache<uint64_t,Surface> waterGroundCache{8192};
+Surface waterGround(int x,int z){return waterGroundCache.get(key2(x,z),[&]{return compute(x,z,false);});}
 void loadRivers(){
  if(!data.contains("rivers"))return;
  fittedRiverBanks=data.at("rivers").contains("mainstems");
@@ -85,7 +87,7 @@ void loadRivers(){
  }
  if(riverSegments.size()>std::max<int64_t>(20000,int64_t(terrain_bounds::Chunks)*terrain_bounds::Chunks*20000/(1250*1250)))throw std::runtime_error("River segment budget exceeded");
 }
-void riverRelief(Surface&s,int wx,int wz,bool connectWater=true){
+void riverRelief(Surface&s,int wx,int wz,bool connectWater=true,bool fitWater=false){
  if(riverSegments.empty()||s.lake==1||s.stone>.01||s.volcanic>0)return;
  bool marine=s.water==seaLevelValue&&s.height<seaLevelValue;
  double x=wx-32768,z=wz-32768;auto it=riverBins.find(key2(int(std::floor(x/64)),int(std::floor(z/64))));if(it==riverBins.end())return;
@@ -137,7 +139,7 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true){
   if(a.waterfall){
    // Follow the measured ledge instead of interpolating a suspended water
    // ramp across its lower bank. No terrain is raised to hold this water.
-   level=std::min(level,double(s.height-1));
+   level=std::min(level,double(s.height-(containedWaterways?0:1)));
    if(edge<bankReach)waterfallReach=true;
   }
   r=std::max(1.2,r*(1-.40*smooth(.15,.9,widthSlope)));edge=d-r;
@@ -238,8 +240,19 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true){
  // Continue the same channel footprint across shallow seas without raising
  // sea level or filling naturally deeper seabeds. Lakes retain their mask.
  if(matchedRiverBanks&&best<=0&&wetWeightSum>1e-12)water=int(std::floor(wetLevelSum/wetWeightSum+1e-6));
- if(waterfallReach&&!marine)water=std::min(water,int(original)-1);
+ if(waterfallReach&&!marine)water=std::min(water,int(original)-(containedWaterways?0:1));
  if(marine){water=seaLevelValue;slopeMax=0;}
+ if(containedWaterways&&best<=0&&!marine&&(connectWater||fitWater)){
+  // The voxel shoreline, rather than the spline centre, bounds a falling
+  // water column. Keep downstream wet faces open, but fit water below the
+  // actual dry side banks. The matching bank pass retains this same ground.
+  for(auto [dx,dz]:std::array<std::pair<int,int>,4>{{{1,0},{-1,0},{0,1},{0,-1}}}){
+   auto neighbour=waterGround(wx+dx,wz+dz);int ground=neighbour.height;
+   riverRelief(neighbour,wx+dx,wz+dz,false);
+   if(neighbour.water<=neighbour.height&&!neighbour.riverDeposit)
+    water=std::min(water,ground);
+  }
+ }
  if(best<=0){double depth=std::max(depthSum/weightSum,1.+std::ceil(slopeMax*1.42));
   depth=std::max({2.,1.+std::ceil(slopeMax*1.42),mix(mouthBlend,depth,1.)});
   // Shoal the near-sea river floor by one block, fading upstream over five
@@ -310,8 +323,9 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true){
     // Reusing this column's dry height would predict a higher river pool and
     // miss the actual sea-level water face. Sample the real receiving surface only
     // in this short transition; ordinary inland columns keep the fast path.
-    if(waterfallReach||(alluvialBanks&&!marine&&shoal>0))neighbour=compute(wx+dx,wz+dz,false);
-    riverRelief(neighbour,wx+dx,wz+dz,false);
+    if(containedWaterways)neighbour=waterGround(wx+dx,wz+dz);
+    else if(waterfallReach||(alluvialBanks&&!marine&&shoal>0))neighbour=compute(wx+dx,wz+dz,false);
+    riverRelief(neighbour,wx+dx,wz+dz,false,containedWaterways);
     if(neighbour.river>0||(alluvialBanks&&neighbour.water>neighbour.height))bed=std::min(bed,double(neighbour.water-1));
    }
   }
@@ -369,11 +383,23 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true){
   // The wet channel (best <= 0) remains open; this only protects dry shoulders.
   if(auto lake=lakeAt(wx,wz);lake&&!lake->flooded)
    bed=std::max(bed,std::min(original,double(lake->level)));
+  if(containedWaterways){
+   // Regional lakes store their exact flooded footprint, without the dry
+   // collar used by the older baked lakes. Preserve the natural retaining
+   // rim after bank erosion; never manufacture ground above that terrain.
+   for(auto [dx,dz]:std::array<std::pair<int,int>,4>{{{1,0},{-1,0},{0,1},{0,-1}}})
+    if(auto lake=lakeAt(wx+dx,wz+dz);lake&&lake->flooded)
+     bed=std::max(bed,std::min(original,double(lake->level)));
+  }
   if(fittedRiverBanks&&connectWater&&nearestEdge<2.){
    // Protect the one-block dry rim against the actual neighbouring water
    // profile, including overlapping tributaries. Never raise natural ground.
    for(auto [dx,dz]:std::array<std::pair<int,int>,4>{{{1,0},{-1,0},{0,1},{0,-1}}}){
-    Surface neighbour;neighbour.height=int(original);riverRelief(neighbour,wx+dx,wz+dz,false);
+    Surface neighbour;neighbour.height=int(original);
+    // A falling reach clamps water to its own ground. Reusing this bank's
+    // height underestimated the higher neighbour by one or more blocks.
+    if(containedWaterways)neighbour=waterGround(wx+dx,wz+dz);
+    riverRelief(neighbour,wx+dx,wz+dz,false);
     // A bar may become wet after its own neighbour check at a level step.
     // Its preview still carries riverDeposit; include that retained level.
     if(neighbour.river>0||(progressiveRiverBeds&&neighbour.riverDeposit))

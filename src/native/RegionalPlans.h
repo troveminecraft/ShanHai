@@ -15,20 +15,24 @@
 namespace nativegen::regional {
 inline constexpr int Core=2048,Halo=512,Pitch=64,Count=(Core+Halo*2)/Pitch+1;
 struct Ground{int height;double humidity,temperature,stone,volcanic;bool closedBasin=false;int water=-32768;};
-template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool curved=false,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,bool confinedBanks=false,bool refresh=false,bool uplandWaterways=false){
+template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool curved=false,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,bool confinedBanks=false,bool refresh=false,bool uplandWaterways=false,J const* resolvedLakes=nullptr,bool lakesOnly=false){
  constexpr int N=Count,Total=N*N;
  int originX=gx*Core-Halo,originZ=gz*Core-Halo;
  std::array<Ground,Total> ground;
- auto point=[&](int i){return std::pair{originX+(i%N)*Pitch,originZ+(i/N)*Pitch};};
+ std::map<int,std::pair<int,int>> lakeAnchors;
+ auto point=[&](int i){if(auto a=lakeAnchors.find(i);a!=lakeAnchors.end())return a->second;return std::pair{originX+(i%N)*Pitch,originZ+(i/N)*Pitch};};
  auto eligible=[](Ground const&s){return s.stone<=.001&&s.volcanic<=0;};
- for(int i=0;i<Total;++i){auto[x,z]=point(i);ground[i]=sample(x,z);}
+ for(int i=0;i<Total;++i){
+  if(resolvedLakes&&resolvedLakes->contains("ground")){auto const&s=resolvedLakes->at("ground").at(i);ground[i]={s[0],s[1],s[2],s[3],s[4],s[5],s[6]};}
+  else {auto[x,z]=point(i);ground[i]=sample(x,z);}
+ }
  J lakes=J::array(),segments=J::array();
  std::array<double,Total> sink;sink.fill(-1);
  for(int i=0;i<Total;++i)if(eligible(ground[i])){auto const&s=ground[i];if(!s.closedBasin&&s.height<seaLevel)sink[i]=seaLevel;else if(s.closedBasin&&s.water>s.height)sink[i]=s.water;}
  // Closed basins are tested against their actual surrounding terrain. A lake
  // owns a small bounded footprint wholly inside its canonical region.
  size_t lakeLimit=refresh?8:curved?4:3;
- for(int z=10;z<N-10&&lakes.size()<lakeLimit;++z)for(int x=10;x<N-10&&lakes.size()<lakeLimit;++x){
+ if(!resolvedLakes)for(int z=10;z<N-10&&lakes.size()<lakeLimit;++z)for(int x=10;x<N-10&&lakes.size()<lakeLimit;++x){
   int i=z*N+x;auto const&s=ground[i];auto[X,Z]=point(i);
   if((!s.closedBasin&&s.height<seaLevel+9)||s.height>maxSurfaceY-84||s.humidity<.40||!eligible(s)||hash01(X,Z,seed^63101)>(refresh?.80:.35))continue;
   bool minimum=true;for(int dz=-1;dz<=1;++dz)for(int dx=-1;dx<=1;++dx)if(dx||dz)minimum&=refresh?s.height<=ground[(z+dz)*N+x+dx].height:s.height<ground[(z+dz)*N+x+dx].height;
@@ -73,6 +77,18 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
   }
   lakes.push_back({{"level",level},{"center",{X+(refresh?(start%Side-16)*Step:0),Z+(refresh?(start/Side-16)*Step:0)}},{"rows",rows},{"frozen",s.temperature<.42}});sink[i]=level;
  }
+ if(lakesOnly){J survey=J::array();for(auto const&s:ground)survey.push_back({s.height,s.humidity,s.temperature,s.stone,s.volcanic,s.closedBasin,s.water});return J{{"lakes",lakes},{"ground",survey}};}
+ if(resolvedLakes){
+  lakes=resolvedLakes->at("owned");
+  // Every owner sees the same immutable neighbouring basins before routing.
+  // Use the actual surveyed low point, not a coarse point outside the lake.
+  for(auto const&lake:resolvedLakes->at("nearby")){
+   int x=lake.at("center").at(0),z=lake.at("center").at(1);
+   int ix=roundJS(double(x-originX)/Pitch),iz=roundJS(double(z-originZ)/Pitch);
+   if(ix<1||iz<1||ix>=N-1||iz>=N-1)continue;
+   int i=iz*N+ix;lakeAnchors[i]={x,z};ground[i]=sample(x,z);sink[i]=lake.at("level");
+  }
+ }
  std::array<double,Total> distance;distance.fill(INFINITY);
  std::array<int,Total> parent,root;parent.fill(-1);root.fill(-1);
  using Entry=std::pair<double,int>;std::priority_queue<Entry,std::vector<Entry>,std::greater<Entry>> heap;
@@ -82,13 +98,15 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
   auto[cost,i]=heap.top();heap.pop();if(cost!=distance[i])continue;order.push_back(i);int x=i%N,z=i/N;
   for(int dz=-1;dz<=1;++dz)for(int dx=-1;dx<=1;++dx){if((!dx&&!dz)||x+dx<0||x+dx>=N||z+dz<0||z+dz>=N)continue;
    int k=(z+dz)*N+x+dx;if(!eligible(ground[k]))continue;
-   double uphill=std::max(0,ground[i].height-ground[k].height),next=cost+Pitch*std::hypot(double(dx),double(dz))+35*uphill*uphill;
+   double edge=Pitch*std::hypot(double(dx),double(dz));
+   if(resolvedLakes){auto[a,b]=point(i);auto[c,d]=point(k);edge=std::hypot(double(a-c),double(b-d));}
+   double uphill=std::max(0,ground[i].height-ground[k].height),next=cost+edge+35*uphill*uphill;
    if(next<distance[k]){distance[k]=next;parent[k]=i;root[k]=root[i];heap.push({next,k});}
   }
  }
  std::array<int,Total> flow;flow.fill(1);for(auto i=order.rbegin();i!=order.rend();++i)if(parent[*i]>=0)flow[parent[*i]]+=flow[*i];
  if(curved){
-  auto result=curvedDrainage(gx,gz,seed,order,ground,parent,flow,distance,sink,point,sample,seaLevel,maxSurfaceY,meanders,confinedBanks,lakes,uplandWaterways);
+  auto result=curvedDrainage(gx,gz,seed,order,ground,parent,flow,distance,sink,point,sample,seaLevel,maxSurfaceY,meanders,confinedBanks,resolvedLakes?resolvedLakes->at("nearby"):lakes,uplandWaterways,resolvedLakes!=nullptr);
   result["region"]={gx,gz};result["lakes"]=lakes;result["samples"]=Total;return result;
  }
  std::vector<int> sources;
