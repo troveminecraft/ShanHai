@@ -54,10 +54,10 @@ LL_TYPE_INSTANCE_HOOK(StreamPriority,ll::memory::HookPriority::Normal,ChunkBuild
  // Preserve native priorities elsewhere; bounded local promotion also covers
  // the neighbour stages and lighting, since BDS owns the same build policy.
  auto ages=readyAgeCredits.load();auto age=ages->find(terrain_runtime::streamingKey(cp.x,cp.z));
- bool visible=std::any_of(f->begin(),f->end(),[&](auto const&p){return chunkDistance(cp.x,cp.z,p.x,p.z)<=p.radius+8;});
- bool critical=std::any_of(f->begin(),f->end(),[&](auto const&p){return chunkDistance(cp.x,cp.z,p.x,p.z)<=8;});
- if(critical)score=terrain_runtime::scheduledStreamingScore(score,0,true);
- else if(visible&&age!=ages->end())score=terrain_runtime::scheduledStreamingScore(score,age->second,false);
+ bool visible=std::any_of(f->begin(),f->end(),[&](auto const&p){return inDependencyHalo(cp.x,cp.z,p.x,p.z,p.radius+8);});
+ bool critical=std::any_of(f->begin(),f->end(),[&](auto const&p){return inDependencyHalo(cp.x,cp.z,p.x,p.z,8);});
+ auto priority=age==ages->end()?terrain_runtime::ReadyPriority{}:age->second;
+ if(critical||visible)score=terrain_runtime::scheduledStreamingScore(score,priority.ageCredit,critical,priority.state);
  else if(score>512)return base;
  priorityBoosts.fetch_add(1,std::memory_order_relaxed);
  return priorityHigherFirst?std::max(base,1000000-score):std::min(base,-1000000+score);

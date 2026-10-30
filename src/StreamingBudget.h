@@ -7,6 +7,7 @@
 namespace terrain_runtime {
 inline uint64_t streamingKey(int x,int z){return (uint64_t(uint32_t(x))<<32)|uint32_t(z);}
 struct ReadyChunk {int x,z,state;};
+struct ReadyPriority {int ageCredit=0,state=0;};
 // Only age jobs seen in the engine's dependency-ready queues. A blocked job
 // cannot manufacture eligibility; its expected state remains engine-owned.
 class ReadyAges {
@@ -14,28 +15,39 @@ class ReadyAges {
     std::unordered_map<uint64_t,Entry> entries;
 public:
     void clear(){entries.clear();}
-    std::unordered_map<uint64_t,int> update(std::vector<ReadyChunk> const& ready,double now){
-        std::unordered_map<uint64_t,int> result;
-        for(auto c:ready){
-            auto key=streamingKey(c.x,c.z);
-            auto [it,added]=entries.try_emplace(key,Entry{c.state,now,now});
+    std::unordered_map<uint64_t,ReadyPriority> update(std::vector<ReadyChunk> const& ready,double now){
+        std::unordered_map<uint64_t,ReadyPriority> result;
+        // The two native queues may briefly mention the same coordinate.
+        // Keep its furthest stage regardless of snapshot iteration order.
+        for(auto c:ready){auto& p=result[streamingKey(c.x,c.z)];p.state=std::max(p.state,c.state);}
+        for(auto& [key,priority]:result){
+            auto [it,added]=entries.try_emplace(key,Entry{priority.state,now,now});
             auto& e=it->second;
-            if(!added&&(e.state!=c.state||now-e.last>1.5))e={c.state,now,now};
-            e.last=now;
-            // Old noncritical tasks can outrank newly arriving noncritical
-            // jobs; the player dependency halo keeps its own priority band. Age resets at each stage and when leaving the queue.
-            result[key]=int(std::clamp(now-e.since,0.,30.)*128.);
+            // Progress must not turn an old chunk into a fresh job. Keep its
+            // age across stages and short dependency waits. A backwards state
+            // or a long absence identifies a new request for these coordinates.
+            if(!added&&(priority.state<e.state||now-e.last>30.))e={priority.state,now,now};
+            e.state=priority.state;e.last=now;
+            // Bound fairness to six distance steps. An old view-edge load
+            // cannot outrank a newly ready nearby structure/decorating job.
+            priority.ageCredit=int(std::clamp(now-e.since,0.,6.)*16.);
         }
-        std::erase_if(entries,[&](auto const& e){return now-e.second.last>1.5;});
-        if(entries.size()>32768)entries.clear();
+        std::erase_if(entries,[&](auto const& e){return now-e.second.last>30.;});
+        // Discard inactive history first; never erase the current queue's age.
+        if(entries.size()>32768)std::erase_if(entries,[&](auto const& e){return e.second.last<now;});
         return result;
     }
 };
-inline int fairStreamingScore(int distanceScore,int ageCredit){return std::min(distanceScore,2048)-ageCredit;}
+inline int completionCredit(int state){
+    // Canonical states describe the NEXT eligible transition's input. Engine
+    // dependency predicates remain authoritative; priority cannot bypass them.
+    return state>=10?256:state>=6?224:state>=4?192:state>=2?128:0;
+}
+inline int fairStreamingScore(int distanceScore,int ageCredit){return std::min(distanceScore,2048)-std::clamp(ageCredit,0,96);}
 // An old view-distance job must not overtake the complete near dependency halo.
 // Fairness still applies between noncritical jobs; the halo moves with players.
-inline int scheduledStreamingScore(int distanceScore,int ageCredit,bool critical){
-    return critical ? -8192+std::min(distanceScore,2048) : fairStreamingScore(distanceScore,ageCredit);
+inline int scheduledStreamingScore(int distanceScore,int ageCredit,bool critical,int state=0){
+    return (critical?-8192:0)+fairStreamingScore(distanceScore,ageCredit)-completionCredit(state);
 }
 struct IdleQueuePump {
     double idleSince=-1,next=0;

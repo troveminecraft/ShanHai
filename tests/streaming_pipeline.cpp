@@ -11,21 +11,31 @@ int main(){
     std::vector<ReadyChunk> queue{{48,0,2},{0,0,0}};
     auto key=streamingKey(48,0);
     int oldCredit=0;
-    // A continuous stream of fresh nearby work cannot permanently beat a
-    // distant dependency-ready task, even while near tasks never run out.
+    // Reproduce the initial-view backlog: old raw loads must not outrank
+    // closer chunks that have just become eligible for their next stage.
     for(int tick=0;tick<=200;++tick){
-        auto credits=ages.update(queue,tick*.2);oldCredit=credits.at(key);
-        if(tick>=80)assert(fairStreamingScore(1024,oldCredit)<fairStreamingScore(0,0));
+        auto credits=ages.update(queue,tick*.2);oldCredit=credits.at(key).ageCredit;
+        assert(oldCredit<=96);
+        assert(scheduledStreamingScore(176,0,false,4)<scheduledStreamingScore(800,oldCredit,false,0));
     }
-    queue[0].state=4;assert(ages.update(queue,40.2).at(key)==0);
-    ages.update({},40.4);assert(ages.update(queue,43).at(key)==0);
-    ages.clear();assert(ages.update(queue,1).at(key)==0);
-    // Reproduce 0.2.9 inversion: a 30-second-old view-edge job beats the
-    // newly eligible centre even though the player's initial halo is blocked.
-    assert(fairStreamingScore(1024,3840)<fairStreamingScore(0,0));
+    queue[0].state=4;assert(ages.update(queue,40.2).at(key).ageCredit==oldCredit);
+    auto duplicate=queue;duplicate.push_back({48,0,2});
+    auto merged=ages.update(duplicate,40.3).at(key);assert(merged.state==4&&merged.ageCredit==oldCredit);
+    ages.update({},40.4);assert(ages.update(queue,43).at(key).ageCredit==oldCredit);
+    queue[0].state=0;assert(ages.update(queue,43.2).at(key).ageCredit==0);
+    ages.update({},43.4);assert(ages.update(queue,74).at(key).ageCredit==0);
+    ages.clear();assert(ages.update(queue,1).at(key).ageCredit==0);
     for(int d=0;d<=2048;d+=16)for(int age=0;age<=3840;age+=128)
         assert(scheduledStreamingScore(256,0,true)<scheduledStreamingScore(d,age,false));
-    assert(scheduledStreamingScore(1024,3840,false)<scheduledStreamingScore(256,0,false));
+    assert(scheduledStreamingScore(1024,3840,false)>scheduledStreamingScore(256,0,false));
+    assert(scheduledStreamingScore(320,0,false,4)<scheduledStreamingScore(320,96,false,0));
+    // The dependency window is centered on floor(position), including both
+    // opposite edges and negative coordinates; player fractions cannot trim it.
+    for(double x:{4.03125,-4.03125})for(double z:{44.03125,-44.03125}){
+        int cx=int(std::floor(x)),cz=int(std::floor(z));
+        for(int dz=-8;dz<=8;++dz)for(int dx=-8;dx<=8;++dx)assert(terrain::inDependencyHalo(cx+dx,cz+dz,x,z,8));
+        assert(!terrain::inDependencyHalo(cx-9,cz,x,z,8));assert(!terrain::inDependencyHalo(cx+9,cz,x,z,8));
+    }
     IdleQueuePump pump;
     assert(!pump.poll(0,true,8,0));assert(!pump.poll(.4,true,8,0));
     assert(pump.poll(.6,true,8,0));assert(!pump.poll(.8,true,8,0));
@@ -49,5 +59,5 @@ int main(){
     auto events=trace.snapshot();assert(events.size()==ChunkPipelineTrace::Limit);
     for(auto e:events)assert(e.x==-4&&e.z==5);
     trace.watch({});trace.record({0,-4,5,2});assert(trace.snapshot().size()==events.size());
-    std::cout<<"PASS continuous-flight fairness, stage/queue reset, whole-pipeline hysteresis, pause clock, bounded concurrent trace\n";
+    std::cout<<"PASS bounded fairness, cross-stage age, complete integer halo, pipeline hysteresis, pause clock, bounded concurrent trace\n";
 }

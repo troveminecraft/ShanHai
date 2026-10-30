@@ -5,8 +5,8 @@ terrain_runtime::IdleQueuePump idleQueuePump;
 terrain_runtime::SupplementalBudget supplementalBudget;
 terrain_runtime::ActiveStreamingClock streamingClock;
 terrain_runtime::PipelinePressure pipelinePressure;
-std::atomic<std::shared_ptr<std::unordered_map<uint64_t,int> const>> readyAgeCredits{
-    std::make_shared<std::unordered_map<uint64_t,int> const>()};
+std::atomic<std::shared_ptr<std::unordered_map<uint64_t,terrain_runtime::ReadyPriority> const>> readyAgeCredits{
+    std::make_shared<std::unordered_map<uint64_t,terrain_runtime::ReadyPriority> const>()};
 std::vector<terrain_runtime::ReadyChunk> nativeReadySample;
 unsigned nativeInFlight=0,frontierPendingTotal=0;
 uint64_t queueSampleSkips=0,queuePumps=0,supplementalThrottles=0;
@@ -48,12 +48,14 @@ void sampleNativeQueue(ChunkSource& source){
     if(!complete){++queueSampleSkips;return;}
     nativeReadySample=std::move(sample);
     pipelinePressure.queued=queued;pipelinePressure.queueSampleValid=true;
-    readyAgeCredits.store(std::make_shared<std::unordered_map<uint64_t,int> const>(
-        readyAges.update(nativeReadySample,streamingClock.seconds)));
+    auto canonical=nativeReadySample;
+    for(auto& job:canonical)job.state=NativeChunkStates::canonical(job.state);
+    readyAgeCredits.store(std::make_shared<std::unordered_map<uint64_t,terrain_runtime::ReadyPriority> const>(
+        readyAges.update(canonical,streamingClock.seconds)));
 }
 void resetStreamingPipeline(){
     readyAges.clear();idleQueuePump={};supplementalBudget={};streamingClock={};pipelinePressure={};
-    readyAgeCredits.store(std::make_shared<std::unordered_map<uint64_t,int> const>());
+    readyAgeCredits.store(std::make_shared<std::unordered_map<uint64_t,terrain_runtime::ReadyPriority> const>());
     nativeReadySample.clear();nativeInFlight=frontierPendingTotal=0;queueSampleSkips=queuePumps=supplementalThrottles=0;
     lastStreamingWall=streamingBusyUntil=0;
     stalledChunkSample=Json::array();pipelineTimeline=Json::array();
@@ -85,7 +87,7 @@ Json pipelineReport(){
     for(auto const&e:worldSession->pipelineTrace.snapshot())events.push_back({
         {"kind",e.kind},{"chunk",{e.x,e.z}},{"stage",e.stage},{"otherChunk",{e.otherX,e.otherZ}},
         {"observedState",e.observed},{"result",e.result},{"activeUs",e.micros}});
-    return {{"queued",pipelinePressure.queued},{"queueSampleValid",pipelinePressure.queueSampleValid},
+    return {{"scheduler","completion-first-bounded-age-v2"},{"queued",pipelinePressure.queued},{"queueSampleValid",pipelinePressure.queueSampleValid},
         {"inFlight",nativeInFlight},{"frontierPending",frontierPendingTotal},{"postprocessPending",pipelinePressure.postprocess},
         {"visibleUnfinished",pipelinePressure.unfinished},{"unfinishedScope","interior dependency halo or enclosed holes; frontier reported separately"},{"supplementalOpen",supplementalBudget.open},
         {"supplementalThrottles",supplementalThrottles},{"queuePumps",queuePumps},{"sampleSkips",queueSampleSkips},

@@ -6,6 +6,9 @@
 namespace terrain {
 struct StreamFocus {double x,z,aheadX,aheadZ,speed;bool repair=false;double repairX=0,repairZ=0;bool repair2=false;double repair2X=0,repair2Z=0;int radius=64;};
 inline double chunkDistance(int x,int z,double px,double pz){return std::max(std::abs(x-px),std::abs(z-pz));}
+inline bool inDependencyHalo(int x,int z,double px,double pz,int radius){
+ return std::max(std::abs(x-int(std::floor(px))),std::abs(z-int(std::floor(pz))))<=radius;
+}
 inline int streamingScore(int x,int z,std::vector<StreamFocus> const& f){
  double best=20000;
  for(auto const& a:f){
