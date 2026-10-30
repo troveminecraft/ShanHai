@@ -64,3 +64,8 @@ python -B ports/windows-client/test_world_package.py
 内核与世界会话边界、测试范围见 [KERNEL_BOUNDARY.md](KERNEL_BOUNDARY.md)。
 
 The default client target is Minecraft 1.26.51.01. For a separate legacy build, pass `-GameLine 26.20` to `ports/windows-client/build.ps1` and use a different output directory. Never install a 26.51 DLL into a 26.20 instance. SDK overlays are generated in the build directory; installed SDK files are not modified.
+
+
+### Check generation cost and compatibility
+
+`tests/compare_generation.py` accepts `--baseline` and `--candidate` native CLI executables, `--recipe`, `--chunks` (a JSON array of chunk coordinates), and a new `--output` directory outside the source tree. It compares cold and persisted-plan runs separately, checks byte-identical chunks, and by default runs three alternating comparisons with a maximum cold-time ratio of 1.05. Use isolated output directories; reusing regional caches would hide cold planning cost. Run without concurrent builds or other benchmarks.

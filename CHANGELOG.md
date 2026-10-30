@@ -1,3 +1,11 @@
+## 0.3.11 — 2026-10-31
+
+Terrain generators now decode frequently used relief and cliff parameters once per immutable world recipe. This removes repeated configuration lookups from river-bank surveys and terrain sampling while preserving the same generated blocks.
+
+Kernel recipe **2.216** and existing regional plans remain compatible. The sea level, cliffs, waterfalls, glaciers and biome rules are unchanged. Existing worlds benefit from the calculation change without rebuilding their terrain.
+
+Cold and warm generation comparisons check exact chunk equality and report their timings separately. Dense terrain, high view distances and memory pressure can still cause loading stalls; offline generation measurements do not establish in-game loading performance.
+
 ## 0.3.10 — 2026-10-31
 
 Land ice bodies are now restricted to super-glacier regions. Cold parent biomes retain snow variants and frozen water without acquiring an unrelated packed-ice ground layer.

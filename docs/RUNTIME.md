@@ -175,3 +175,12 @@ After native initialization, the client compares LevelData with the validated Le
 `tests/native_seed_26_51.py IMAGE` replays the real native key initializer, property lookup and seed getters with synthetic map nodes. Only virtual level dispatch and byte comparison are stubbed. It reproduces the old lookup failure and checks override precedence and signed-boundary bit patterns without starting Minecraft. `bedrock-seed-test` in the client xmake project tests the production adapter with SDK seed types; `world_startup` checks seed mismatch rejection. These are offline tests, not world-entry acceptance.
 
 The launcher reads the displayed name from `manifest.name`, and LL requires it to match the folder. The ZIP and lip placement therefore use `mountains&seas/`; the entry DLL remains `karma-worldgen-client.dll`. Old configuration and seed caches can be copied into that folder after removing the old active entry. The manifest declares the old entry as a conflict to prevent loading both together.
+
+
+## 0.3.11 terrain parameter snapshot
+
+Terrain generators now decode frequently used relief and cliff parameters once per immutable world recipe. This removes repeated configuration lookups from river-bank surveys and terrain sampling while preserving the same generated blocks.
+
+Kernel recipe **2.216** and existing regional plans remain compatible. The sea level, cliffs, waterfalls, glaciers and biome rules are unchanged. Existing worlds benefit from the calculation change without rebuilding their terrain.
+
+Cold and warm generation comparisons check exact chunk equality and report their timings separately. Dense terrain, high view distances and memory pressure can still cause loading stalls; offline generation measurements do not establish in-game loading performance.

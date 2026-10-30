@@ -1,4 +1,4 @@
-# mountains&seas · 山&海 0.3.10
+# mountains&seas · 山&海 0.3.11
 
 Minecraft 基岩版 Windows 地形与结构生成模组。作者：troveminecraft。
 
@@ -6,8 +6,8 @@ Minecraft 基岩版 Windows 地形与结构生成模组。作者：troveminecraf
 
 | Minecraft for Windows | LeviLamina client | 安装包 |
 |---|---|---|
-| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.3.10.zip` |
-| 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.3.10.zip` |
+| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.3.11.zip` |
+| 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.3.11.zip` |
 
 需要 Windows x64 和支持 AVX2 的 CPU。请选择对应游戏版本的 ZIP。
 
@@ -17,7 +17,7 @@ Minecraft 基岩版 Windows 地形与结构生成模组。作者：troveminecraf
 
 从旧 `karma-worldgen-client` 条目升级时，将旧文件夹备份到 `mods` 之外后导入新包，保留 `client-config.json` 和已有存档；不要同时启用两份模组。已生成的方块保留，原版世界不会自动转换。
 
-## 0.3.10 更新
+## 0.3.11 更新
 
 陆地冰体限定在超级冰川区域。其他寒冷群系保留覆雪变种和水面结冰，不再因低温噪声斑块额外铺设浮冰地表。
 

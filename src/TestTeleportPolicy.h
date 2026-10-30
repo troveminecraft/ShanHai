@@ -60,8 +60,8 @@ inline std::optional<Destination> destination(int id, int biomeCount) {
 }
 struct Update { int id; char const* name; char const* content; };
 inline constexpr Update updates[]{
-    {116, "河流", "江流按沿程汇水量展宽；60至180格瀑布加入退蚀岩唇、凹槽和跌水潭"},
-    {114, "山地", "悬崖核心水平2格内落差100至300；修复超级冰川外陆地误覆冰"}
+    {116, "河流", "减少河道规划的重复参数读取；保留江流瀑布与退蚀地形"},
+    {114, "山地", "优化山地地表计算；保留100至300格悬崖与超级冰川覆冰边界"}
 };
 inline std::string joinMessage() {
     std::string result = std::string("§9[山&海] 最近地形更新（") + shanhai_release::Windows + "）";
