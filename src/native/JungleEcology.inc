@@ -1,20 +1,10 @@
 // Three rainforest strata, generated once per world anchor and clipped at output.
 static constexpr uint16_t JungleWood=75,JungleVine=76,JungleMoss=80,JungleMelon=81,JungleBamboo=82;
 static constexpr int JungleHalo=24,JungleSpan=JungleHalo*2+1,JungleKeyStride=56;
-struct JungleSite{int x=0,z=0,ground=0,h=0,width=1,layer=0,style=0;double priority=0,phase=0,radius=0;};
-struct JungleCell{int x,y,z;uint16_t block;};
-struct JungleTree{JungleSite site;std::vector<JungleCell> cells;std::vector<std::array<int,4>> stem;
- // A 24-block crown reaches at most two chunk columns each way. Index cells
- // once, by destination chunk and placement pass, instead of rescanning the
- // entire tree six times for every neighboring output chunk.
- std::array<uint32_t,151> tileBegin{};std::vector<uint32_t> tileCells;
- int primaryBranches=0,secondaryBranches=0,brokenBranches=0,attachedVines=0,epiphytes=0;};
 static int jungleKind(uint16_t b){return b==14?0:b==JungleWood?1:b==15?2:b==JungleMoss?3:b==37?4:5;}
 Cache<uint64_t,JungleSite> jungleSites{2048};
-// Reservation checks happen at placement, not while constructing the shape.
-// Serial prefill variants sharing one Field can reuse these immutable trees.
-using JungleShapes=Cache<uint64_t,std::shared_ptr<JungleTree>>;
-std::shared_ptr<JungleShapes> jungleShapes=std::make_shared<JungleShapes>(192);
+// Shape construction ignores native reservations; apply those at placement.
+std::shared_ptr<JungleShapes> jungleShapes;
 bool jungleHabitat(Surface const&s)const{
  return s.biome==13&&s.giant<.01&&s.stone<.01&&s.barren<.01&&!s.kind&&!s.lake&&!s.river&&s.cliffLow==-32768&&s.height>33&&field.ecologyHeight(s)<235&&field.ecologyTreeWeight(s)>0;
 }
@@ -55,7 +45,7 @@ bool jungleAccepted(int gx,int gz,JungleSite const&a){
     (b.priority<a.priority||(b.priority==a.priority&&std::pair{b.x,b.z}<std::pair{a.x,a.z})))return false;
  }return true;
 }
-std::shared_ptr<JungleTree> jungleTree(int gx,int gz){return jungleShapes->get(key2(gx,gz),[&]{
+std::shared_ptr<JungleTree const> jungleTree(int gx,int gz){return jungleShapes->get(key2(gx,gz),[&]{
  auto tree=std::make_shared<JungleTree>();auto a=jungleSite(gx,gz);tree->site=a;if(!jungleAccepted(gx,gz,a))return tree;
  auto r=[&](int salt){return hash01(gx,gz,terrainSeed^salt);};
  std::vector<JungleSite> neighbors;
@@ -220,8 +210,8 @@ std::shared_ptr<JungleTree> jungleTree(int gx,int gz){return jungleShapes->get(k
  for(uint32_t i=0;i<tree->cells.size();i++)tree->tileCells[cursor[bucket(tree->cells[i])]++]=i;
  return tree;
 });}
-std::vector<std::shared_ptr<JungleTree>> jungles(int x0,int z0,int size){
- std::vector<std::shared_ptr<JungleTree>> out;
+std::vector<std::shared_ptr<JungleTree const>> jungles(int x0,int z0,int size){
+ std::vector<std::shared_ptr<JungleTree const>> out;
  for(int gz=int(std::floor((z0-JungleHalo-1)/7.));gz<=int(std::floor((z0+size+JungleHalo+1)/7.));gz++)for(int gx=int(std::floor((x0-JungleHalo-1)/7.));gx<=int(std::floor((x0+size+JungleHalo+1)/7.));gx++){
   // Empty/rejected sites belong in the cheap site cache. They used to allocate
   // an empty tree and evict real shapes even in biomes with no jungle trees.

@@ -2,7 +2,17 @@
 #include "native/Engine.h"
 
 namespace terrain_kernel {
-struct Context::Impl { nativegen::regional::Store store; };
+struct Context::Impl {
+    nativegen::regional::Store store;
+    std::mutex shapeMutex;J shapeRecipe;
+    std::shared_ptr<nativegen::JungleShapes> jungleShapes;
+    std::shared_ptr<nativegen::JungleShapes> shapes(J const& recipe){
+        std::lock_guard lock(shapeMutex);
+        if(!jungleShapes){shapeRecipe=recipe;jungleShapes=std::make_shared<nativegen::JungleShapes>();}
+        // Alternate recipes may share regional storage, but never tree values.
+        return shapeRecipe==recipe?jungleShapes:std::make_shared<nativegen::JungleShapes>();
+    }
+};
 Context::Context() : impl(std::make_unique<Impl>()) {}
 Context::~Context() = default;
 void Context::storage(J const& recipe, std::filesystem::path const& directory) {
@@ -10,13 +20,17 @@ void Context::storage(J const& recipe, std::filesystem::path const& directory) {
     nativegen::regional::storage(recipe, directory);
 }
 J Context::statistics() const {
+    nativegen::JungleShapes::Snapshot trees{};
+    {std::lock_guard lock(impl->shapeMutex);if(impl->jungleShapes)trees=impl->jungleShapes->statistics();}
     std::lock_guard lock(impl->store.mutex);
     return {{"residentPlans", impl->store.plans.size()},
             {"pendingPlans", impl->store.pendingPlans.size()},
             {"storageIdentities", impl->store.folders.size()},
             {"memoryHits",impl->store.memoryHits.load()},{"diskHits",impl->store.diskHits.load()},
             {"builds",impl->store.builds.load()},{"waits",impl->store.waits.load()},
-            {"buildMs",impl->store.buildUs.load()/1000.},{"waitMs",impl->store.waitUs.load()/1000.}};
+            {"buildMs",impl->store.buildUs.load()/1000.},{"waitMs",impl->store.waitUs.load()/1000.},
+            {"jungleShapes",{{"entries",trees.entries},{"bytes",trees.bytes},{"pending",trees.pending},
+                             {"hits",trees.hits},{"builds",trees.builds},{"waits",trees.waits},{"evictions",trees.evictions}}}};
 }
 struct Field::Impl {
     ContextPtr context;
@@ -43,7 +57,8 @@ struct Generator::Impl {
           field(*ownedField), fieldLifetime(field.impl) {
         nativegen::regional::StoreScope scope(fieldLifetime->context->impl->store);
         value = std::make_unique<nativegen::Engine>(recipe, std::move(reservations), vegetationOnly,
-            fieldLifetime->value.get(), vegetationSource ? vegetationSource->impl->value.get() : nullptr);
+            fieldLifetime->value.get(), vegetationSource ? vegetationSource->impl->value.get() : nullptr,
+            fieldLifetime->context->impl->shapes(recipe));
     }
 };
 Generator::Generator(J data, Reservations reservations, bool vegetationOnly,
