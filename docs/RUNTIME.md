@@ -184,3 +184,12 @@ Terrain generators now decode frequently used relief and cliff parameters once p
 Kernel recipe **2.216** and existing regional plans remain compatible. The sea level, cliffs, waterfalls, glaciers and biome rules are unchanged. Existing worlds benefit from the calculation change without rebuilding their terrain.
 
 Cold and warm generation comparisons check exact chunk equality and report their timings separately. Dense terrain, high view distances and memory pressure can still cause loading stalls; offline generation measurements do not establish in-game loading performance.
+
+
+## 0.3.12 exact relief sampling
+
+Reduces terrain generation work by skipping relief samples with zero influence and applying the existing broadleaf density filter before querying neighbouring terrain. Generated terrain and vegetation layouts remain unchanged.
+
+Kernel recipe **2.216** and saved regional plans remain compatible, so existing worlds can use the update without recreating terrain. The exploration benchmark now records calculator queues and the longest gaps between completed chunks, alongside cold/warm timings and exact chunk comparisons.
+
+Regional planning is still synchronous and can pause chunk generation in unexplored areas. Native structure processing, chunk dependencies and rendering can add further loading delays.

@@ -4,7 +4,7 @@
 
 English · [简体中文](README.zh-CN.md)
 
-[Download 0.3.11](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.11) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
+[Download 0.3.12](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.12) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
 
 mountains&seas is an Overworld terrain generation mod for Minecraft Bedrock on Windows, powered by LeviLamina. Follow rivers through mountain ranges, rolling highlands, forests, deserts and coastlines; explore caves, glaciers and volcanic terrain. Vanilla structures are placed according to the surrounding landscape.
 
@@ -12,26 +12,26 @@ mountains&seas is an Overworld terrain generation mod for Minecraft Bedrock on W
 
 | Minecraft for Windows | LeviLamina client | Package |
 |---|---|---|
-| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.3.11.zip` |
-| 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.3.11.zip` |
+| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.3.12.zip` |
+| 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.3.12.zip` |
 
 Windows x64 and an AVX2-capable CPU. Select the package matching your game version.
 
 ## Install
 
-1. Download the ZIP matching your game version from the [0.3.11 release](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.11), using the compatibility table above.
+1. Download the ZIP matching your game version from the [0.3.12 release](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.12), using the compatibility table above.
 2. Save and fully close Minecraft. Import the ZIP into the matching instance through LeviLauncher’s mod manager.
 3. Enable the mod and create a new **normal** world with your chosen seed. Do not select a flat world.
 
 Use the release ZIP, rather than GitHub’s automatically generated source archive. Python and Node.js runtime dependencies are included; copying only the DLL is insufficient. The launcher entry is **mountains&seas**, by **troveminecraft**. For upgrades from the old entry, follow the migration steps below.
 
-## Version 0.3.11
+## Version 0.3.12
 
-Terrain generators now decode frequently used relief and cliff parameters once per immutable world recipe. This removes repeated configuration lookups from river-bank surveys and terrain sampling while preserving the same generated blocks.
+Reduces terrain generation work by skipping relief samples with zero influence and applying the existing broadleaf density filter before querying neighbouring terrain. Generated terrain and vegetation layouts remain unchanged.
 
-Kernel recipe **2.216** and existing regional plans remain compatible. The sea level, cliffs, waterfalls, glaciers and biome rules are unchanged. Existing worlds benefit from the calculation change without rebuilding their terrain.
+Kernel recipe **2.216** and saved regional plans remain compatible, so existing worlds can use the update without recreating terrain. The exploration benchmark now records calculator queues and the longest gaps between completed chunks, alongside cold/warm timings and exact chunk comparisons.
 
-Cold and warm generation comparisons check exact chunk equality and report their timings separately. Dense terrain, high view distances and memory pressure can still cause loading stalls; offline generation measurements do not establish in-game loading performance.
+Regional planning is still synchronous and can pause chunk generation in unexplored areas. Native structure processing, chunk dependencies and rendering can add further loading delays.
 
 
 ## Source and license

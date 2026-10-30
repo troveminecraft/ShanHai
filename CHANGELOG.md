@@ -1,3 +1,11 @@
+## 0.3.12 — 2026-10-31
+
+Reduces terrain generation work by skipping relief samples with zero influence and applying the existing broadleaf density filter before querying neighbouring terrain. Generated terrain and vegetation layouts remain unchanged.
+
+Kernel recipe **2.216** and saved regional plans remain compatible, so existing worlds can use the update without recreating terrain. The exploration benchmark now records calculator queues and the longest gaps between completed chunks, alongside cold/warm timings and exact chunk comparisons.
+
+Regional planning is still synchronous and can pause chunk generation in unexplored areas. Native structure processing, chunk dependencies and rendering can add further loading delays.
+
 ## 0.3.11 — 2026-10-31
 
 Terrain generators now decode frequently used relief and cliff parameters once per immutable world recipe. This removes repeated configuration lookups from river-bank surveys and terrain sampling while preserving the same generated blocks.

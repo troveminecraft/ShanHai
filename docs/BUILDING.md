@@ -69,3 +69,8 @@ The default client target is Minecraft 1.26.51.01. For a separate legacy build, 
 ### Check generation cost and compatibility
 
 `tests/compare_generation.py` accepts `--baseline` and `--candidate` native CLI executables, `--recipe`, `--chunks` (a JSON array of chunk coordinates), and a new `--output` directory outside the source tree. It compares cold and persisted-plan runs separately, checks byte-identical chunks, and by default runs three alternating comparisons with a maximum cold-time ratio of 1.05. Use isolated output directories; reusing regional caches would hide cold planning cost. Run without concurrent builds or other benchmarks.
+
+
+### Check ongoing exploration and stalls
+
+Build `terrain_exploration` from the tests project for both revisions, then use `tests/compare_exploration.py` with `--baseline`, `--candidate`, `--recipe`, `--route` (integer chunk coordinate pairs), and a fresh `--output` directory outside the source tree. The default uses four calculator workers and three alternating cold/warm comparisons. It checks identical chunk hashes, median throughput and the worst observed first-completion and inter-completion gaps. Each warm run recreates generators and reuses only persisted regional plans. Run separately from builds and other benchmarks. This models the terrain kernel and calculator queue, not native structure placement, chunk publication or rendering.
