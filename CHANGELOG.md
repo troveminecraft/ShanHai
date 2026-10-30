@@ -1,4 +1,10 @@
-## 0.3.4 — loading state, bounded workers and lake shorelines
+## 0.3.7 — 2026-10-30
+
+Chunk scheduling now retains waiting time across generation stages, bounds the priority bonus of old requests, and promotes eligible structure, decoration and lighting work so nearby terrain can finish before the full distant view is generated. The nearest dependency window includes both edges at fractional and negative player coordinates. Native dependency checks remain authoritative.
+
+New worlds use kernel **2.213** and a continuous coastal altitude fade. This removes an artificial step where the old coastal lift was cut off before its fade ended. Existing worlds keep their saved recipe and already generated blocks; the coastal correction is enabled in new worlds. Sea level remains **Y100**, with a building range of **Y-64..511**.
+
+Client mesh timing now accepts the renderer’s separate client world. The bundled seed runtime no longer imports test modules or ships Python/NumPy test extensions and bytecode caches. Loading stalls under dense terrain, large view distances or memory pressure may still occur; offline dependency simulations do not establish complete game loading performance.
 
 ## 0.3.6 — 2026-10-30
 
@@ -13,6 +19,8 @@ Fixes a Minecraft 1.26.51.01 crash during monster-room generation caused by an u
 
 Loading stalls and delayed distant chunks remain under investigation. No terrain recipes, sea level, saved blocks, or cloud settings change in this release. See [loading diagnostics](docs/LOADING_DIAGNOSTICS.md).
 
+
+## 0.3.4 — loading state, bounded workers and lake shorelines
 
 Corrects chunk completion tracking on Minecraft 1.26.51.01, preventing completed chunks from inflating the loading backlog and disabling look-ahead work. Terrain calculations use four bounded workers on CPUs with at least 12 logical processors, and two on smaller CPUs. Structure terrain reads reuse bounded column caches, and buffered diagnostic writes run after the native structure lock is released.
 

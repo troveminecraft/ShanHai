@@ -23,6 +23,7 @@ def prepare(output):
   data['config'].pop('badlandsRegions',None)
   data['config'].pop('smallPoolsVersion',None)
   data['config'].pop('riverBankSurvey',None)
+  data['config'].pop('coastalContinuity',None)
   data['config'].pop('mountainEcology',None)
   data['config'].pop('regionalPlateaus',None)
   for key in ('landscapeRevision','elevationRevision','volcanoRevision','surfaceMoss','villageSpacing','lakeBasinsVersion'):data['config'].pop(key,None)
