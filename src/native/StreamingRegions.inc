@@ -52,7 +52,7 @@ std::shared_ptr<J const> regionalLakePlan(int a,int b){
 std::shared_ptr<J const> regionalWaterPlan(int a,int b){
  auto algorithm=data.at("regionalGeneration").value("algorithm",std::string{});
  bool curved=algorithm!="regional-drainage-v1";
- return regional::get(streamingIdentity,containedWaterways?"water-v3":landformRefresh?"water-v2":"water",a,b,[&]{
+ return regional::get(streamingIdentity,C.value("waterfallRevision",0)>=1?"water-v4":containedWaterways?"water-v3":landformRefresh?"water-v2":"water",a,b,[&]{
   J lakes;
   if(containedWaterways){
    auto owned=regionalLakePlan(a,b);
@@ -63,8 +63,9 @@ std::shared_ptr<J const> regionalWaterPlan(int a,int b){
     for(int z=(b*regional::Core+32768)/grid;z<((b+1)*regional::Core+32768)/grid;++z)
      for(int x=(a*regional::Core+32768)/grid;x<((a+1)*regional::Core+32768)/grid;++x){
       auto cliff=patch(x,z);if(!cliff.valid)continue;
-      lakes["falls"].push_back({roundJS(cliff.x+cliff.nx*56)-32768,roundJS(cliff.z+cliff.nz*56)-32768,
-                               roundJS(cliff.x-cliff.nx*56)-32768,roundJS(cliff.z-cliff.nz*56)-32768});
+      double span=C.value("waterfallSources",0)>=2?cliff.warp+12:56;
+      lakes["falls"].push_back({roundJS(cliff.x+cliff.nx*span)-32768,roundJS(cliff.z+cliff.nz*span)-32768,
+                               roundJS(cliff.x-cliff.nx*span)-32768,roundJS(cliff.z-cliff.nz*span)-32768});
      }
    }
   }
@@ -75,7 +76,7 @@ std::shared_ptr<J const> regionalWaterPlan(int a,int b){
   // Rerouting against an added lake reuses the same terrain samples. This
   // cache is scoped to one bounded owner build and has a hard entry limit.
   if(containedWaterways&&routeSurvey.size()<262144)routeSurvey.emplace(key,ground);return ground;
- },curved,seaLevelValue,generatedMaxYExclusive-1,algorithm=="regional-drainage-v3",C.value("riverBankSurvey",0)>=1,landformRefresh,C.value("uplandWaterways",0)>=1,containedWaterways?&lakes:nullptr);};
+ },curved,seaLevelValue,generatedMaxYExclusive-1,algorithm=="regional-drainage-v3",C.value("riverBankSurvey",0)>=1,landformRefresh,C.value("uplandWaterways",0)>=1,containedWaterways?&lakes:nullptr,false,C.value("waterfallRevision",0)>=1);};
   auto plan=build();if(!containedWaterways)return plan;
   // Lakes stay inside their owner's core. Resolve only owners touched by
   // the planned wet corridor and bank halo; do not eagerly survey nine full
@@ -112,7 +113,7 @@ void ensureStreamingRegions(int wx,int wz){
  if(!streamingRegions)return;
  int gx=int(std::floor((wx-32768)/double(regional::Core))),gz=int(std::floor((wz-32768)/double(regional::Core)));bool changed=false;
  if(unboundedRegions&&preparedRegions.size()>64&&!preparedRegions.contains(key2(gx,gz))){
-  preparedRegions.clear();streamingLakeRows.clear();riverSegments.clear();riverBins.clear();
+  preparedRegions.clear();streamingLakeRows.clear();riverSegments.clear();riverBins.clear();waterfallForms.clear();waterfallBins.clear();
  }
  for(int dz=-1;dz<=1;++dz)for(int dx=-1;dx<=1;++dx){int a=gx+dx,b=gz+dz;auto owner=key2(a,b);if(preparedRegions.contains(owner))continue;
   if(localPlanningCulling){
@@ -125,6 +126,14 @@ void ensureStreamingRegions(int wx,int wz){
       z<int64_t(b)*regional::Core-reach||z>int64_t(b+1)*regional::Core+reach)continue;
   }
   auto plan=regionalWaterPlan(a,b);
+  if(plan->contains("waterfalls"))for(auto const&r:plan->at("waterfalls")){
+   WaterfallLandform f{r.at("lip").at(0),r.at("lip").at(1),r.at("direction").at(0),r.at("direction").at(1),
+    r.at("upper"),r.at("lower"),r.at("radius"),r.at("retreat"),r.at("runout")};
+   size_t id=waterfallForms.size();waterfallForms.push_back(f);
+   double bx=f.x+f.nx*f.runout,bz=f.z+f.nz*f.runout,halo=f.radius+16;
+   for(int z=int(std::floor((std::min(f.z,bz)-halo)/64));z<=int(std::floor((std::max(f.z,bz)+halo)/64));++z)
+    for(int x=int(std::floor((std::min(f.x,bx)-halo)/64));x<=int(std::floor((std::max(f.x,bx)+halo)/64));++x)waterfallBins[key2(x,z)].push_back(id);
+  }
   for(auto const&lake:plan->at("lakes"))for(auto const&r:lake.at("rows")){
    int z=r.at(0),x0=r.at(1),x1=r.at(2);
    if(!unboundedRegions){if(z<terrain_bounds::MinBlock||z>terrain_bounds::MaxBlock)continue;x0=std::max(x0,terrain_bounds::MinBlock);x1=std::min(x1,terrain_bounds::MaxBlock);}
@@ -141,6 +150,7 @@ void ensureStreamingRegions(int wx,int wz){
   preparedRegions.insert(owner);changed=true;
  }
  if(changed){
+  for(auto&[key,ids]:waterfallBins)std::sort(ids.begin(),ids.end(),[&](size_t a,size_t b){auto const&A=waterfallForms[a];auto const&B=waterfallForms[b];return std::tie(A.x,A.z,A.upper,A.lower,A.nx,A.nz,A.radius,A.retreat,A.runout)<std::tie(B.x,B.z,B.upper,B.lower,B.nx,B.nz,B.radius,B.retreat,B.runout);});
   for(auto&row:lakeRows)if(row.size()>1)std::sort(row.begin(),row.end(),[](auto const&a,auto const&b){return a.x0<b.x0;});
   for(auto&[z,row]:streamingLakeRows)if(row.size()>1)std::sort(row.begin(),row.end(),[](auto const&a,auto const&b){return a.x0<b.x0;});
   for(auto&[key,ids]:riverBins)std::sort(ids.begin(),ids.end(),[&](size_t a,size_t b){auto const&A=riverSegments[a];auto const&B=riverSegments[b];return std::tie(A.ax,A.az,A.bx,A.bz,A.aw,A.bw,A.ar,A.br,A.runA,A.runB,A.main,A.waterfall)<std::tie(B.ax,B.az,B.bx,B.bz,B.aw,B.bw,B.ar,B.br,B.runA,B.runB,B.main,B.waterfall);});

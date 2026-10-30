@@ -15,7 +15,7 @@
 namespace nativegen::regional {
 inline constexpr int Core=2048,Halo=512,Pitch=64,Count=(Core+Halo*2)/Pitch+1;
 struct Ground{int height;double humidity,temperature,stone,volcanic;bool closedBasin=false;int water=-32768;};
-template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool curved=false,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,bool confinedBanks=false,bool refresh=false,bool uplandWaterways=false,J const* resolvedLakes=nullptr,bool lakesOnly=false){
+template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool curved=false,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,bool confinedBanks=false,bool refresh=false,bool uplandWaterways=false,J const* resolvedLakes=nullptr,bool lakesOnly=false,bool headward=false){
  constexpr int N=Count,Total=N*N;
  int originX=gx*Core-Halo,originZ=gz*Core-Halo;
  std::array<Ground,Total> ground;
@@ -95,7 +95,7 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
   int ix=roundJS(double(ax-originX)/Pitch),iz=roundJS(double(az-originZ)/Pitch),jx=roundJS(double(bx-originX)/Pitch),jz=roundJS(double(bz-originZ)/Pitch);
   if(ix<1||iz<1||jx<1||jz<1||ix>=N-1||iz>=N-1||jx>=N-1||jz>=N-1)continue;
   int a=iz*N+ix,b=jz*N+jx;if(a==b||sink[a]>=0||sink[b]>=0||lakeAnchors.contains(a)||lakeAnchors.contains(b))continue;
-  auto A=sample(ax,az),B=sample(bx,bz);if(!eligible(A)||!eligible(B)||A.humidity<.4||A.height-B.height<30||B.height<=seaLevel)continue;
+  auto A=sample(ax,az),B=sample(bx,bz);if(!eligible(A)||!eligible(B)||A.humidity<.4||A.height-B.height<(headward?60:30)||B.height<=seaLevel)continue;
   lakeAnchors[a]={ax,az};lakeAnchors[b]={bx,bz};ground[a]=A;ground[b]=B;fallEdges.emplace_back(a,b);
  }
  std::array<double,Total> distance;distance.fill(INFINITY);
@@ -121,9 +121,34 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
   if(cycle)continue;parent[a]=b;auto[x,z]=point(a);auto[X,Z]=point(b);distance[a]=distance[b]+std::hypot(double(x-X),double(z-Z));fallSources.insert(a);
  }
  if(!fallSources.empty())std::sort(order.begin(),order.end(),[&](int a,int b){return std::tie(distance[a],a)<std::tie(distance[b],b);});
- std::array<int,Total> flow;flow.fill(1);for(auto i=order.rbegin();i!=order.rend();++i)if(parent[*i]>=0)flow[parent[*i]]+=flow[*i];
+ std::array<int,Total> flow;flow.fill(1);
+ if(headward){
+  // Redirecting a cliff edge changes the tree order. Recompute a topological
+  // order before accumulating catchment; sorting the former path costs can
+  // otherwise count a downstream node before all of its tributaries arrive.
+  std::array<int,Total> children{};std::deque<int> ready;std::vector<int> leaves;
+  for(int i:order)if(parent[i]>=0)++children[parent[i]];
+  for(int i:order)if(!children[i])ready.push_back(i);
+  while(!ready.empty()){int i=ready.front();ready.pop_front();leaves.push_back(i);
+   if(parent[i]>=0){flow[parent[i]]+=flow[i];if(!--children[parent[i]])ready.push_back(parent[i]);}
+  }
+  if(leaves.size()!=order.size())throw std::runtime_error("Cyclic waterfall drainage");
+  order.assign(leaves.rbegin(),leaves.rend());
+  for(int i:order)if(parent[i]>=0){auto[x,z]=point(i);auto[X,Z]=point(parent[i]);distance[i]=distance[parent[i]]+std::hypot(double(x-X),double(z-Z));}
+  // Prefer a real upstream catchment over a spring placed directly on the
+  // lip. Its accumulated flow controls river width when it reaches the fall.
+  std::map<int,std::pair<double,int>> upstream;
+  for(int i:order){if(ground[i].humidity<.4||ground[i].height>maxSurfaceY-30||flow[i]<3)continue;
+   int end=i;double run=0;
+   for(int n=0;n<80&&parent[end]>=0;++n){
+    if(fallSources.contains(end)){if(run>=256){double score=run*std::sqrt(double(flow[end]));auto&best=upstream[end];if(score>best.first)best={score,i};}break;}
+    auto[x,z]=point(end);auto[X,Z]=point(parent[end]);run+=std::hypot(double(x-X),double(z-Z));end=parent[end];
+   }
+  }
+  for(auto const&[fall,best]:upstream){fallSources.erase(fall);fallSources.insert(best.second);}
+ }else for(auto i=order.rbegin();i!=order.rend();++i)if(parent[*i]>=0)flow[parent[*i]]+=flow[*i];
  if(curved){
-  auto result=curvedDrainage(gx,gz,seed,order,ground,parent,flow,distance,sink,point,sample,seaLevel,maxSurfaceY,meanders,confinedBanks,resolvedLakes?resolvedLakes->at("nearby"):lakes,uplandWaterways,resolvedLakes!=nullptr,&fallSources);
+  auto result=curvedDrainage(gx,gz,seed,order,ground,parent,flow,distance,sink,point,sample,seaLevel,maxSurfaceY,meanders,confinedBanks,resolvedLakes?resolvedLakes->at("nearby"):lakes,uplandWaterways,resolvedLakes!=nullptr,&fallSources,headward);
   result["region"]={gx,gz};result["lakes"]=lakes;result["samples"]=Total;return result;
  }
  std::vector<int> sources;

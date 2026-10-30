@@ -11,6 +11,7 @@
 #include "FiniteCaves.h"
 #include "CavernGroups.h"
 #include "RegionalPlans.h"
+#include "WaterfallLandform.h"
 namespace nativegen {
 inline double num(J const&j,char const*k){return j.at(k).get<double>();}
 
@@ -24,6 +25,7 @@ class Field {
  friend struct CoastalContinuityTest;
  friend struct UplandTerrainRegression;
  friend struct WaterContainmentRegression;
+ friend struct HeadwardWaterfallRegression;
  // Only owners whose conservative influence bounds touch a sample are needed.
  bool localPlanningCulling=false;
  J const&data;J const&C;uint32_t terrainSeed;Density graph,caves;
@@ -35,6 +37,7 @@ class Field {
  bool landformRefresh=C.value("elevationRevision",0)>=2;
  bool continuousCoast=C.value("coastalContinuity",0)>=1;
  bool containedWaterways=C.value("waterContainment",0)>=1;
+ bool headwardWaterways=C.value("waterfallRevision",0)>=1;
  double landscapeAltitude(double height)const{return elevationVariants?height-60.:elevatedLandscape?height-24.:height;}
  bool raisedSnowline=C.value("mountainSnowline",0)>=1;
  bool raisedEcology=C.value("mountainEcology",0)>=1;
@@ -88,11 +91,13 @@ class Field {
  return elevationVariants?elevation::raise(result):result;
  }
  double uncliff(double x,double z){return shaped(x,z,vcont(x,z));}
- Cliff patch(int gx,int gz){return cliffs.get(key2(gx,gz),[&]{Cliff a;auto const&q=C.at("cliffs");auto const&s=C.at("stoneForest");if(hash01(gx,gz,terrainSeed^int(num(q,"seed")))>=num(q,"chance"))return a;double cx=(gx+.5)*num(q,"grid"),cz=(gz+.5)*num(q,"grid");if(largeStoneForestEnabled()&&std::hypot(cx-32768-num(s,"centerX"),cz-32768-num(s,"centerZ"))<=num(s,"outerRadius")+num(s,"edgeWarp")+num(q,"grid"))return a;for(int dz:{-12,0,12})for(int dx:{-12,0,12}){double x=cx+dx,z=cz+dz,h=uncliff(x,z);if(h<num(q,"minHeight")||h>num(q,"maxHeight"))continue;double ex=(uncliff(x+8,z)-uncliff(x-8,z))/16,ez=(uncliff(x,z+8)-uncliff(x,z-8))/16,sl=std::hypot(ex,ez);if(sl<num(q,"minSlope")||sl>num(q,"maxSlope")||(a.valid&&sl<=a.slope))continue;a={true,x,z,h,sl,ex/sl,ez/sl,0};}if(a.valid)a.crest=std::max(a.h,uncliff(a.x+a.nx*24,a.z+a.nz*24));
+ #include "HighCliffs.inc"
+ Cliff patch(int gx,int gz){return cliffs.get(key2(gx,gz),[&]{if(C.value("cliffRevision",0)>=2)return highCliffPatch(gx,gz);Cliff a;auto const&q=C.at("cliffs");auto const&s=C.at("stoneForest");if(hash01(gx,gz,terrainSeed^int(num(q,"seed")))>=num(q,"chance"))return a;double cx=(gx+.5)*num(q,"grid"),cz=(gz+.5)*num(q,"grid");if(largeStoneForestEnabled()&&std::hypot(cx-32768-num(s,"centerX"),cz-32768-num(s,"centerZ"))<=num(s,"outerRadius")+num(s,"edgeWarp")+num(q,"grid"))return a;for(int dz:{-12,0,12})for(int dx:{-12,0,12}){double x=cx+dx,z=cz+dz,h=uncliff(x,z);if(h<num(q,"minHeight")||h>num(q,"maxHeight"))continue;double ex=(uncliff(x+8,z)-uncliff(x-8,z))/16,ez=(uncliff(x,z+8)-uncliff(x,z-8))/16,sl=std::hypot(ex,ez);if(sl<num(q,"minSlope")||sl>num(q,"maxSlope")||(a.valid&&sl<=a.slope))continue;a={true,x,z,h,sl,ex/sl,ez/sl,0};}if(a.valid)a.crest=std::max(a.h,uncliff(a.x+a.nx*24,a.z+a.nz*24));
  if(a.valid&&C.value("cliffRevision",0)>=1){
-  a.warp=std::min(40.,(70.+20.*hash01(gx,gz,terrainSeed^611))/(2*a.slope));
+  bool tall=C.value("cliffRevision",0)>=2;
+  a.warp=std::min(tall?144.:40.,((tall?120.:70.)+(tall?155.:20.)*hash01(gx,gz,terrainSeed^611))/(2*a.slope));
   double low=uncliff(a.x-a.nx*a.warp,a.z-a.nz*a.warp),high=uncliff(a.x+a.nx*a.warp,a.z+a.nz*a.warp);
-  if(high-low<60||high-low>100||low<seaLevelValue+4||high>470)a.valid=false;
+  if(high-low<(tall?100:60)||high-low>(tall?300:100)||low<seaLevelValue+4||high>470)a.valid=false;
  }
  return a;});}
  Surface compute(int wx,int wz,bool drainage=true){double x=(wx-32768)*num(C.at("epic"),"horizontalScale"),z=(wz-32768)*num(C.at("epic"),"horizontalScale");Surface s;s.seaLevel=seaLevelValue;double er=erosion(x,0,z);s.ridge=ridge(x,0,z);s.raw=224+192*offset(x,0,z);double v=shaped(wx,wz,-64+(s.raw+64)*.75);
@@ -111,7 +116,8 @@ class Field {
   for(int iz=gz-1;iz<=gz+1;++iz)for(int ix=gx-1;ix<=gx+1;++ix){
    double cx=(ix+.5)*grid,cz=(iz+.5)*grid;
    bool sharp=C.value("cliffRevision",0)>=1;
-   if(std::abs(wx-cx)>(sharp?112:64)||std::abs(wz-cz)>(sharp?112:64))continue;
+   double support=C.value("cliffRevision",0)>=2?num(c,"front")+num(c,"halfLength")+48:sharp?112:64;
+   if(std::abs(wx-cx)>support||std::abs(wz-cz)>support)continue;
    auto a=patch(ix,iz);if(!a.valid)continue;
    double dx=wx-a.x,dz=wz-a.z,w=-dx*a.nz+dz*a.nx;
    double u=dx*a.nx+dz*a.nz-1.3*std::sin(w/13+a.h),front=num(c,"front"),len=num(c,"halfLength");
@@ -355,6 +361,7 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
    if(s.badlands)end=std::min(end,24);
    if(s.seaCutLow>-32768)end=std::min(end,s.seaCutLow-1);
    if(s.riverCutLow>-32768)end=std::min(end,int(s.riverCutLow)-1);
+   if(s.waterfallCutLow>-32768)end=std::min(end,s.waterfallCutLow-1);
    if(s.cliffLow>-32768)end=std::min(end,int(s.cliffLow)-1);
    if(end>=-60){
     std::fill(col+4,col+end+65,uint16_t(2));next=end+1;
@@ -371,7 +378,7 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
   }
   for(int y=next;y<=top;++y)col[y+64]=material(s,x,y,z);
  }
- uint8_t material(Surface const&s,int x,int y,int z){if(y<-64||y>=generatedMaxYExclusive)return 0;if(y<-60)return 1;if(connectedCaves&&y<=-57)return 2;if(int v=volcanicMaterial(s,x,y,z);v>=0)return uint8_t(v);if(s.seaCutLow>-32768&&y>=s.seaCutLow&&y<=s.seaCutHigh)return y<=seaLevelValue?8:0;if(s.riverCutLow>-32768&&y>=s.riverCutLow&&y<=s.riverCutHigh)return y<=s.riverCutWater?8:0;if(s.cliffLow>-32768&&y>=s.cliffLow&&y<=s.cliffHigh)return 0;if(y>s.height){if(s.lava>=y)return 43;int dy=y-s.height;if(s.drip&&dy<=s.drip)return dy==s.drip?31:dy==s.drip-1?30:dy==1?28:29;return s.water>-32768&&y<=s.water?((s.river>0?false:s.lake==1?s.lakeFrozen:float(s.T)<.22)&&y==s.water?9:8):0;}if(y<=s.scarpCaveCeiling&&y<=s.height-caveRoof&&isCave(x,y,z,s.height)){if(boundedAquifers&&waterEnabled)return caveWaterMaterial(s,y,caveLavaFloor(x,z));if(s.aquifer<0)return y<waterline?8:0;if(s.aquifer==1&&y<=waterline+4)return 2;return s.aquifer==2&&y<waterline?8:0;}if(s.poolRim&&y>=s.height-2)return 2;if(int b=badlandsMaterial(s,x,y,z);b>=0)return uint8_t(b);if(s.mushroom&&y>=s.height-4)return y==s.height?168:3;if(y<s.height-4)return 2;if(s.lava>=s.height&&s.lava>-32768)return 2;if(s.drip&&y==s.height)return 27;if(s.aridType&&y>=s.height-4)return y==s.height?s.aridTop:(s.aridType==3?48:(s.aridTop==2?2:(s.aridTop==3||s.aridTop==33)?3:(s.height-y<3?5:6)));if(glacierWetlands&&s.fluvialType&&s.iceGround>=0&&y>=s.height-3)return y==s.height?uint8_t(s.iceGround):2;if(s.fluvialType&&y>=s.height-3)return y==s.height?s.fluvialTop:(s.fluvialTop==5?5:3);if(s.surf==5){if(y<s.height-2)return 2;if(landformRefresh){double deposit=matNoise.at(x/22.,z/22.);return deposit>.12?42:(s.lake==1?5:20);}double pick=hash01(x,z,terrainSeed^9191^((y+64)*7381));return pick<.5?42:(s.lake==1?5:20);}if(s.surf==6)return oceanMaterial(s,x,y,z);if(s.surf==8)return riverMaterial(s,x,y,z);if(s.barren>0&&hash01(x,z,volcanicSeed^1409)<s.barren)return hash01(x,z,volcanicSeed^1407^((y+64)*7919))<.65?2:42;if(progressiveRiverBeds&&s.riverBedMaterial==5&&s.riverBankCut>0&&y>=s.height-2)return 5;if(!progressiveRiverBeds&&s.mainRiver>.4&&s.riverBar>.05&&s.riverBankCut>0&&y>=s.height-2&&(!alluvialBanks||(s.riverBankEdge<3&&s.height<=s.riverBankWater)))return 5;if(int desert=desertMaterial(s,x,y,z);desert>=0)return uint8_t(desert);if(s.iceGround>=0)return y==s.height?uint8_t(s.iceGround):(s.iceHabitat>=.10?2:3);if(s.rock)return 2;if(s.wetland>0&&s.surf!=5&&s.surf!=6&&s.surf!=8){double coverage=s.wetland*(s.water>=s.height?1.:.35+.65*s.wetlandMoisture);double patch=.48+.20*matNoise.at(x/18.,z/18.);if(coverage>patch)return y==s.height?85:3;}if(s.surf==7){
+ uint8_t material(Surface const&s,int x,int y,int z){if(y<-64||y>=generatedMaxYExclusive)return 0;if(y<-60)return 1;if(connectedCaves&&y<=-57)return 2;if(int v=volcanicMaterial(s,x,y,z);v>=0)return uint8_t(v);if(s.waterfallCutLow>-32768&&y>=s.waterfallCutLow&&y<=s.waterfallCutHigh)return 0;if(s.seaCutLow>-32768&&y>=s.seaCutLow&&y<=s.seaCutHigh)return y<=seaLevelValue?8:0;if(s.riverCutLow>-32768&&y>=s.riverCutLow&&y<=s.riverCutHigh)return y<=s.riverCutWater?8:0;if(s.cliffLow>-32768&&y>=s.cliffLow&&y<=s.cliffHigh)return 0;if(y>s.height){if(s.lava>=y)return 43;int dy=y-s.height;if(s.drip&&dy<=s.drip)return dy==s.drip?31:dy==s.drip-1?30:dy==1?28:29;return s.water>-32768&&y<=s.water?((s.river>0?false:s.lake==1?s.lakeFrozen:float(s.T)<.22)&&y==s.water?9:8):0;}if(y<=s.scarpCaveCeiling&&y<=s.height-caveRoof&&isCave(x,y,z,s.height)){if(boundedAquifers&&waterEnabled)return caveWaterMaterial(s,y,caveLavaFloor(x,z));if(s.aquifer<0)return y<waterline?8:0;if(s.aquifer==1&&y<=waterline+4)return 2;return s.aquifer==2&&y<waterline?8:0;}if(s.waterfallRock&&y>=s.height-4)return s.river>0&&y==s.height?42:2;if(s.poolRim&&y>=s.height-2)return 2;if(int b=badlandsMaterial(s,x,y,z);b>=0)return uint8_t(b);if(s.mushroom&&y>=s.height-4)return y==s.height?168:3;if(y<s.height-4)return 2;if(s.lava>=s.height&&s.lava>-32768)return 2;if(s.drip&&y==s.height)return 27;if(s.aridType&&y>=s.height-4)return y==s.height?s.aridTop:(s.aridType==3?48:(s.aridTop==2?2:(s.aridTop==3||s.aridTop==33)?3:(s.height-y<3?5:6)));if(glacierWetlands&&s.fluvialType&&s.iceGround>=0&&y>=s.height-3)return y==s.height?uint8_t(s.iceGround):2;if(s.fluvialType&&y>=s.height-3)return y==s.height?s.fluvialTop:(s.fluvialTop==5?5:3);if(s.surf==5){if(y<s.height-2)return 2;if(landformRefresh){double deposit=matNoise.at(x/22.,z/22.);return deposit>.12?42:(s.lake==1?5:20);}double pick=hash01(x,z,terrainSeed^9191^((y+64)*7381));return pick<.5?42:(s.lake==1?5:20);}if(s.surf==6)return oceanMaterial(s,x,y,z);if(s.surf==8)return riverMaterial(s,x,y,z);if(s.barren>0&&hash01(x,z,volcanicSeed^1409)<s.barren)return hash01(x,z,volcanicSeed^1407^((y+64)*7919))<.65?2:42;if(progressiveRiverBeds&&s.riverBedMaterial==5&&s.riverBankCut>0&&y>=s.height-2)return 5;if(!progressiveRiverBeds&&s.mainRiver>.4&&s.riverBar>.05&&s.riverBankCut>0&&y>=s.height-2&&(!alluvialBanks||(s.riverBankEdge<3&&s.height<=s.riverBankWater)))return 5;if(int desert=desertMaterial(s,x,y,z);desert>=0)return uint8_t(desert);if(s.iceGround>=0)return y==s.height?uint8_t(s.iceGround):(s.iceHabitat>=.10?2:3);if(s.rock)return 2;if(s.wetland>0&&s.surf!=5&&s.surf!=6&&s.surf!=8){double coverage=s.wetland*(s.water>=s.height?1.:.35+.65*s.wetlandMoisture);double patch=.48+.20*matNoise.at(x/18.,z/18.);if(coverage>patch)return y==s.height?85:3;}if(s.surf==7){
   int depth=s.height-y;
   double grain=(hash01(x,z,terrainSeed^1229)-.5)*.05;
   double mix=s.soilSand+grain;

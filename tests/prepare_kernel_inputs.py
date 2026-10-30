@@ -25,7 +25,7 @@ def prepare(output):
   data['config'].pop('smallPoolsVersion',None)
   data['config'].pop('riverBankSurvey',None)
   data['config'].pop('coastalContinuity',None)
-  for key in ('glacierAltitudeRevision','glacierHaloBlocks','uplandWaterways','waterContainment','cliffRevision','waterfallSources'):data['config'].pop(key,None)
+  for key in ('glacierAltitudeRevision','glacierHaloBlocks','uplandWaterways','waterContainment','cliffRevision','waterfallSources','waterfallRevision','glacierBodyRevision'):data['config'].pop(key,None)
   data['config']['cliffs']=cliffs
   data['config'].pop('mountainEcology',None)
   data['config'].pop('regionalPlateaus',None)

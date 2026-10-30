@@ -1,3 +1,11 @@
+## 0.3.10 — 2026-10-31
+
+Land ice bodies are now restricted to super-glacier regions. Cold parent biomes retain snow variants and frozen water without acquiring an unrelated packed-ice ground layer.
+
+Mountain cliff cores can drop **100–300 blocks within two horizontal blocks**. Waterfalls span **60–180 blocks**. Large rivers use accumulated catchment along their course, and suitable steep bedrock reaches can form retreating waterfalls with a retained rock lip, an undercut recess, an incised downstream gorge and a plunge pool. River banks and lake containment remain enforced.
+
+Sea level stays at **Y100**, with building space at **Y-64..511**. Kernel **2.216** preserves saved world recipes. These generation changes apply to new worlds; existing blocks are not rewritten. Loading stalls under dense terrain, high view distances or memory pressure remain a known issue.
+
 ## 0.3.9 — 2026-10-30
 
 New worlds preserve river banks against the actual neighbouring water surface and retain closed lake shorelines during river erosion. Regional river planning shares the lakes touched by its routes, uses surveyed lake endpoints and rejects crossings that would cut a lake at a different water level.

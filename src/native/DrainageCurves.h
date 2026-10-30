@@ -62,7 +62,7 @@ template<class Point,class Sample,class GroundArray,class ParentArray,class Flow
 J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,GroundArray const&ground,
                  ParentArray const&parent,FlowArray const&flow,DistanceArray const&distance,
                  SinkArray const&sink,Point point,Sample sample,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,
-                 bool confinedBanks=false,J const&lakes=J::array(),bool uplandWaterways=false,bool containedWaterways=false,std::set<int> const*fallSources=nullptr){
+                 bool confinedBanks=false,J const&lakes=J::array(),bool uplandWaterways=false,bool containedWaterways=false,std::set<int> const*fallSources=nullptr,bool headward=false){
  auto eligible=[](auto const&s){return s.stone<=.001&&s.volcanic<=0;};
  // Survey the complete raster corridor, including the one-block dry rim.
  // Three samples at spline vertices miss shallow hollows between vertices.
@@ -90,7 +90,7 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
  for(int i:order){auto[x,z]=point(i);auto const&s=ground[i];
   bool fallSource=fallSources&&fallSources->contains(i);
   if(x<gx*2048+128||x>=(gx+1)*2048-128||z<gz*2048+128||z>=(gz+1)*2048-128||
-     s.height<65||s.height>maxSurfaceY-74||s.humidity<.40||(!fallSource&&(flow[i]<3||distance[i]<200))||parent[i]<0)continue;
+     s.height<65||s.height>maxSurfaceY-(headward?30:74)||s.humidity<.40||(!fallSource&&(flow[i]<3||distance[i]<200))||parent[i]<0)continue;
   if(fallSource||hash01(x,z,seed^63107)<.55)sources.push_back(i);
  }
  std::sort(sources.begin(),sources.end(),[&](int a,int b){
@@ -99,7 +99,7 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
  });
  std::map<int,RiverAnchor> network;
  std::vector<std::pair<int,int>> accepted;
- J segments=J::array(),routes=J::array();int independent=0;
+ J segments=J::array(),routes=J::array(),waterfalls=J::array(),fallCatchments=J::array();int independent=0;
  int noOutlet=0,invalidGround=0,lowOutlet=0,excessiveCut=0;
  for(int source:sources){
   if(accepted.size()>=14)break;if(network.contains(source))continue;
@@ -116,12 +116,21 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
   double width=main?8.:ground[source].height>=105?1.8:2.6;
   std::vector<RiverPoint> nodes;for(int i:path){auto[x,z]=point(i);nodes.push_back({double(x),double(z)});}
   auto curve=riverCurve(nodes,tributary?network.at(end).downstream:RiverPoint{},meanders,seed);
-  std::vector<double> run(curve.size()),water(curve.size()),radius(curve.size()),terrain(curve.size());
+  std::vector<double> run(curve.size()),water(curve.size()),radius(curve.size()),terrain(curve.size()),mainStrength(curve.size(),main?1.:0.),catchment(curve.size());
   std::vector<bool> steep(curve.size(),false);bool bad=false;
+  int pathNode=0;
   for(size_t i=0;i<curve.size();++i){
    if(i)run[i]=run[i-1]+length(curve[i].p-curve[i-1].p);
+   if(headward){
+    if(curve[i].node>=0)pathNode=curve[i].node;
+    catchment[i]=flow[path[pathNode]];
+    // Catchment is a property of the river, not of the arbitrary point where
+    // this owner began drawing it. The separate source-radius taper remains.
+    mainStrength[i]=smooth(6.,18.,catchment[i]);
+    width=mix(mainStrength[i],ground[source].height>=105?1.8:2.6,8.);
+   }
    radius[i]=.85+(width-.85)*smooth(0.,192.,run[i]);
-   if(tributary)radius[i]=std::min(radius[i],network.at(end).radius);
+   if(tributary&&(!headward||i+1==curve.size()))radius[i]=std::min(radius[i],network.at(end).radius);
    auto p=curve[i].p;
    auto tangent=direction(curve[std::min(i+1,curve.size()-1)].p-curve[i?i-1:i].p);
    auto normal=RiverPoint{-tangent.z,tangent.x}*(radius[i]+2);
@@ -136,8 +145,16 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
   if(uplandWaterways){
    // A measured ledge may carry a cascade. Do not invent a fall at an
    // arbitrary owner boundary or a higher receiving river/lake.
-   for(size_t i=1;i<curve.size();++i)if(terrain[i-1]-terrain[i]>std::max(3.,.75*(run[i]-run[i-1])))
-    for(size_t k=i>2?i-2:1;k<std::min(curve.size(),i+3);++k)steep[k]=true;
+   for(size_t i=1;i<curve.size();++i)if(terrain[i-1]-terrain[i]>std::max(3.,.75*(run[i]-run[i-1]))){
+    if(headward){
+     // A wide river's surveyed footprint reaches farther than two spline
+     // samples. Mark the entire footprint crossing the ledge, otherwise its
+     // low toe lowers the upstream pool and rejects every wide waterfall.
+     double margin=1.12*std::max(radius[i-1],radius[i])+8.;size_t first=i;
+     while(first>1&&run[first-1]>=run[i-1]-margin)--first;
+     for(size_t k=first;k<curve.size()&&run[k]<=run[i]+margin;++k)steep[k]=true;
+    }else for(size_t k=i>2?i-2:1;k<std::min(curve.size(),i+3);++k)steep[k]=true;
+   }
    for(size_t i=0;i<curve.size();++i)if(steep[i]||(i+1<curve.size()&&steep[i+1]))
     water[i]=std::max(receiver,terrain[i]-1.);
   }
@@ -178,17 +195,58 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
   // large last-segment waterfall just to reach a lake or existing tributary.
   for(size_t i=water.size()-1;i>0;--i){
    double fall=.75*(run[i]-run[i-1]);
-   if(steep[i])fall=std::max(fall,clamp(terrain[i-1]-terrain[i]+2.,0.,containedWaterways?100.:64.));
+   if(steep[i])fall=std::max(fall,clamp(terrain[i-1]-terrain[i]+2.,0.,headward?180.:containedWaterways?100.:64.));
    water[i-1]=std::min(water[i-1],water[i]+fall);
   }
   for(size_t i=1;i<water.size();++i)water[i]=std::min(water[i],water[i-1]);
+  J retreatForms=J::array();std::vector<bool> eroded(curve.size(),false);
+  if(headward)for(size_t i=1;i<water.size();++i){
+   double drop=water[i-1]-water[i];
+   if(drop<60||drop>180||mainStrength[i-1]<.8||radius[i-1]<6||run[i-1]<96)continue;
+   double retreat=clamp(drop*.10,8.,18.);size_t lip=i-1;
+   while(lip>0&&run[i-1]-run[lip]<retreat)--lip;
+   if(lip==0||eroded[lip]||water[lip]-water[i]>184)continue;
+   auto heading=direction(curve[i].p-curve[lip].p);bool straight=true;
+   for(size_t k=lip;k<=i;++k){auto v=curve[k].p-curve[lip].p;
+    straight&=std::abs(v.x*heading.z-v.z*heading.x)<radius[k]*.35;
+   }
+   if(!straight)continue;
+   double lower=water[i],upper=std::min(water[lip],lower+180.);water[lip]=upper;
+   for(size_t k=lip+1;k<i;++k){water[k]=lower;eroded[k]=true;steep[k]=true;}
+   steep[i]=true;
+   retreatForms.push_back({{"lip",{curve[lip].p.x,curve[lip].p.z}},{"direction",{heading.x,heading.z}},
+    {"upper",upper},{"lower",lower},{"radius",radius[lip]},{"retreat",run[i-1]-run[lip]},
+    {"runout",run[i]-run[lip]+radius[i]*3},{"catchment",catchment[lip]}});
+  }
+  if(headward&&retreatForms.empty()&&hash01(SX,SZ,seed^63137)<.55){
+   // A mature river can retreat through a steep bedrock reach even when the
+   // pre-erosion hillside is a ramp. Preserve its upper rock lip and excavate
+   // only the already surveyed channel back from a real lower receiving bed.
+   for(size_t lip=1;lip+1<water.size()&&retreatForms.empty();++lip){
+    if(mainStrength[lip]<.8||radius[lip]<6||run[lip]<192)continue;
+    for(size_t end=lip+1;end<water.size()&&run[end]-run[lip]<=192;++end){
+     double drop=water[lip]-water[end];if(drop<60)continue;
+     if(drop>180||terrain[lip]-terrain[end]<60||radius[end]<5)break;
+     auto heading=direction(curve[end].p-curve[lip].p);bool straight=true;
+     for(size_t k=lip;k<=end;++k){auto v=curve[k].p-curve[lip].p;straight&=std::abs(v.x*heading.z-v.z*heading.x)<std::max(radius[k]*.65,(run[end]-run[lip])*.18);}
+     if(!straight)break;
+     double upper=water[lip],lower=water[end];
+     for(size_t k=lip+1;k<end;++k){water[k]=lower;eroded[k]=true;steep[k]=true;}
+     steep[end]=true;
+     retreatForms.push_back({{"lip",{curve[lip].p.x,curve[lip].p.z}},{"direction",{heading.x,heading.z}},
+      {"upper",upper},{"lower",lower},{"radius",radius[lip]},{"retreat",run[end]-run[lip]},
+      {"runout",run[end]-run[lip]+radius[end]*3},{"catchment",catchment[lip]}});break;
+    }
+   }
+  }
   for(size_t i=0;i<curve.size();++i){auto p=curve[i].p;auto s=groundAt(roundJS(p.x),roundJS(p.z));
-   if(s.height-water[i]>12||water[i]-s.height>2){bad=true;break;}
+   if(s.height-water[i]>(eroded[i]?192:12)||(water[i]-s.height>2&&
+      !(headward&&receivingWater(roundJS(p.x),roundJS(p.z),s.height,water[i])))){bad=true;break;}
   }
   if(bad){++excessiveCut;break;}
   size_t begin=segments.size();
   for(size_t i=1;i<curve.size();++i){auto a=curve[i-1].p,b=curve[i].p;
-   J segment={a.x,a.z,b.x,b.z,water[i-1],water[i],radius[i-1],radius[i],run[i-1],run[i],main?1.:0.};
+   J segment={a.x,a.z,b.x,b.z,water[i-1],water[i],radius[i-1],radius[i],run[i-1],run[i],headward?std::max(mainStrength[i-1],mainStrength[i]):main?1.:0.};
    if(uplandWaterways)segment.push_back(steep[i]?1.:0.);
    segments.push_back(std::move(segment));
   }
@@ -199,12 +257,17 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
   }
   auto[EX,EZ]=point(end);
   routes.push_back({{"source",{SX,SZ}},{"join",{EX,EZ}},{"receiver",tributary?"river":receiver==seaLevel?"ocean":"lake"},
-                    {"firstSegment",begin},{"segmentCount",segments.size()-begin},{"length",run.back()},{"main",main}});
+                    {"firstSegment",begin},{"segmentCount",segments.size()-begin},{"length",run.back()},{"main",headward?*std::max_element(mainStrength.begin(),mainStrength.end())>=.8:main}});
   accepted.push_back({SX,SZ});if(!tributary)++independent;
+  for(auto const&f:retreatForms)waterfalls.push_back(f);
+  if(headward)for(size_t i=1;i<water.size();++i)if(water[i-1]-water[i]>=60)
+   fallCatchments.push_back({{"source",{SX,SZ}},{"position",{curve[i-1].p.x,curve[i-1].p.z}},{"drop",water[i-1]-water[i]},
+    {"catchment",catchment[i-1]},{"run",run[i-1]},{"main",mainStrength[i-1]}});
   break;
   }
  }
  J result={{"segments",segments},{"sources",accepted},{"routes",routes}};
+ if(headward){result["waterfalls"]=std::move(waterfalls);result["fallCatchments"]=std::move(fallCatchments);}
  if(uplandWaterways)result["diagnostics"]={{"candidates",sources.size()},{"noOutlet",noOutlet},{"invalidGround",invalidGround},{"lowOutlet",lowOutlet},{"excessiveCut",excessiveCut},{"surveyColumns",corridor.size()}};
  return result;
 }

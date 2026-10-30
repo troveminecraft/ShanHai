@@ -8,6 +8,31 @@ std::vector<RiverJunction> riverJunctions;
 std::unordered_map<uint64_t,std::vector<size_t>> riverJunctionBins;
 std::vector<RiverSegment> riverSegments;
 std::unordered_map<uint64_t,std::vector<size_t>> riverBins;
+std::vector<WaterfallLandform> waterfallForms;
+std::unordered_map<uint64_t,std::vector<size_t>> waterfallBins;
+int waterfallWater(int x,int z,int water,int ground){
+ auto b=waterfallBins.find(key2(int(std::floor(x/64.)),int(std::floor(z/64.))));if(b==waterfallBins.end())return water;
+ for(auto id:b->second){auto const&f=waterfallForms[id];double dx=x-f.x,dz=z-f.z,u=dx*f.nx+dz*f.nz,w=-dx*f.nz+dz*f.nx;
+  if(std::abs(w)>f.radius+2||u<-f.radius-4||u>f.retreat+6)continue;
+  // Keep a real, retained upper pool followed by a vertical curtain. A
+  // radius-weighted average of the two levels would turn a broad fall into
+  // a long diagonal ramp. The dry-bank fit still bounds every water column.
+  return std::min(ground,u<=0?int(f.upper):std::min(water,int(f.lower)));
+ }return water;
+}
+void waterfallErosion(Surface&s,int wx,int wz){
+ if(waterfallForms.empty()||s.lake||s.stone>.01||s.volcanic>0)return;
+ int x=wx-32768,z=wz-32768;auto b=waterfallBins.find(key2(int(std::floor(x/64.)),int(std::floor(z/64.))));
+ if(b==waterfallBins.end())return;
+ for(auto id:b->second){auto const&f=waterfallForms[id];auto section=waterfallSection(f,x,z);
+  if(!section.rock)continue;s.waterfallRock=true;
+  if(section.cutLow>-32768){int high=std::min(section.cutHigh,s.height-7);
+   if(high>=section.cutLow){s.waterfallCutLow=section.cutLow;s.waterfallCutHigh=high;}
+  }
+  if(s.river>0&&s.water<=f.lower+2&&section.poolDepth>0)
+   s.height=std::min(s.height,int(std::floor(s.water-2-section.poolDepth)));
+ }
+}
 bool fittedRiverBanks=false,cutBanksEnabled=false,submergedCutBanks=false,naturalBendBanks=false,soilCutBanks=false,coherentBankProfiles=false;
 bool alluvialBanks=false,matchedRiverBanks=false,localRiverBeds=false;
 bool progressiveRiverBeds=false,naturalBankSlope=false,gradedJunctionBeds=false,deepMainstemBeds=false;
@@ -142,7 +167,7 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true,bool fitWater=fa
    level=std::min(level,double(s.height-(containedWaterways?0:1)));
    if(edge<bankReach)waterfallReach=true;
   }
-  r=std::max(1.2,r*(1-.40*smooth(.15,.9,widthSlope)));edge=d-r;
+  r=std::max(1.2,r*(1-(headwardWaterways&&a.waterfall&&a.main>.8?0.:.40)*smooth(.15,.9,widthSlope)));edge=d-r;
   if(edge>=reach)continue;
   double signedSide=(dx*(z-a.az)-dz*(x-a.ax))/std::max(1.,std::sqrt(len));
   if(matchedRiverBanks&&!marine&&a.main>.05){
@@ -241,6 +266,7 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true,bool fitWater=fa
  // sea level or filling naturally deeper seabeds. Lakes retain their mask.
  if(matchedRiverBanks&&best<=0&&wetWeightSum>1e-12)water=int(std::floor(wetLevelSum/wetWeightSum+1e-6));
  if(waterfallReach&&!marine)water=std::min(water,int(original)-(containedWaterways?0:1));
+ if(best<=0&&!marine&&!waterfallForms.empty())water=waterfallWater(int(x),int(z),water,int(original));
  if(marine){water=seaLevelValue;slopeMax=0;}
  if(containedWaterways&&best<=0&&!marine&&(connectWater||fitWater)){
   // The voxel shoreline, rather than the spline centre, bounds a falling
@@ -464,6 +490,7 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true,bool fitWater=fa
  s.cliffLow=s.cliffHigh=-32768;s.drip=0;
  if(best<=0&&s.height<water){s.water=std::max(s.water,water);s.kind=2;s.river=1;s.lake=0;s.lakeFrozen=false;}
  else if(depositedBar){s.water=std::max(s.water,water);s.kind=2;s.riverDeposit=true;}
+ waterfallErosion(s,wx,wz);
 }
 
 int riverMaterial(Surface const&s,int x,int y,int z){
@@ -487,6 +514,7 @@ int riverMaterial(Surface const&s,int x,int y,int z){
 }
 
 void riverSkin(Surface&s,int x,int z){
+ if(s.waterfallRock){s.treeD=0;s.giant=0;s.rockCap=1;}
  if(!localRiverBeds)return;
  if(s.surf!=8){
   if(progressiveRiverBeds&&s.mainRiver>.4&&s.riverBar>.05&&s.riverBankCut>0&&s.height<=s.riverBankWater){
