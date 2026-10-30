@@ -1,5 +1,12 @@
 ## 0.3.4 — loading state, bounded workers and lake shorelines
 
+## 0.3.6 — 2026-10-30
+
+Speeds up jungle terrain generation by reusing immutable tree shapes across workers in the same world. Concurrent requests for the same tree share one build, and recently used shapes stay in a bounded cache. Cache contents are isolated by world and generation recipe.
+
+In an offline test of 1,089 chunks around a jungle, generation time decreased from 19.2 to 9.6 seconds, with every chunk matching the previous output byte for byte. These are terrain-kernel measurements, not complete game loading times. Loading stalls in native decoration, neighbour dependencies or rendering remain under investigation. The loading recorder includes jungle-cache counters.
+
+
 ## 0.3.5 — 2026-10-30
 
 Fixes a Minecraft 1.26.51.01 crash during monster-room generation caused by an uninitialized feature transaction pointer. Adds a separate loading flight recorder for each Windows world session: background heartbeats, active task/thread/chunk spans, structure-lock waits, memory and CPU counters, and snapshot age. Diagnostic output is buffered and bounded. A local collector is included; it does not upload data.
