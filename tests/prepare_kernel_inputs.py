@@ -15,6 +15,7 @@ def prepare(output):
   data=json.loads(path.read_bytes());data['seedManifest'].pop('giantCandidates')
   # Use seeded landmark defaults: this fixture tests the actual kernel, not spawn selection.
   valley=data['config']['stoneForest']['valleyY']
+  cliffs=dict(data['config']['cliffs'])
   finish_recipe(data)
   # Preserve legacy fixtures; expanded recipes have separate height/water tests.
   data['config'].update(seaLevel=31,maxY=319)
@@ -24,6 +25,8 @@ def prepare(output):
   data['config'].pop('smallPoolsVersion',None)
   data['config'].pop('riverBankSurvey',None)
   data['config'].pop('coastalContinuity',None)
+  for key in ('glacierAltitudeRevision','glacierHaloBlocks','uplandWaterways'):data['config'].pop(key,None)
+  data['config']['cliffs']=cliffs
   data['config'].pop('mountainEcology',None)
   data['config'].pop('regionalPlateaus',None)
   for key in ('landscapeRevision','elevationRevision','volcanoRevision','surfaceMoss','villageSpacing','lakeBasinsVersion'):data['config'].pop(key,None)

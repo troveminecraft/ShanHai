@@ -22,6 +22,7 @@ class Engine {
  friend struct ElevationVariantsTest;
  friend struct IceSpireRegression;
  friend struct GlacierEcologyRegression;
+ friend struct UplandTerrainRegression;
  friend struct EngineBoundaryTest; // Offline regression exercises the production passes.
  std::vector<std::array<int,4>> nativeReservations;
  bool forestDesign=false,sealedFluidsEnabled=false,gradualIceEcotone=false;

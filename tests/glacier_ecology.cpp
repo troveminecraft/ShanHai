@@ -9,6 +9,7 @@
 namespace nativegen {
 struct GlacierEcologyRegression {
  static void ecology(J data){
+  data["config"].erase("glacierHaloBlocks"); // Legacy collar regression; 512 is covered by upland_terrain.
   data["config"]["glacierEcologyRevision"]=1;
   Field field(data);Engine engine(data,{},false,&field);
   field.iceAtlas={{true,0,0,1600,1600,0,0}};field.iceAtlasReady=true;
@@ -49,7 +50,7 @@ struct GlacierEcologyRegression {
    for(int gz=cz-10;gz<=cz+10&&rows.size()<3;++gz)for(int gx=cx-10;gx<=cx+10&&rows.size()<3;++gx){
     auto r=[&](int salt){return hash01(gx,gz,after.terrainSeed^salt);};
     int X=int(std::floor((gx+.18+.64*r(51301))*96)),Z=int(std::floor((gz+.18+.64*r(51303))*96));
-    auto s=field.surface(X+32768,Z+32768,false);if(s.superGlacier<=.65||s.height>320)continue;
+    auto s=field.surface(X+32768,Z+32768,false);if(s.superGlacier<=.65||s.height>320||(data["config"].value("glacierAltitudeRevision",0)>=1&&s.height<180))continue;
     auto d=after.iceSpireDescriptor(gx,gz,X,Z);if(!d.valid)continue;
     auto old=before.iceSpireDescriptor(gx,gz,X,Z);
     double lean=std::hypot(d.ax,d.az);assert(d.height>=88&&d.height<=159&&lean>=d.height*.4&&lean<=d.height*.7);

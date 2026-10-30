@@ -22,6 +22,7 @@ class Field {
  friend struct TerrainRevisionTest;
  friend struct ElevationVariantsTest;
  friend struct CoastalContinuityTest;
+ friend struct UplandTerrainRegression;
  // Only owners whose conservative influence bounds touch a sample are needed.
  bool localPlanningCulling=false;
  J const&data;J const&C;uint32_t terrainSeed;Density graph,caves;
@@ -195,7 +196,7 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
  }
  J inspectScarpCandidates(){return scarpCandidates();}
  J inspectWetlands(int lo=terrain_bounds::MinBlock,int hi=terrain_bounds::MaxBlock){return wetlandInventory(lo,hi);}
- J inspectCascades(){J out=J::array();for(auto const&s:riverSegments)if(s.terraced)out.push_back({s.ax,s.az,s.bx,s.bz,s.aw,s.bw,s.ar,s.br});return out;}
+ J inspectCascades(){J out=J::array();for(auto const&s:riverSegments)if(s.terraced||(s.waterfall&&s.aw-s.bw>=3))out.push_back({s.ax,s.az,s.bx,s.bz,s.aw,s.bw,s.ar,s.br});return out;}
  J inspectJunctionBeds(){return junctionReport;}
  J inspectVolcanoes(int min=terrain_bounds::MinBlock,int max=terrain_bounds::MaxBlock){return volcanoInventory(min,max);}
  explicit Field(J const&d,bool cullLocalPlans=true):data(d),C(d.at("config")),terrainSeed(C.at("seed").get<uint32_t>()),graph(d,true),caves(d,false),low(seedHash(terrainSeed,201)),high(seedHash(terrainSeed,211)),secondary(seedHash(terrainSeed,237)),warpX(seedHash(terrainSeed,238)),warpZ(seedHash(terrainSeed,239)),stoneNoise(seedHash(terrainSeed,308)),giantNoise(seedHash(terrainSeed,503)),matNoise(seedHash(terrainSeed,221)),rockNoise(seedHash(terrainSeed,222)),treeNoise(seedHash(terrainSeed,223)),biomeNoise(seedHash(terrainSeed,224)){

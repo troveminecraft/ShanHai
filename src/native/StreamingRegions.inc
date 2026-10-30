@@ -43,7 +43,7 @@ std::shared_ptr<J const> regionalWaterPlan(int a,int b){
  bool curved=algorithm!="regional-drainage-v1";
  return regional::get(streamingIdentity,landformRefresh?"water-v2":"water",a,b,[&]{return regional::drainage(a,b,terrainSeed,[&](int x,int z){
   auto s=regionalClimateSample(x+32768,z+32768);return regional::Ground{s.height,s.H,s.T,s.stone,s.volcanic,s.closedBasin,s.water};
- },curved,seaLevelValue,generatedMaxYExclusive-1,algorithm=="regional-drainage-v3",C.value("riverBankSurvey",0)>=1,landformRefresh);});
+ },curved,seaLevelValue,generatedMaxYExclusive-1,algorithm=="regional-drainage-v3",C.value("riverBankSurvey",0)>=1,landformRefresh,C.value("uplandWaterways",0)>=1);});
 }
 void ensureStreamingRegions(int wx,int wz){
  if(!streamingRegions)return;
@@ -70,6 +70,7 @@ void ensureStreamingRegions(int wx,int wz){
   }
   for(auto const&r:plan->at("segments")){
    RiverSegment s{r.at(0),r.at(1),r.at(2),r.at(3),r.at(4),r.at(5),r.at(6),r.at(7)};
+   s.waterfall=r.size()>11&&r.at(11).get<double>()>0;
    s.runA=r.at(8);s.runB=r.at(9);s.main=r.at(10);size_t id=riverSegments.size();riverSegments.push_back(s);double halo=std::max(s.ar,s.br)*1.55+17+s.main*24;
    for(int z=int(std::floor((std::min(s.az,s.bz)-halo)/64));z<=int(std::floor((std::max(s.az,s.bz)+halo)/64));++z)
     for(int x=int(std::floor((std::min(s.ax,s.bx)-halo)/64));x<=int(std::floor((std::max(s.ax,s.bx)+halo)/64));++x)riverBins[key2(x,z)].push_back(id);
@@ -79,7 +80,7 @@ void ensureStreamingRegions(int wx,int wz){
  if(changed){
   for(auto&row:lakeRows)if(row.size()>1)std::sort(row.begin(),row.end(),[](auto const&a,auto const&b){return a.x0<b.x0;});
   for(auto&[z,row]:streamingLakeRows)if(row.size()>1)std::sort(row.begin(),row.end(),[](auto const&a,auto const&b){return a.x0<b.x0;});
-  for(auto&[key,ids]:riverBins)std::sort(ids.begin(),ids.end(),[&](size_t a,size_t b){auto const&A=riverSegments[a];auto const&B=riverSegments[b];return std::tie(A.ax,A.az,A.bx,A.bz,A.aw,A.bw,A.ar,A.br,A.runA,A.runB,A.main)<std::tie(B.ax,B.az,B.bx,B.bz,B.aw,B.bw,B.ar,B.br,B.runA,B.runB,B.main);});
+  for(auto&[key,ids]:riverBins)std::sort(ids.begin(),ids.end(),[&](size_t a,size_t b){auto const&A=riverSegments[a];auto const&B=riverSegments[b];return std::tie(A.ax,A.az,A.bx,A.bz,A.aw,A.bw,A.ar,A.br,A.runA,A.runB,A.main,A.waterfall)<std::tie(B.ax,B.az,B.bx,B.bz,B.aw,B.bw,B.ar,B.br,B.runA,B.runB,B.main,B.waterfall);});
  }
 }
 void ensureStreamingIce(int wx,int wz){

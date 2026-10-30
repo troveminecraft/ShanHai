@@ -62,7 +62,7 @@ template<class Point,class Sample,class GroundArray,class ParentArray,class Flow
 J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,GroundArray const&ground,
                  ParentArray const&parent,FlowArray const&flow,DistanceArray const&distance,
                  SinkArray const&sink,Point point,Sample sample,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,
-                 bool confinedBanks=false,J const&lakes=J::array()){
+                 bool confinedBanks=false,J const&lakes=J::array(),bool uplandWaterways=false){
  auto eligible=[](auto const&s){return s.stone<=.001&&s.volcanic<=0;};
  // Survey the complete raster corridor, including the one-block dry rim.
  // Three samples at spline vertices miss shallow hollows between vertices.
@@ -93,6 +93,7 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
  std::map<int,RiverAnchor> network;
  std::vector<std::pair<int,int>> accepted;
  J segments=J::array(),routes=J::array();int independent=0;
+ int noOutlet=0,invalidGround=0,lowOutlet=0,excessiveCut=0;
  for(int source:sources){
   if(accepted.size()>=14)break;if(network.contains(source))continue;
   auto[SX,SZ]=point(source);bool close=false;
@@ -102,13 +103,14 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
   std::vector<int> path;int end=source;
   while(parent[end]>=0&&path.size()<96&&(!network.contains(end)||network.at(end).water>maximumReceiver)){path.push_back(end);end=parent[end];}
   bool tributary=network.contains(end);
-  if(path.size()<3||path.size()>=96||(!tributary&&(sink[end]<0||independent>=6)))break;
+  if(path.size()<3||path.size()>=96||(!tributary&&(sink[end]<0||independent>=6))){++noOutlet;break;}
   path.push_back(end);double receiver=tributary?network.at(end).water:sink[end];
   bool main=!tributary&&distance[source]>1200&&flow[source]>=12;
   double width=main?8.:ground[source].height>=105?1.8:2.6;
   std::vector<RiverPoint> nodes;for(int i:path){auto[x,z]=point(i);nodes.push_back({double(x),double(z)});}
   auto curve=riverCurve(nodes,tributary?network.at(end).downstream:RiverPoint{},meanders,seed);
-  std::vector<double> run(curve.size()),water(curve.size()),radius(curve.size());bool bad=false;
+  std::vector<double> run(curve.size()),water(curve.size()),radius(curve.size()),terrain(curve.size());
+  std::vector<bool> steep(curve.size(),false);bool bad=false;
   for(size_t i=0;i<curve.size();++i){
    if(i)run[i]=run[i-1]+length(curve[i].p-curve[i-1].p);
    radius[i]=.85+(width-.85)*smooth(0.,192.,run[i]);
@@ -120,9 +122,18 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
    auto left=groundAt(roundJS(p.x+normal.x),roundJS(p.z+normal.z));
    auto right=groundAt(roundJS(p.x-normal.x),roundJS(p.z-normal.z));
    if(!eligible(s)||!eligible(left)||!eligible(right)){bad=true;break;}
+   terrain[i]=s.height;
    water[i]=std::max(receiver,double(std::min({s.height,left.height,right.height})-1));
   }
-  if(bad)break;
+  if(bad){++invalidGround;break;}
+  if(uplandWaterways){
+   // A measured ledge may carry a cascade. Do not invent a fall at an
+   // arbitrary owner boundary or a higher receiving river/lake.
+   for(size_t i=1;i<curve.size();++i)if(terrain[i-1]-terrain[i]>std::max(3.,.75*(run[i]-run[i-1])))
+    for(size_t k=i>2?i-2:1;k<std::min(curve.size(),i+3);++k)steep[k]=true;
+   for(size_t i=0;i<curve.size();++i)if(steep[i]||(i+1<curve.size()&&steep[i+1]))
+    water[i]=std::max(receiver,terrain[i]-1.);
+  }
   double lowerReceiver=INFINITY;
   if(confinedBanks)for(size_t i=1;i<curve.size()&&!bad;++i){
    auto a=curve[i-1].p,b=curve[i].p,v=b-a;double len2=v.x*v.x+v.z*v.z;
@@ -140,9 +151,13 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
      // Reject this route instead of suspending a ribbon of water above land.
      if(ceiling<receiver){lowerReceiver=ceiling;bad=true;break;}
     }
-   water[i-1]=std::min(water[i-1],ceiling);water[i]=std::min(water[i],ceiling);
+   // A single corridor-wide ceiling would lower the upper pool to the foot
+   // of the cliff. Falling reaches instead follow the local ground during
+   // rasterisation; the survey still rejects heat, stone forests and uphill outlets.
+   if(!steep[i]){water[i-1]=std::min(water[i-1],ceiling);water[i]=std::min(water[i],ceiling);}
   }
   if(bad){
+   ++lowOutlet;
    // A tributary may have met the receiving river too far upstream. Follow
    // its existing drainage path to a lower anchor before giving up on it.
    if(tributary&&lowerReceiver<receiver){maximumReceiver=lowerReceiver;continue;}
@@ -151,15 +166,21 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
   water.back()=receiver;
   // Limit the final descent as well as interior falls; do not manufacture a
   // large last-segment waterfall just to reach a lake or existing tributary.
-  for(size_t i=water.size()-1;i>0;--i)water[i-1]=std::min(water[i-1],water[i]+.75*(run[i]-run[i-1]));
+  for(size_t i=water.size()-1;i>0;--i){
+   double fall=.75*(run[i]-run[i-1]);
+   if(steep[i])fall=std::max(fall,clamp(terrain[i-1]-terrain[i]+2.,0.,64.));
+   water[i-1]=std::min(water[i-1],water[i]+fall);
+  }
   for(size_t i=1;i<water.size();++i)water[i]=std::min(water[i],water[i-1]);
   for(size_t i=0;i<curve.size();++i){auto p=curve[i].p;auto s=groundAt(roundJS(p.x),roundJS(p.z));
    if(s.height-water[i]>12||water[i]-s.height>2){bad=true;break;}
   }
-  if(bad)break;
+  if(bad){++excessiveCut;break;}
   size_t begin=segments.size();
   for(size_t i=1;i<curve.size();++i){auto a=curve[i-1].p,b=curve[i].p;
-   segments.push_back({a.x,a.z,b.x,b.z,water[i-1],water[i],radius[i-1],radius[i],run[i-1],run[i],main?1.:0.});
+   J segment={a.x,a.z,b.x,b.z,water[i-1],water[i],radius[i-1],radius[i],run[i-1],run[i],main?1.:0.};
+   if(uplandWaterways)segment.push_back(steep[i]?1.:0.);
+   segments.push_back(std::move(segment));
   }
   for(size_t i=0;i<curve.size();++i)if(curve[i].node>=0){
    int node=path[curve[i].node];if(network.contains(node))continue;
@@ -173,6 +194,8 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
   break;
   }
  }
- return {{"segments",segments},{"sources",accepted},{"routes",routes}};
+ J result={{"segments",segments},{"sources",accepted},{"routes",routes}};
+ if(uplandWaterways)result["diagnostics"]={{"candidates",sources.size()},{"noOutlet",noOutlet},{"invalidGround",invalidGround},{"lowOutlet",lowOutlet},{"excessiveCut",excessiveCut},{"surveyColumns",corridor.size()}};
+ return result;
 }
 }

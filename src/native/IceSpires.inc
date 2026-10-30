@@ -11,6 +11,7 @@ IceSpireDescriptor iceSpireDescriptor(int gx,int gz,int X,int Z){return iceSpire
   bool tall=C.value("tallIceSpires",false);
   int height=std::min(large?(grounded&&!tall?48+int(40*r(51311)):88+int(72*r(51311))):16+int(27*r(51311)),Height-74-s.height);
   if(height<=0)return out;
+  if(large&&C.value("glacierAltitudeRevision",0)>=1&&height<72)return out;
   double phase=r(51313)*6.283185307179586;
   std::array<double,7> vx{},vz{},nx{},nz{},distance{};
   for(int k=0;k<7;++k){double a=phase+6.283185307179586*k/7,j=.84+.16*r(51320+k);vx[k]=rx*std::cos(a)*j;vz[k]=rz*std::sin(a)*j;}

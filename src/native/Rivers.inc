@@ -1,5 +1,5 @@
 // Sparse seed-derived drainage graph; each segment is shared by adjacent chunks.
-struct RiverSegment {double ax,az,bx,bz,aw,bw,ar,br;bool lakeEnd=false,terraced=false;double lakeT=1.,main=0,bend=0,runA=1000,runB=1000;};
+struct RiverSegment {double ax,az,bx,bz,aw,bw,ar,br;bool lakeEnd=false,terraced=false;double lakeT=1.,main=0,bend=0,runA=1000,runB=1000;bool waterfall=false;};
 struct RiverTreeGuard{double x,z,r;};
 std::vector<RiverTreeGuard> riverTrees;
 std::unordered_map<uint64_t,std::vector<size_t>> riverTreeBins;
@@ -45,6 +45,7 @@ void loadRivers(){
  for(auto const&r:data.at("rivers").at("routes"))if(r.at("receiver")=="lake")lakeEnds.emplace(double(r.at("join").at(0)),double(r.at("join").at(1)));
  for(auto const&r:data.at("rivers").at("segments")){
   RiverSegment s{r.at(0),r.at(1),r.at(2),r.at(3),r.at(4),r.at(5),r.at(6),r.at(7)};
+  s.waterfall=C.value("uplandWaterways",0)>=1&&r.size()>11&&r.at(11).get<double>()>0;
   if(progressiveRiverBeds&&data.at("rivers").contains("headwaterRuns")){
    auto const&runs=data.at("rivers").at("headwaterRuns");
    if(runs.size()!=data.at("rivers").at("segments").size())throw std::runtime_error("Invalid headwater runs");
@@ -101,7 +102,7 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true){
  }
  double bankReach=9+junction*(4+1.5*matNoise.at(x/21.,z/21.));
  double best=INFINITY,radius=0,dist=0,depthSum=0,slopeMax=0,mouthBlend=0,mainSum=0,innerSum=0,bankSlopeSum=0,bankNx=0,bankNz=0;
- bool terraceReach=false;
+ bool terraceReach=false,waterfallReach=false;
  // A bank's distance, water level and width must come from the same reach.
  // Combining the nearest tributary distance with a distant mainstem's level
  // cuts a deep slot just before the tributary influence expires.
@@ -133,6 +134,12 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true){
   }
   if(a.lakeT<1.){profile=std::min(1.,t/a.lakeT);slope=(a.aw-a.bw)/std::max(1.,std::sqrt(len)*a.lakeT);}
   double level=mix(profile,a.aw,a.bw);
+  if(a.waterfall){
+   // Follow the measured ledge instead of interpolating a suspended water
+   // ramp across its lower bank. No terrain is raised to hold this water.
+   level=std::min(level,double(s.height-1));
+   if(edge<bankReach)waterfallReach=true;
+  }
   r=std::max(1.2,r*(1-.40*smooth(.15,.9,widthSlope)));edge=d-r;
   if(edge>=reach)continue;
   double signedSide=(dx*(z-a.az)-dz*(x-a.ax))/std::max(1.,std::sqrt(len));
@@ -231,6 +238,7 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true){
  // Continue the same channel footprint across shallow seas without raising
  // sea level or filling naturally deeper seabeds. Lakes retain their mask.
  if(matchedRiverBanks&&best<=0&&wetWeightSum>1e-12)water=int(std::floor(wetLevelSum/wetWeightSum+1e-6));
+ if(waterfallReach&&!marine)water=std::min(water,int(original)-1);
  if(marine){water=seaLevelValue;slopeMax=0;}
  if(best<=0){double depth=std::max(depthSum/weightSum,1.+std::ceil(slopeMax*1.42));
   depth=std::max({2.,1.+std::ceil(slopeMax*1.42),mix(mouthBlend,depth,1.)});
@@ -293,7 +301,7 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true){
    bed=std::min(bed,mix(bank,bed,alluvialBanks?water-1.5-1.5*outer:water-3.-3.*outer));
    s.riverOuter=bank;
   }
-  if((terraceReach||shoal>0||largeMouthBlend>0||(fittedRiverBanks&&slopeMax>.45)||(progressiveRiverBeds&&bed>=water-1.))&&connectWater){
+  if((waterfallReach||terraceReach||shoal>0||largeMouthBlend>0||(fittedRiverBanks&&slopeMax>.45)||(progressiveRiverBeds&&bed>=water-1.))&&connectWater){
    // Minimum carve that keeps cardinal water columns face-connected. Probe
    // only cascades, shoals and large-lake mouths, with recursion disabled.
    for(auto [dx,dz]:std::array<std::pair<int,int>,4>{{{1,0},{-1,0},{0,1},{0,-1}}}){
@@ -302,7 +310,7 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true){
     // Reusing this column's dry height would predict a higher river pool and
     // miss the actual sea-level water face. Sample the real receiving surface only
     // in this short transition; ordinary inland columns keep the fast path.
-    if(alluvialBanks&&!marine&&shoal>0)neighbour=compute(wx+dx,wz+dz,false);
+    if(waterfallReach||(alluvialBanks&&!marine&&shoal>0))neighbour=compute(wx+dx,wz+dz,false);
     riverRelief(neighbour,wx+dx,wz+dz,false);
     if(neighbour.river>0||(alluvialBanks&&neighbour.water>neighbour.height))bed=std::min(bed,double(neighbour.water-1));
    }
