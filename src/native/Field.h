@@ -12,6 +12,7 @@
 #include "CavernGroups.h"
 #include "RegionalPlans.h"
 #include "WaterfallLandform.h"
+#include "TerrainParameters.h"
 namespace nativegen {
 inline double num(J const&j,char const*k){return j.at(k).get<double>();}
 
@@ -28,7 +29,7 @@ class Field {
  friend struct HeadwardWaterfallRegression;
  // Only owners whose conservative influence bounds touch a sample are needed.
  bool localPlanningCulling=false;
- J const&data;J const&C;uint32_t terrainSeed;Density graph,caves;
+ J const&data;J const&C;uint32_t terrainSeed;TerrainParameters const parameters{C};Density graph,caves;
  int seaLevelValue=C.value("seaLevel",31);
  int generatedMaxYExclusive=C.value("generatedMaxYExclusive",320);
  int mountainPeakY=C.value("mountainPeakY",0);
@@ -70,20 +71,20 @@ class Field {
  #include "BadlandsRegions.inc"
  #include "ElevationForms.inc"
  #include "SnowVariants.inc"
- double v0(int level,int x,int z){auto const&q=C.at("relief").at("levels")[level];return rawNodes[level].get(key2(x,z),[&]{return vcont(x*num(q,"pitch"),z*num(q,"pitch"));});}
- ReliefNode node(int level,int x,int z){return nodes[level].get(key2(x,z),[&]{auto const&q=C.at("relief").at("levels")[level];double v=v0(level,x,z),lo=v,hi=v,sum=0;for(int dz=-1;dz<=1;dz++)for(int dx=-1;dx<=1;dx++){if(!dx&&!dz)continue;double a=v0(level,x+dx,z+dz);lo=std::min(lo,a);hi=std::max(hi,a);sum+=a;}double r=hi-lo,p=r>1e-6?(v-lo)/r:.5,w=smooth(0,num(q,"edgeBand"),p)*smooth(0,num(q,"edgeBand"),1-p),cap=std::min(num(q,"cap"),num(q,"reliefCap")*r);return ReliefNode{v,r,p,clamp(-num(q,"gain")*(v-sum/8)*w*smooth(num(q,"reliefLo"),num(q,"reliefHi"),r),-cap,cap)};});}
- double shaped(double x,double z,double v,bool applyRegional=true){auto const&q=C.at("relief");double corr=0,rel=0,pos=.5,regional=v;for(int i=0;i<2;i++){double R=num(q.at("levels")[i],"pitch"),gx=x/R,gz=z/R;int ix=int(std::floor(gx)),iz=int(std::floor(gz));auto a=node(i,ix,iz),b=node(i,ix+1,iz),c=node(i,ix,iz+1),d=node(i,ix+1,iz+1);double u=smooth(0,1,gx-ix),w=smooth(0,1,gz-iz);auto bl=[&](double A,double B,double D,double E){return A*(1-u)*(1-w)+B*u*(1-w)+D*(1-u)*w+E*u*w;};corr+=bl(a.corr,b.corr,c.corr,d.corr);regional=bl(a.v,b.v,c.v,d.v);if(!i){rel=bl(a.relief,b.relief,c.relief,d.relief);pos=bl(a.pos,b.pos,c.pos,d.pos);}}
- corr=clamp(corr,-num(q,"totalCap"),num(q,"totalCap"));if(corr>0)corr*=smooth(31+num(q,"waterFadeLo"),31+num(q,"waterFadeHi"),v);
- double v1=v+corr,detail=0,land=smooth(31+num(q,"landFadeLo"),31+num(q,"landFadeHi"),v1),flat=1-smooth(num(q,"flatLo"),num(q,"flatHi"),rel);
- if(land>0&&flat>0)detail+=land*flat*num(q,"lowAmplitude")*low.fbm(x/num(q,"lowWavelength"),z/num(q,"lowWavelength"),int(num(q,"lowOctaves")));
- double summit=smooth(num(q,"highReliefLo"),num(q,"highReliefHi"),rel)*smooth(num(q,"highPosLo"),num(q,"highPosHi"),pos);
- if(summit>0)detail+=summit*num(q,"highAmplitude")*(high.fbm(x/num(q,"highWavelength")+3.7,z/num(q,"highWavelength")+11.3,int(num(q,"highOctaves")),true)-num(q,"highRidgeMean"));
- auto const&s=q.at("secondary");double mask=smooth(num(s,"mountainLow"),num(s,"mountainHigh"),v);if(mask>0){double px=x-32768,pz=z-32768,dx=num(s,"warpBlocks")*warpX.at(px/num(s,"warpWavelength"),pz/num(s,"warpWavelength")),dz=num(s,"warpBlocks")*warpZ.at(px/num(s,"warpWavelength"),pz/num(s,"warpWavelength"));double u=(num(s,"rotationCos")*px-num(s,"rotationSin")*pz+num(s,"offsetX")+dx)/num(s,"wavelength"),w=(num(s,"rotationSin")*px+num(s,"rotationCos")*pz+num(s,"offsetZ")+dz)/num(s,"wavelength");detail+=mask*num(s,"amplitude")*(secondary.fbm(u,w,int(num(s,"octaves")),true)-num(s,"ridgeMean"));}
- auto const&sp=q.at("spike");double result=v1+detail+landformCorrection(x,z)-num(sp,"maxCut")*smooth(num(sp,"prominenceLo"),num(sp,"prominenceHi"),v-regional)*smooth(6,16,rel);result=applyRegional?desertHeight(x,z,regionalHeight(x,z,result)):result;
+ double v0(int level,int x,int z){auto const&q=parameters.relief.levels[level];return rawNodes[level].get(key2(x,z),[&]{return vcont(x*q.pitch,z*q.pitch);});}
+ ReliefNode node(int level,int x,int z){return nodes[level].get(key2(x,z),[&]{auto const&q=parameters.relief.levels[level];double v=v0(level,x,z),lo=v,hi=v,sum=0;for(int dz=-1;dz<=1;dz++)for(int dx=-1;dx<=1;dx++){if(!dx&&!dz)continue;double a=v0(level,x+dx,z+dz);lo=std::min(lo,a);hi=std::max(hi,a);sum+=a;}double r=hi-lo,p=r>1e-6?(v-lo)/r:.5,w=smooth(0,q.edgeBand,p)*smooth(0,q.edgeBand,1-p),cap=std::min(q.cap,q.reliefCap*r);return ReliefNode{v,r,p,clamp(-q.gain*(v-sum/8)*w*smooth(q.reliefLo,q.reliefHi,r),-cap,cap)};});}
+ double shaped(double x,double z,double v,bool applyRegional=true){auto const&q=parameters.relief;double corr=0,rel=0,pos=.5,regional=v;for(int i=0;i<2;i++){double R=q.levels[i].pitch,gx=x/R,gz=z/R;int ix=int(std::floor(gx)),iz=int(std::floor(gz));auto a=node(i,ix,iz),b=node(i,ix+1,iz),c=node(i,ix,iz+1),d=node(i,ix+1,iz+1);double u=smooth(0,1,gx-ix),w=smooth(0,1,gz-iz);auto bl=[&](double A,double B,double D,double E){return A*(1-u)*(1-w)+B*u*(1-w)+D*(1-u)*w+E*u*w;};corr+=bl(a.corr,b.corr,c.corr,d.corr);regional=bl(a.v,b.v,c.v,d.v);if(!i){rel=bl(a.relief,b.relief,c.relief,d.relief);pos=bl(a.pos,b.pos,c.pos,d.pos);}}
+ corr=clamp(corr,-q.totalCap,q.totalCap);if(corr>0)corr*=smooth(31+q.waterFadeLo,31+q.waterFadeHi,v);
+ double v1=v+corr,detail=0,land=smooth(31+q.landFadeLo,31+q.landFadeHi,v1),flat=1-smooth(q.flatLo,q.flatHi,rel);
+ if(land>0&&flat>0)detail+=land*flat*q.lowAmplitude*low.fbm(x/q.lowWavelength,z/q.lowWavelength,int(q.lowOctaves));
+ double summit=smooth(q.highReliefLo,q.highReliefHi,rel)*smooth(q.highPosLo,q.highPosHi,pos);
+ if(summit>0)detail+=summit*q.highAmplitude*(high.fbm(x/q.highWavelength+3.7,z/q.highWavelength+11.3,int(q.highOctaves),true)-q.highRidgeMean);
+ auto const&s=q.secondary;double mask=smooth(s.mountainLow,s.mountainHigh,v);if(mask>0){double px=x-32768,pz=z-32768,dx=s.warpBlocks*warpX.at(px/s.warpWavelength,pz/s.warpWavelength),dz=s.warpBlocks*warpZ.at(px/s.warpWavelength,pz/s.warpWavelength);double u=(s.rotationCos*px-s.rotationSin*pz+s.offsetX+dx)/s.wavelength,w=(s.rotationSin*px+s.rotationCos*pz+s.offsetZ+dz)/s.wavelength;detail+=mask*s.amplitude*(secondary.fbm(u,w,int(s.octaves),true)-s.ridgeMean);}
+ auto const&sp=q.spike;double result=v1+detail+landformCorrection(x,z)-sp.maxCut*smooth(sp.prominenceLo,sp.prominenceHi,v-regional)*smooth(6,16,rel);result=applyRegional?desertHeight(x,z,regionalHeight(x,z,result)):result;
  if(mountainPeakY){
-  auto const&g=C.at("giantForest");
-  double distance=std::hypot(x-32768-num(g,"centerX"),z-32768-num(g,"centerZ"));
-  double weight=smooth(num(g,"outerRadius")+64,num(g,"outerRadius")+320,distance);
+  auto const&g=parameters.giant;
+  double distance=std::hypot(x-32768-g.centerX,z-32768-g.centerZ);
+  double weight=smooth(g.outerRadius+64,g.outerRadius+320,distance);
   result=mix(weight,result,elevatedLandscape?tieredMountainHeight(x,z,result):raisedMountainHeight(result,mountainPeakY));
  }
  result=applyRegional?badlandsHeight(x,z,result):result;
@@ -92,15 +93,15 @@ class Field {
  }
  double uncliff(double x,double z){return shaped(x,z,vcont(x,z));}
  #include "HighCliffs.inc"
- Cliff patch(int gx,int gz){return cliffs.get(key2(gx,gz),[&]{if(C.value("cliffRevision",0)>=2)return highCliffPatch(gx,gz);Cliff a;auto const&q=C.at("cliffs");auto const&s=C.at("stoneForest");if(hash01(gx,gz,terrainSeed^int(num(q,"seed")))>=num(q,"chance"))return a;double cx=(gx+.5)*num(q,"grid"),cz=(gz+.5)*num(q,"grid");if(largeStoneForestEnabled()&&std::hypot(cx-32768-num(s,"centerX"),cz-32768-num(s,"centerZ"))<=num(s,"outerRadius")+num(s,"edgeWarp")+num(q,"grid"))return a;for(int dz:{-12,0,12})for(int dx:{-12,0,12}){double x=cx+dx,z=cz+dz,h=uncliff(x,z);if(h<num(q,"minHeight")||h>num(q,"maxHeight"))continue;double ex=(uncliff(x+8,z)-uncliff(x-8,z))/16,ez=(uncliff(x,z+8)-uncliff(x,z-8))/16,sl=std::hypot(ex,ez);if(sl<num(q,"minSlope")||sl>num(q,"maxSlope")||(a.valid&&sl<=a.slope))continue;a={true,x,z,h,sl,ex/sl,ez/sl,0};}if(a.valid)a.crest=std::max(a.h,uncliff(a.x+a.nx*24,a.z+a.nz*24));
- if(a.valid&&C.value("cliffRevision",0)>=1){
-  bool tall=C.value("cliffRevision",0)>=2;
+ Cliff patch(int gx,int gz){return cliffs.get(key2(gx,gz),[&]{if(parameters.cliffRevision>=2)return highCliffPatch(gx,gz);Cliff a;auto const&q=parameters.cliffs;auto const&s=C.at("stoneForest");if(hash01(gx,gz,terrainSeed^int(q.seed))>=q.chance)return a;double cx=(gx+.5)*q.grid,cz=(gz+.5)*q.grid;if(largeStoneForestEnabled()&&std::hypot(cx-32768-num(s,"centerX"),cz-32768-num(s,"centerZ"))<=num(s,"outerRadius")+num(s,"edgeWarp")+q.grid)return a;for(int dz:{-12,0,12})for(int dx:{-12,0,12}){double x=cx+dx,z=cz+dz,h=uncliff(x,z);if(h<q.minHeight||h>q.maxHeight)continue;double ex=(uncliff(x+8,z)-uncliff(x-8,z))/16,ez=(uncliff(x,z+8)-uncliff(x,z-8))/16,sl=std::hypot(ex,ez);if(sl<q.minSlope||sl>q.maxSlope||(a.valid&&sl<=a.slope))continue;a={true,x,z,h,sl,ex/sl,ez/sl,0};}if(a.valid)a.crest=std::max(a.h,uncliff(a.x+a.nx*24,a.z+a.nz*24));
+ if(a.valid&&parameters.cliffRevision>=1){
+  bool tall=parameters.cliffRevision>=2;
   a.warp=std::min(tall?144.:40.,((tall?120.:70.)+(tall?155.:20.)*hash01(gx,gz,terrainSeed^611))/(2*a.slope));
   double low=uncliff(a.x-a.nx*a.warp,a.z-a.nz*a.warp),high=uncliff(a.x+a.nx*a.warp,a.z+a.nz*a.warp);
   if(high-low<(tall?100:60)||high-low>(tall?300:100)||low<seaLevelValue+4||high>470)a.valid=false;
  }
  return a;});}
- Surface compute(int wx,int wz,bool drainage=true){double x=(wx-32768)*num(C.at("epic"),"horizontalScale"),z=(wz-32768)*num(C.at("epic"),"horizontalScale");Surface s;s.seaLevel=seaLevelValue;double er=erosion(x,0,z);s.ridge=ridge(x,0,z);s.raw=224+192*offset(x,0,z);double v=shaped(wx,wz,-64+(s.raw+64)*.75);
+ Surface compute(int wx,int wz,bool drainage=true){double x=(wx-32768)*parameters.horizontalScale,z=(wz-32768)*parameters.horizontalScale;Surface s;s.seaLevel=seaLevelValue;double er=erosion(x,0,z);s.ridge=ridge(x,0,z);s.raw=224+192*offset(x,0,z);double v=shaped(wx,wz,-64+(s.raw+64)*.75);
  smallStoneRelief(s,v,wx,wz);
  auto const&q=C.at("stoneForest");double px=wx-32768-num(q,"centerX"),pz=wz-32768-num(q,"centerZ"),d=std::hypot(px,pz);if(largeStoneForestEnabled()&&d<num(q,"outerRadius")+num(q,"edgeWarp")){
  s.stone=1-smooth(num(q,"innerRadius"),num(q,"outerRadius"),d+num(q,"edgeWarp")*stoneNoise.at(px/320,pz/320));if(s.stone>0){double best=-INFINITY,ph=0;Pillar const* site=nullptr;double rad=num(q,"largeRadiusMax")*1.165;for(int bz=int(std::floor((pz-rad)/128));bz<=int(std::floor((pz+rad)/128));bz++)for(int bx=int(std::floor((px-rad)/128));bx<=int(std::floor((px+rad)/128));bx++){auto it=pillarBins.find(key2(bx,bz));if(it==pillarBins.end())continue;for(auto i:it->second){auto const&a=pillars[i];double dx=px-a.x,dz=pz-a.z,r=std::hypot(dx,dz);if(r>a.outer)continue;double t=std::atan2(dz,dx),R=a.r*(1+.07*std::cos(2*t+a.phase)+.06*std::sin(3*t+a.phase*1.7)+.035*std::cos(5*t-a.phase)),gap=R-r;if(gap>best){best=gap;site=&a;}}}
@@ -111,16 +112,16 @@ class Field {
  // Continuous patch support: a patch may cross the selection grid without being cut off.
  // Shape the slope; sparse ellipsoidal alcoves are restricted to the cliff waist.
  if(s.stone==0){
-  auto const& c=C.at("cliffs");double grid=num(c,"grid"),shift=0;
+  auto const& c=parameters.cliffs;double grid=c.grid,shift=0;
   int gx=int(std::floor(wx/grid)),gz=int(std::floor(wz/grid));
   for(int iz=gz-1;iz<=gz+1;++iz)for(int ix=gx-1;ix<=gx+1;++ix){
    double cx=(ix+.5)*grid,cz=(iz+.5)*grid;
-   bool sharp=C.value("cliffRevision",0)>=1;
-   double support=C.value("cliffRevision",0)>=2?num(c,"front")+num(c,"halfLength")+48:sharp?112:64;
+   bool sharp=parameters.cliffRevision>=1;
+   double support=parameters.cliffRevision>=2?c.front+c.halfLength+48:sharp?112:64;
    if(std::abs(wx-cx)>support||std::abs(wz-cz)>support)continue;
    auto a=patch(ix,iz);if(!a.valid)continue;
    double dx=wx-a.x,dz=wz-a.z,w=-dx*a.nz+dz*a.nx;
-   double u=dx*a.nx+dz*a.nz-1.3*std::sin(w/13+a.h),front=num(c,"front"),len=num(c,"halfLength");
+   double u=dx*a.nx+dz*a.nz-1.3*std::sin(w/13+a.h),front=c.front,len=c.halfLength;
    if(std::abs(u)>=front||std::abs(w)>=len)continue;
    double strength=(1-smooth(front-16,front,std::abs(u)))*(1-smooth(len-14,len,std::abs(w)));
    if(sharp){
@@ -130,7 +131,7 @@ class Field {
     double warp=a.warp*(2*smooth(-.45,.45,u)-1)*(1-smooth(8.,front,std::abs(u)))*(1-smooth(len-14,len,std::abs(w)));
     shift+=uncliff(wx+a.nx*warp,wz+a.nz*warp)-v;
    }else{
-    double rise=std::min(num(c,"maxShift"),a.slope*6)*strength;
+    double rise=std::min(c.maxShift,a.slope*6)*strength;
     shift+=rise*(2*smooth(-1.5,1.5,u)-1);
    }
    if(C.contains("alcoves")){
@@ -145,7 +146,7 @@ class Field {
     }
    }
   }
-  v+=clamp(shift,-num(c,"maxShift"),num(c,"maxShift"));
+  v+=clamp(shift,-c.maxShift,c.maxShift);
  }
 
  s.coast=s.stone>0?0:coastWeight(wx,wz,v);
@@ -244,9 +245,9 @@ for(int gx=terrain_bounds::MinBlock/4608-1;gx<=terrain_bounds::MaxBlock/4608+1;+
  double giantWeight(int x,int z,Surface const&s)const{if(s.lake==1||s.river>0)return 0;auto const&q=C.at("giantForest");double dx=x-32768-num(q,"centerX"),dz=z-32768-num(q,"centerZ"),d=std::hypot(dx,dz)+24*giantNoise.at(dx/96,dz/96);if(d>=num(q,"outerRadius")||s.stone>.01)return 0;return std::pow(1-s.barren,3)*(1-smooth(num(q,"innerRadius"),num(q,"outerRadius"),d))*smooth(35,47,s.height)*(1-smooth(240,270,s.height));}
  // Cache only coarse climate samples, never a pre-generated terrain map.
  double surfaceTemperature(Surface const&s,int x,int z){
-  if(elevationVariants){double scale=num(C.at("epic"),"horizontalScale");return clamp(.62+.45*temp((x-32768)*scale,0,(z-32768)*scale),0.,1.);}
+  if(elevationVariants){double scale=parameters.horizontalScale;return clamp(.62+.45*temp((x-32768)*scale,0,(z-32768)*scale),0.,1.);}
   if(!raisedSnowline||!regionalEnabled||!mountainPeakY||s.height<=96||s.stone>0||s.volcanic>0)return s.T;
-  double scale=num(C.at("epic"),"horizontalScale");
+  double scale=parameters.horizontalScale;
   double noise=temp((x-32768)*scale,0,(z-32768)*scale);
   return clamp(.62+noise*.45-std::max(0.,mountainClimateHeight(landscapeAltitude(s.height),mountainPeakY)-(elevatedLandscape?68.:48.))*.004,0,1);
  }
