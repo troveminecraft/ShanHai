@@ -4,9 +4,12 @@ Cache<uint64_t,Broadleaf> broadleafCache{2048};
 bool broadleafHabitat(Surface const&s)const{return s.biome==9&&!coniferHabitat(s)&&s.giant<.01&&s.stone<.01&&s.barren<.01&&!s.kind&&!s.lake&&!s.river&&s.cliffLow==-32768&&field.ecologyHeight(s)<235&&field.ecologyTreeWeight(s)>0;}
 Broadleaf broadleafCandidate(int gx,int gz){return broadleafCache.get(key2(gx,gz),[&]{
  Broadleaf a;auto r=[&](int k){return hash01(gx,gz,terrainSeed^k);};a.x=gx*7+1+int(r(2401)*5);a.z=gz*7+1+int(r(2402)*5);a.priority=r(2403);
- auto s=field.surface(a.x,a.z,false);if(!broadleafHabitat(s))return a;
  double density=clamp(.82+.55*forestNoise.at(a.x/87.,a.z/87.),.50,.98);
- if(r(2404)>density||blocked(a.x,a.z,false))return a;
+ // The seeded density rejection is independent of terrain. Apply it before
+ // asking for a surface, which can synchronously prepare a new water region.
+ if(r(2404)>density)return a;
+ auto s=field.surface(a.x,a.z,false);if(!broadleafHabitat(s))return a;
+ if(blocked(a.x,a.z,false))return a;
  double interior=forestInterior(a.x,a.z,2);
  if(r(2404)>density*(.45+.55*interior)*field.ecologyTreeWeight(s))return a;
  if(!treeGroundAllowed(s,a.x,a.z,false))return a;

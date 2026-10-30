@@ -140,6 +140,13 @@ target("terrain_throughput")
  add_files("terrain_throughput.cpp")
 target_end()
 
+target("terrain_exploration")
+ set_kind("binary")
+ add_deps("terrain-kernel")
+ add_files("terrain_exploration.cpp")
+ add_syslinks("bcrypt")
+target_end()
+
 target("loading_flight_recorder")
  set_kind("binary")
  add_packages("nlohmann_json")
