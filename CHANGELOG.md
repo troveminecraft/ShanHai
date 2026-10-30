@@ -1,3 +1,11 @@
+## 0.3.9 — 2026-10-30
+
+New worlds preserve river banks against the actual neighbouring water surface and retain closed lake shorelines during river erosion. Regional river planning shares the lakes touched by its routes, uses surveyed lake endpoints and rejects crossings that would cut a lake at a different water level.
+
+Mountain cliff cores can drop **60–100 blocks within two horizontal blocks**. Rivers can cross suitable **30–100-block ledges** as connected waterfalls. Cliff ends and surrounding slopes blend back into the terrain. Sea level remains **Y100**, with a building range of **Y-64..511**.
+
+Kernel **2.215** preserves saved world recipes. These generation changes apply to new worlds; existing blocks are not rewritten. Bounded terrain caches and lazy lake planning limit repeat sampling. Dense terrain, large view distances or memory pressure can still cause loading stalls; offline checks do not establish full game loading performance.
+
 ## 0.3.8 — 2026-10-30
 
 New worlds extend super-glacier ice bodies and tall, leaning ice spires onto cold plateaus. The glacier's surrounding snow and vegetation influence now fades out within **32 chunks (512 blocks)**. Natural cold-climate snow outside that distance is unchanged.

@@ -60,10 +60,8 @@ inline std::optional<Destination> destination(int id, int biomeCount) {
 }
 struct Update { int id; char const* name; char const* content; };
 inline constexpr Update updates[]{
-    {124, "超级冰川", "新世界的高原可生成细长倾斜的大型冰刺；外围覆雪与植被影响收至32区块"},
-    {132, "高原", "允许通向真实湖泊或下游河网的高原河流"},
-    {116, "河流", "陡坎处允许连续瀑布，保留曲线河道与支流汇合"},
-    {114, "山地", "增加坡面悬崖，候选范围扩展至Y420"}
+    {116, "河流", "修复陡坡河岸漏水与河道切穿湖岸；支持30至100格陡坎瀑布"},
+    {114, "山地", "悬崖核心可在水平2格内形成60至100格落差"}
 };
 inline std::string joinMessage() {
     std::string result = std::string("§9[山&海] 最近地形更新（") + shanhai_release::Windows + "）";
