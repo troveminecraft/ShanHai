@@ -5,8 +5,11 @@ LL_TYPE_INSTANCE_HOOK(ClientMeshTiming,ll::memory::HookPriority::Normal,RenderCh
  auto owner=publishedSession.load();auto observing=owner->tasks.tryEnter();
  auto* source=mLocalSource.get();
  auto* dimension=source?static_cast<Dimension*>(source->mDimension):nullptr;
- if(!observing||!active||!dimension||static_cast<int>(dimension->getDimensionId())!=0||
-    !owner->belongsTo(static_cast<Level*>(source->mLevel))){
+ // The renderer owns a ClientLevel, not the integrated server Level bound to
+ // TerrainSession. Comparing their addresses suppresses every mesh sample.
+ // Hold only the session task lease; never mutate either level here. These
+ // timings cover active client Overworld builders, not server publication/GPU.
+ if(!observing||!active||!dimension||static_cast<int>(dimension->getDimensionId())!=0){
   origin(geometry,lightingType,forExport,capabilities,models);return;
  }
  auto start=Clock::now();origin(geometry,lightingType,forExport,capabilities,models);
