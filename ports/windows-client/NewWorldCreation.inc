@@ -150,7 +150,7 @@ struct Job {
   auto exe=runtime/"python/python.exe";
   if(!std::filesystem::exists(exe)||!std::filesystem::exists(runtime/"bundle.json"))
    throw std::runtime_error("Karma seed worker is not installed");
-  auto command=quote(exe.wstring())+L" -I -X utf8 "+quote((runtime/"ports/windows-client/seed_service.py").wstring())+L" "+quote((path/"request.json").wstring());
+  auto command=quote(exe.wstring())+L" -I -B -X utf8 "+quote((runtime/"ports/windows-client/seed_service.py").wstring())+L" "+quote((path/"request.json").wstring());
   group=CreateJobObjectW(nullptr,nullptr);
   if(!group)throw std::runtime_error("Cannot create worker job");
   JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};

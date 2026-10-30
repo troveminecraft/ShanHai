@@ -2,7 +2,7 @@
 from pathlib import Path
 import hashlib,json,sys
 P=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(P/'tests'));from verify_water import run
+from native_chunk_io import run
 def identity(data):return hashlib.sha256(json.dumps({k:v for k,v in data.items() if k not in ('lavaFlows','iceRegions','version','cavernPlan','stoneForestGrotto')},sort_keys=True,separators=(',',':')).encode()).hexdigest()
 def bake(source):
  source=Path(source);data=json.loads(source.read_text('utf-8'))

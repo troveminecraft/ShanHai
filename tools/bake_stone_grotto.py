@@ -4,8 +4,7 @@ from world_bounds import HALF
 import json,sys,hashlib,math
 import numpy as np
 from runtime_palette import sizes as palette_sizes
-P=Path(__file__).resolve().parents[1];sys.path.insert(0,str(P/'tests'))
-from verify_water import run,decode
+P=Path(__file__).resolve().parents[1];from native_chunk_io import run,decode
 def identity(j):return hashlib.sha256(json.dumps({k:v for k,v in j.items() if k not in ('lavaFlows','iceRegions','version','stoneForestGrotto')},sort_keys=True,separators=(',',':')).encode()).hexdigest()
 def bake(source,out):
  source=Path(source);out=Path(out);out.mkdir(parents=True,exist_ok=True);j=json.loads(source.read_text('utf-8'));E=P/'build/windows/x64/release/native-worldgen-check.exe'

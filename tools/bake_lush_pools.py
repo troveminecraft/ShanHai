@@ -119,7 +119,7 @@ def runs(a,b,x0,z0):
 
 def bake(source,out,groups,grotto):
  from bake_stone_grotto import P
- from verify_water import run,decode
+ from native_chunk_io import run,decode
  out=Path(out);out.mkdir(parents=True,exist_ok=True)
  j=json.loads(Path(source).read_text('utf-8'));seed=j['config']['seed'];E=P/'build/windows/x64/release/native-worldgen-check.exe'
  nodes=[n for g in groups for n in g['nodes'] if n['hall'] and -35<n['y']<100]

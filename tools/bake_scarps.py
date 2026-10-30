@@ -2,8 +2,7 @@
 from pathlib import Path
 import argparse,json,math,sys,hashlib
 P=Path(__file__).resolve().parents[1];E=P/'build/windows/x64/release/native-worldgen-check.exe'
-sys.path.insert(0,str(P/'tests'))
-from verify_water import run
+from native_chunk_io import run
 from noise_scarps import build
 
 def bake(source,output):

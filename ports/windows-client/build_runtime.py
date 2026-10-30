@@ -10,7 +10,8 @@ def build(destination, python_home, node, template, native_tool):
         dst=destination/rel; dst.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(src,dst)
     for name in ['python.exe','python3.dll','python313.dll','vcruntime140.dll','vcruntime140_1.dll','LICENSE.txt']:
         copy(python_home/name, 'python/'+name)
-    shutil.copytree(python_home/'DLLs',destination/'python/DLLs')
+    shutil.copytree(python_home/'DLLs',destination/'python/DLLs',
+                    ignore=shutil.ignore_patterns('*test*','xxlimited*'))
     shutil.copytree(python_home/'Lib',destination/'python/Lib',ignore=shutil.ignore_patterns(
         'site-packages','__pycache__','test','tests','idlelib','tkinter','ensurepip'))
     import numpy
@@ -18,7 +19,7 @@ def build(destination, python_home, node, template, native_tool):
     for pattern in ['numpy','numpy.libs','numpy-*.dist-info']:
         for src in numpy_site.glob(pattern):
             shutil.copytree(src,destination/'python/Lib/site-packages'/src.name,
-                            ignore=shutil.ignore_patterns('__pycache__','tests'))
+                            ignore=shutil.ignore_patterns('__pycache__','tests','*_tests*','conftest.py'))
     copy(node,'node/node.exe')
     # A redistributable bundle must include the runtime's license.
     node_license = next((node.parent/name for name in ['LICENSE','LICENSE.txt']
@@ -33,14 +34,12 @@ def build(destination, python_home, node, template, native_tool):
     while pending:
         name=pending.pop()
         src=P/'tools'/(name+'.py')
-        if not src.is_file(): src=P/'tests'/(name+'.py')
         if name in selected or not src.is_file(): continue
         selected.add(name)
         for entry in ast.walk(ast.parse(src.read_text('utf-8'))):
             if isinstance(entry,ast.ImportFrom) and entry.module: pending.append(entry.module.split('.')[0])
             elif isinstance(entry,ast.Import): pending.extend(a.name.split('.')[0] for a in entry.names)
         copy(src,str(src.relative_to(P)))
-    copy(P/'tests/verify_water.py','tests/verify_water.py')
     for src in (P/'tools/seed').glob('*'):
         if src.is_file(): copy(src,'tools/seed/'+src.name)
     for rel in ['data/seed-template.json','data/runtime-template.json','src/NativeRuntime.h','src/WorldBounds.h',
@@ -54,10 +53,16 @@ def build(destination, python_home, node, template, native_tool):
     copy(template,'void-level.dat')
     # Import the uncached path with the shipped interpreter, not the developer's
     # environment. A successful cached-world test does not exercise these tools.
-    probe="import sys,importlib;from pathlib import Path;p=Path.cwd();sys.path[:0]=[str(p/'tools'),str(p/'tests')];" \
+    probe="import sys,importlib;from pathlib import Path;p=Path.cwd();sys.path[:0]=[str(p/'tools')];" \
           +"[importlib.import_module(n) for n in "+repr(sorted(selected))+"];from world_bounds import HALF;assert HALF==20000;print('uncached dependency imports passed')"
-    subprocess.run([str((destination/'python/python.exe').resolve()),'-I','-X','utf8','-c',probe],
+    subprocess.run([str((destination/'python/python.exe').resolve()),'-I','-B','-X','utf8','-c',probe],
                    cwd=destination,check=True)
+    # Reject packaging regressions before hashing a distributable runtime.
+    for f in destination.rglob('*'):
+        if not f.is_file(): continue
+        rel=f.relative_to(destination)
+        if any(part in ('test','tests','__pycache__') for part in rel.parts) or f.suffix=='.pyc' or (f.suffix=='.pyd' and 'test' in f.stem):
+            raise ValueError('Development artifact in runtime: '+str(rel))
     hashes={str(f.relative_to(destination)).replace('\\','/'):hashlib.sha256(f.read_bytes()).hexdigest()
             for f in sorted(destination.rglob('*')) if f.is_file()}
     identity=hashlib.sha256(json.dumps(hashes,sort_keys=True).encode()).hexdigest()

@@ -3,7 +3,7 @@ from pathlib import Path
 from world_bounds import HALF
 import json,hashlib,math,sys
 P=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(P/'tests'));from verify_water import run
+from native_chunk_io import run
 DIRS=[(0,0),(1,0),(-1,0),(0,1),(0,-1)]
 def identity(j):return hashlib.sha256(json.dumps({k:v for k,v in j.items() if k not in ('lavaFlows','iceRegions','version')},sort_keys=True,separators=(',',':')).encode()).hexdigest()
 def trace(path,cache,crest):

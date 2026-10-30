@@ -8,9 +8,8 @@ from world_bounds import HALF
 import json,math,sys
 import numpy as np
 P=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(P/'tests'))
-from verify_water import run
-from verify_cliff_profile import floating_rock
+from native_chunk_io import run
+from voxel_connectivity import floating_rock
 E=P/'build/windows/x64/release/native-worldgen-check.exe'
 
 def build(source,output,c,index):

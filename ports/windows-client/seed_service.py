@@ -39,6 +39,7 @@ def run(request_path):
     env['PATH'] = str(P/'node') + os.pathsep + env.get('PATH', '')
     env['PYTHONUTF8'] = '1'
     env['PYTHONNOUSERSITE'] = '1'
+    env['PYTHONDONTWRITEBYTECODE'] = '1'
     env['OPENBLAS_NUM_THREADS'] = '1'
     env['OMP_NUM_THREADS'] = '1'
     if not usable:
