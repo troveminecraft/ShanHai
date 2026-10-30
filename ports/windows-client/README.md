@@ -1,4 +1,4 @@
-# mountains&seas · 山&海 0.3.4
+# mountains&seas · 山&海 0.3.5
 
 Minecraft 基岩版 Windows 地形与结构生成模组。作者：troveminecraft。
 
@@ -6,8 +6,8 @@ Minecraft 基岩版 Windows 地形与结构生成模组。作者：troveminecraf
 
 | Minecraft for Windows | LeviLamina client | Package |
 |---|---|---|
-| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.3.4.zip` |
-| 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.3.4.zip` |
+| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.3.5.zip` |
+| 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.3.5.zip` |
 
 Windows x64、AVX2 CPU。根据游戏版本选择 ZIP，DLL 不可混用。
 
@@ -28,3 +28,11 @@ Windows x64、AVX2 CPU。根据游戏版本选择 ZIP，DLL 不可混用。
 问题反馈可提供游戏和模组版本、种子、坐标、复现步骤，以及模组 diagnostics 下的 world-session.json、world-startup.json、world-error.txt。
 
 下载与反馈：[mountains&seas](https://github.com/troveminecraft/ShanHai)。原创代码使用 MIT 协议，第三方组件保留各自许可。安卓封档。
+
+## 0.3.5 诊断与修复
+
+修复 Minecraft 1.26.51.01 在怪物房生成时因事务指针未初始化而崩溃的问题。新增按世界会话独立保存的加载诊断：后台心跳、正在执行的任务/线程/区块、结构锁等待、内存与 CPU 计数、主线程快照更新时间。日志缓冲写入并限制容量，附带本地诊断收集工具，不自动上传。
+
+加载停顿和远处区块延迟仍在调查。本次不改变地形配方、海平面、已保存方块或云层设置。详见 [加载诊断说明](docs/LOADING_DIAGNOSTICS.md)。
+
+退出游戏后可运行模组目录中的 `collect-diagnostics.cmd` 生成本地诊断包。

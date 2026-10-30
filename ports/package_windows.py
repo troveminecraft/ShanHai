@@ -26,6 +26,8 @@ def package(runtime,output,binary=None):
             archive.write(source,root+name)
         for name in sorted(set(bundle['files'])|{'bundle.json'}):archive.write(runtime/name,root+'runtime/'+name)
         archive.write(P/'ports/windows-client/README.md',root+'README.md')
+        for name in ['collect-diagnostics.py','collect-diagnostics.cmd']:archive.write(P/'ports/windows-client'/name,root+name)
+        archive.write(P/'docs/LOADING_DIAGNOSTICS.md',root+'LOADING_DIAGNOSTICS.md')
         archive.write(P/'THIRD_PARTY_NOTICES.md',root+'THIRD_PARTY_NOTICES.md')
         archive.write(P/'LICENSE',root+'LICENSE')
     return dict(package=str(output),sha256=hashlib.sha256(output.read_bytes()).hexdigest(),runtimeIdentity=bundle['identity'],stable=False)

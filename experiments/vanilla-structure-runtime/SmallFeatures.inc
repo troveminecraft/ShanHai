@@ -85,7 +85,18 @@ bool callSmallFeature(Dimension& d,BlockSource&blocks,ChunkPos cp,std::string co
  SmallWriteScope scope{{{cp.x*16,-58,cp.z*16},{cp.x*16+15,(field->generationHeight()-65),cp.z*16+15}},&blocks};
  smallWriteScope=&scope;struct Reset{~Reset(){smallWriteScope=nullptr;}}reset;
  auto began=std::chrono::steady_clock::now();++smallAttempts;bool placed=false;
- if(kind=="monster_room"){MonsterRoomFeature room;placed=room.$place(blocks,pos,rng);
+ terrain_runtime::LoadingSpan featureTrace(terrain_runtime::loadingRecorder,kind=="monster_room"?"feature.monster_room":"feature.other",cp.x,cp.z);
+ if(kind=="monster_room"){MonsterRoomFeature room;
+#ifdef SHANHAI_MC_26_51
+  // 26.51 removed the native constructor. TypedStorage does not initialize
+  // these fields: the native placement reads mTransaction at offset 0x18.
+  static_assert(offsetof(MonsterRoomFeature,mInternal)==8);
+  static_assert(offsetof(MonsterRoomFeature,mPlacerID)==16);
+  static_assert(offsetof(MonsterRoomFeature,mTransaction)==24);
+  static_assert(sizeof(MonsterRoomFeature)==32);
+  room.mInternal=false;room.mPlacerID=ActorUniqueID::INVALID_ID();room.mTransaction=nullptr;
+#endif
+  placed=room.$place(blocks,pos,rng);
   static unsigned diagnostics=0;if(!placed&&diagnostics++<8){J rings=J::array();for(int radius:{3,4}){int floor=0,roof3=0,roof4=0,doors=0;for(int dz=-radius;dz<=radius;++dz)for(int dx=-radius;dx<=radius;++dx){floor+=blocks.isSolidBlockingBlock({pos.x+dx,pos.y-1,pos.z+dz});roof3+=blocks.isSolidBlockingBlock({pos.x+dx,pos.y+3,pos.z+dz});roof4+=blocks.isSolidBlockingBlock({pos.x+dx,pos.y+4,pos.z+dz});if(std::abs(dx)==radius||std::abs(dz)==radius)doors+=blocks.getBlock({pos.x+dx,pos.y,pos.z+dz}).getTypeName()=="minecraft:air"&&blocks.getBlock({pos.x+dx,pos.y+1,pos.z+dz}).getTypeName()=="minecraft:air";}rings.push_back({{"radius",radius},{"floor",floor},{"roof3",roof3},{"roof4",roof4},{"doors",doors}});}std::ofstream(folder/"dungeon-fit-diagnostics.jsonl",std::ios::app)<<J{{"pos",{pos.x,pos.y,pos.z}},{"rings",rings}}.dump()<<'\n';}
  }
  else {

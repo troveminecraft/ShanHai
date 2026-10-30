@@ -1,5 +1,12 @@
 ## 0.3.4 — loading state, bounded workers and lake shorelines
 
+## 0.3.5 — 2026-10-30
+
+Fixes a Minecraft 1.26.51.01 crash during monster-room generation caused by an uninitialized feature transaction pointer. Adds a separate loading flight recorder for each Windows world session: background heartbeats, active task/thread/chunk spans, structure-lock waits, memory and CPU counters, and snapshot age. Diagnostic output is buffered and bounded. A local collector is included; it does not upload data.
+
+Loading stalls and delayed distant chunks remain under investigation. No terrain recipes, sea level, saved blocks, or cloud settings change in this release. See [loading diagnostics](docs/LOADING_DIAGNOSTICS.md).
+
+
 Corrects chunk completion tracking on Minecraft 1.26.51.01, preventing completed chunks from inflating the loading backlog and disabling look-ahead work. Terrain calculations use four bounded workers on CPUs with at least 12 logical processors, and two on smaller CPUs. Structure terrain reads reuse bounded column caches, and buffered diagnostic writes run after the native structure lock is released.
 
 Regional lakes now verify connected shorelines at block resolution. This fixes straight mask edges that left adjacent ground below the water level dry. Lakebed sediment uses continuous patches. The kernel is **2.212**; sea level remains **Y100** and the building range remains **Y-64..511**.

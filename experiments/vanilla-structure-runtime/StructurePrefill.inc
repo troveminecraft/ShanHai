@@ -165,9 +165,11 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
                 ++prefillSnapshotMisses;
                 std::vector<ChunkPos> warming=vc;warming.insert(warming.end(),sc.begin(),sc.end());
                 for(auto const& [type,c]:ec)warming.push_back(c);
-                warmStructureRegions(warming);
+                {terrain_runtime::LoadingSpan warm(terrain_runtime::loadingRecorder,"structure.prefill_regional_warm",cp.x,cp.z);warmStructureRegions(warming);}
                 terrain_runtime::DeferredDiagnosticBatch deferredLogs;
-    std::lock_guard guard(stageMutex);
+                std::unique_lock guard(stageMutex,std::defer_lock);
+                {terrain_runtime::LoadingSpan waiting(terrain_runtime::loadingRecorder,"structure.prefill_lock_wait",cp.x,cp.z);guard.lock();}
+                terrain_runtime::LoadingSpan held(terrain_runtime::loadingRecorder,"structure.prefill_lock_hold",cp.x,cp.z);
                 if (structureStageFailed) throw std::runtime_error("Structure generation paused");
                 auto save=[&](auto key,StructureStart const* start,bool scattered=false){
                     worldgen_rules::StructureReservationCache::Entry e;

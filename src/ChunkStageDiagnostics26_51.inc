@@ -8,6 +8,7 @@ template<class F> TaskResult* measureNativeTask(void* closure,int stage,F run){
     !owner->belongsTo(&bedrock_compat::level(*chunk)))return run();
  auto cp=bedrock_compat::position(*chunk);
  owner->pipelineTrace.record({1,cp.x,cp.z,stage,0,0,int(bedrock_compat::loadState(*chunk).load()),true,owner->streamActiveMicros.load()});
+ terrain_runtime::LoadingSpan taskTrace(terrain_runtime::loadingRecorder,stage==0?"native.load":stage==1?"native.structure":stage==2?"native.decoration":"native.lighting",cp.x,cp.z);
  auto start=Clock::now();auto* result=run();
  owner->recordWork(stage,cp.x,cp.z,std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-start).count());
  owner->pipelineTrace.record({2,cp.x,cp.z,stage,0,0,int(bedrock_compat::loadState(*chunk).load()),true,owner->streamActiveMicros.load()});

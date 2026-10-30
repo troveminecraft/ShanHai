@@ -1,3 +1,4 @@
+#include "LoadingFlightRecorder.h"
 #include "SeededColumnCache.h"
 #include "DeferredDiagnosticLog.h"
 #include "BedrockStructure.h"

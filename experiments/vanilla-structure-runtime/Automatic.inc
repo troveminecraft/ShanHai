@@ -563,6 +563,7 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
             throw std::runtime_error("No native center");
         failureChunk=std::array<int,2>{cp->x,cp->z};
         worldgen_rules::StructureStageSiteScope site(1,cp->x,cp->z);
+        terrain_runtime::LoadingSpan decoration(terrain_runtime::loadingRecorder,"structure.automatic",cp->x,cp->z);
         auto center = view.$getExistingChunk(*cp);
         if (!center || bedrock_compat::loadState(*center).load() != ChunkState::DecorationPostProcessing)
             throw std::runtime_error("Unexpected center phase");
@@ -620,9 +621,11 @@ bool runAutomaticStage(Level &level, ChunkViewSource &view) {
         for(auto const& [x,z]:nearby)warming.push_back({x,z});
         for(auto const& [type,c]:extras)warming.push_back(c);
         warming.push_back(*cp);
-        warmStructureRegions(warming);
+        {terrain_runtime::LoadingSpan warmingTrace(terrain_runtime::loadingRecorder,"structure.regional_warm",cp->x,cp->z);warmStructureRegions(warming);}
         terrain_runtime::DeferredDiagnosticBatch deferredLogs; // destroyed after the registry guard
-        std::lock_guard guard(stageMutex);
+        std::unique_lock guard(stageMutex,std::defer_lock);
+        {terrain_runtime::LoadingSpan waiting(terrain_runtime::loadingRecorder,"structure.lock_wait");guard.lock();}
+        terrain_runtime::LoadingSpan held(terrain_runtime::loadingRecorder,"structure.lock_hold");
         SeededReadScope seededReads;
         if (structureStageFailed)
             return false;
@@ -809,7 +812,9 @@ std::optional<bool> locateNativeStructure(Dimension &d, HashedString type, Block
         return false;
     try {
         terrain_runtime::DeferredDiagnosticBatch deferredLogs; // destroyed after the registry guard
-        std::lock_guard guard(stageMutex);
+        std::unique_lock guard(stageMutex,std::defer_lock);
+        {terrain_runtime::LoadingSpan waiting(terrain_runtime::loadingRecorder,"structure.lock_wait");guard.lock();}
+        terrain_runtime::LoadingSpan held(terrain_runtime::loadingRecorder,"structure.lock_hold");
         SeededReadScope seededReads;
         initialize();
         auto &f = registeredFeature(d);

@@ -1,18 +1,18 @@
-当前版本：0.3.4。修正区块完成状态识别、减少重复地形读取，并修复湖泊岸线。探索中的加载停顿或可见缺块仍是已知问题。
+当前版本：0.3.5。修复 26.51 怪物房生成崩溃，新增持续加载诊断。加载停顿仍在调查。
 
 <p align="center">
   <img src="docs/assets/shan-hai.png" alt="山&amp;海" width="720">
 </p>
 
 <p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.4"><img src="https://img.shields.io/badge/release-0.3.4-2ea44f" alt="0.3.4"></a>
+  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.5"><img src="https://img.shields.io/badge/release-0.3.5-2ea44f" alt="0.3.5"></a>
   <img src="https://img.shields.io/badge/Minecraft_Bedrock-1.26.51.01-62b47a" alt="Minecraft Bedrock 1.26.51.01">
   <img src="https://img.shields.io/badge/LeviLamina-26.51.9-00a896" alt="LeviLamina 26.51.9">
   <img src="https://img.shields.io/badge/Windows-x64-0078d4" alt="Windows x64">
 </p>
 
 <p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.4">下载安装</a> ·
+  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.5">下载安装</a> ·
   <a href="docs/BUILDING.md">从源码构建</a> ·
   <a href="https://github.com/troveminecraft/ShanHai/issues">反馈问题</a>
 </p>
@@ -36,9 +36,15 @@
 
 ## 安装
 
+| Minecraft for Windows | LeviLamina 客户端 | 安装包 |
+|---|---|---|
+| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.3.5.zip` |
+| 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.3.5.zip` |
+
+
 支持 **Minecraft for Windows 1.26.51.01 / LeviLamina 26.51.9** 与 **1.26.20.04 / LeviLamina 26.20.7** 两套客户端组合，需要支持 AVX2 的 Windows x64 电脑。可通过 LeviLauncher 管理游戏实例和模组。
 
-1. 在 [0.3.4 下载页](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.4) 选择与下表游戏版本对应的 ZIP。
+1. 在 [0.3.5 下载页](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.5) 选择与下表游戏版本对应的 ZIP。
 2. 完全退出 Minecraft，在 LeviLauncher 对应实例的模组管理中导入 ZIP。
 3. 确认模组已启用，启动游戏，创建一个普通新世界；不要选择超平坦。
 
@@ -48,31 +54,25 @@
 
 本次更新见 [更新记录](CHANGELOG.md)，生成和存档机制见 [说明](docs/RUNTIME.md)。
 
-## 0.3.4 更新
+## 0.3.5 更新
 
-修正 Minecraft 1.26.51.01 的区块完成状态识别，避免已完成区块被计入积压并关闭预读。拥有至少 12 个逻辑处理器的 CPU 使用四个有界地形计算槽，其他 CPU 保留两个。结构邻区读取复用有界地形列缓存，诊断日志在释放原生结构锁后写入。
+修复 Minecraft 1.26.51.01 在怪物房生成时因事务指针未初始化而崩溃的问题。新增按世界会话独立保存的加载诊断：后台心跳、正在执行的任务/线程/区块、结构锁等待、内存与 CPU 计数、主线程快照更新时间。日志缓冲写入并限制容量，附带本地诊断收集工具，不自动上传。
 
-区域湖泊按逐格地形验证连通岸线，修复水位以下相邻地面突然断水的硬切边；湖床改用连续沉积分区。内核更新为 **2.212**，海平面仍为 **Y100**，建造范围仍为 **Y-64..511**。
+加载停顿和远处区块延迟仍在调查。本次不改变地形配方、海平面、已保存方块或云层设置。详见 [加载诊断说明](docs/LOADING_DIAGNOSTICS.md)。
 
-已生成区块保留。湖泊修正作用于受支持区域世界的新生成地形，与旧区块交界处可能仍有接缝。更新前请备份世界。密集地形和较大视距下仍可能加载缓慢，本版不宣称消除了所有停顿。原版世界不会自动转换。
-
-| Minecraft for Windows | LeviLamina client | Package |
-|---|---|---|
-| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.3.4.zip` |
-| 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.3.4.zip` |
 
 ## 使用前
 
-**0.3.4 是公开测试版本。** 结构与复杂坡地的衔接仍可能出现异常，欢迎带上种子、坐标和截图反馈。建议备份存档，并用新世界体验；已经生成的原版区块不会自动变成新地形。
+**0.3.5 是公开测试版本。** 结构与复杂坡地的衔接仍可能出现异常，欢迎带上种子、坐标和截图反馈。建议备份存档，并用新世界体验；已经生成的原版区块不会自动变成新地形。
 
 继续游玩模组世界时，请保持模组启用。这个安装包仅用于上面列出的 Windows 客户端环境，不适用于 BDS、Android 或 Java 版。
 
 ## 源码
 
-本仓库包含 0.3.4 的地形内核、结构生成、Windows 接口和构建脚本。种子生成需要用到 Python 与 JavaScript，它们也是模组的一部分。构建方法见 [BUILDING.md](docs/BUILDING.md)。
+本仓库包含 0.3.5 的地形内核、结构生成、Windows 接口和构建脚本。种子生成需要用到 Python 与 JavaScript，它们也是模组的一部分。构建方法见 [BUILDING.md](docs/BUILDING.md)。
 
 第三方组件及许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。项目原创代码采用 [MIT 协议](LICENSE)；第三方组件及派生资源保留各自许可。安装包不包含 Minecraft 游戏本体或原版结构资源，结构模板从本机游戏读取。
 
 本系列基于 0.1.13 的源码重新实现：新世界海面 Y100、Y60～100 内陆盆地、海拔与覆雪变种、三档裂谷和火山海岸接触带。0.1.14/0.1.15 实验世界请使用留存的对应版本，不静默迁移。
 
-已有 0.1.16 模组世界保持原配方，不重写已有区块。日志应显示 `Karma Windows client 0.3.4; local world creation enabled`，随后模组启用成功；若启用失败，请连同日志与 `diagnostics/game-image.json` 反馈。
+已有 0.1.16 模组世界保持原配方，不重写已有区块。日志应显示 `Karma Windows client 0.3.5; local world creation enabled`，随后模组启用成功；若启用失败，请连同日志与 `diagnostics/game-image.json` 反馈。

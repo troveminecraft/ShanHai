@@ -1,3 +1,4 @@
+#include "LoadingFlightRecorder.h"
 #include "BedrockAccess.h"
 // One module coordinates two separately compiled host adapters.
 #include <Windows.h>
@@ -88,7 +89,7 @@ void writeStatus(Level &level, bool closed = false) noexcept {
         status["players"].push_back({{"pos", {pos.x, pos.y, pos.z}}, {"dimension", int(p.getDimensionId())}});
         return true;
     });
-    std::ofstream(diagnostics / "world-session.json") << status.dump(2);
+    terrain_runtime::loadingRecorder.snapshot(status);
     } catch (std::exception const& error) {
         // Status is optional. In particular, a rejected native world must still
         // release both sessions and run the original ServerLevel destructor.
@@ -102,6 +103,7 @@ void clearWorld(Level *level) {
     writeStatus(*level, true);
     terrain::clientRelease();
     lab::clientRelease(*level);
+    terrain_runtime::loadingRecorder.stop();
     current = nullptr;
     terrain::log().info("Karma client: world state released");
 }
@@ -134,6 +136,16 @@ void bindWorld(Level &level, std::string const &name, LevelSettings const &setti
     terrain::log().info("Karma client: world generator provenance validated; runtime generator={}",
                         int(settings.mGenerator));
     current = &level;
+    try { terrain_runtime::loadingRecorder.start(diagnostics/"sessions",Json{
+        {"version",shanhai_release::Windows},{"world",name},{"worldPath",root.string()},{"seed",seed},
+#ifdef SHANHAI_MC_26_51
+        {"gameLine","26.51"},
+#else
+        {"gameLine","26.20"},
+#endif
+        {"kernel",NativeRuntime::KernelVersion},{"pid",GetCurrentProcessId()}}); }
+    catch(std::exception const&e){terrain::log().warn("Loading recorder unavailable: {}",e.what());}
+    terrain_runtime::LoadingSpan prepareTrace(terrain_runtime::loadingRecorder,"world.prepare");
     terrain::clientPrepare(level, root, name, seed, marker);
     lab::clientPrepare(root, name, marker.at("worldName").get<std::string>());
     terrain::clientActivate();
@@ -172,7 +184,7 @@ LL_TYPE_INSTANCE_HOOK(WorldOpen, ll::memory::HookPriority::Normal, ServerLevel, 
         return false;
     }
     startupStatus("native-initialize");
-    bool ok = origin(name, settings, experiments, id, biomes);
+    bool ok; {terrain_runtime::LoadingSpan initializing(terrain_runtime::loadingRecorder,"world.native_initialize");ok = origin(name, settings, experiments, id, biomes);}
     if (ok && current == this) {
         try {
             startupStatus("validating-native-world");
@@ -292,7 +304,7 @@ class Mod {
                         if (++tickErrors == 1 || tickErrors % 200 == 0)
                             terrain::log().error("Karma client tick ({} errors): {}", tickErrors, ex.what());
                     }
-                    if (sessionTicks % 100 == 0)
+                    if (sessionTicks % (sessionTicks < 3600 ? 20 : 100) == 0)
                         writeStatus(e.level());
                 });
             hooks.commit();

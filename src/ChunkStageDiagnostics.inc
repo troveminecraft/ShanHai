@@ -5,6 +5,7 @@ template<class F> void measureNativeWork(LevelChunk& chunk,int stage,F run){
     bedrock_compat::levelName(bedrock_compat::level(bedrock_compat::dimension(chunk)).getLevelData())!=worldName){run();return;}
  auto cp=bedrock_compat::position(chunk);
  owner->pipelineTrace.record({1,cp.x,cp.z,stage,0,0,int(bedrock_compat::loadState(chunk).load()),true,owner->streamActiveMicros.load()});
+ terrain_runtime::LoadingSpan taskTrace(terrain_runtime::loadingRecorder,stage==0?"native.load":stage==1?"native.structure":stage==2?"native.decoration":"native.lighting",cp.x,cp.z);
  auto start=Clock::now();run();
  owner->pipelineTrace.record({2,cp.x,cp.z,stage,0,0,int(bedrock_compat::loadState(chunk).load()),true,owner->streamActiveMicros.load()});
  owner->recordWork(stage,cp.x,cp.z,std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-start).count());

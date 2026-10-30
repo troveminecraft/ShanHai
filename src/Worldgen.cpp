@@ -1,3 +1,4 @@
+#include "LoadingFlightRecorder.h"
 #include "ChunkStateLayout.h"
 #include "BedrockStreaming.h"
 #include <Windows.h>
@@ -283,20 +284,23 @@ void readData(){
 }
 Chunk decodeChunk(std::vector<uint8_t>const&bytes){return terrain_runtime::decodeChunk(bytes,metadata.at("palette").size(),metadata.at("biomeNames").size(),buildHeight.generatedHeight());}
 std::shared_ptr<Chunk const> getChunk(int x,int z){
+ terrain_runtime::LoadingSpan requestTrace(terrain_runtime::loadingRecorder,"terrain.request",x,z);
  terrain_runtime::Timer overall(worldSession->requestLatency);
  if(!validChunk(x,z))throw std::runtime_error("Chunk outside generation bounds");
  uint64_t key=generationMode.cacheKey(x,z);
  if(auto hit=memoryGet(key)){++worldSession->cacheMemoryHits;return hit;}
- auto gateStart=Clock::now();std::lock_guard gate(worldSession->chunkGates[terrain_cache::MixedShard{}(key)%worldSession->chunkGates.size()]);worldSession->gateLatency.observe(std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-gateStart).count());
+ auto gateStart=Clock::now();std::unique_lock gate(worldSession->chunkGates[terrain_cache::MixedShard{}(key)%worldSession->chunkGates.size()],std::defer_lock);
+ {terrain_runtime::LoadingSpan waiting(terrain_runtime::loadingRecorder,"terrain.chunk_gate",x,z);gate.lock();}worldSession->gateLatency.observe(std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-gateStart).count());
  if(auto hit=memoryGet(key)){++worldSession->cacheMemoryHits;return hit;}
  auto file=worldSession->cachePath/(std::to_string(key)+".bin");
  {
-  terrain_runtime::Timer reading(worldSession->cacheReadLatency);auto result=terrain_runtime::readChunk(file,metadata.at("palette").size(),metadata.at("biomeNames").size(),buildHeight.generatedHeight());
+  terrain_runtime::LoadingSpan cacheRead(terrain_runtime::loadingRecorder,"terrain.cache_read",x,z);terrain_runtime::Timer reading(worldSession->cacheReadLatency);auto result=terrain_runtime::readChunk(file,metadata.at("palette").size(),metadata.at("biomeNames").size(),buildHeight.generatedHeight());
   if(result.state==terrain_cache::ReadState::Valid){memoryPut(key,result.value);++worldSession->cacheDiskHits;return result.value;}
   else if(result.state==terrain_cache::ReadState::Invalid)++worldSession->cacheInvalid;
  }
  auto began=Clock::now();std::vector<uint8_t>bytes;
- {CalculatorLease lease;auto computeStart=Clock::now();bytes=worldSession->runtimes[lease.i].chunk(x,z);auto us=std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-computeStart).count();worldSession->computeLatency.observe(us);worldSession->computeMicros+=us;recordMax(worldSession->maxComputeMicros,us);}
+ {auto lease=[&]{terrain_runtime::LoadingSpan waiting(terrain_runtime::loadingRecorder,"terrain.calculator_wait",x,z);return CalculatorLease{};}();
+ terrain_runtime::LoadingSpan compute(terrain_runtime::loadingRecorder,"terrain.compute",x,z);auto computeStart=Clock::now();bytes=worldSession->runtimes[lease.i].chunk(x,z);auto us=std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-computeStart).count();worldSession->computeLatency.observe(us);worldSession->computeMicros+=us;recordMax(worldSession->maxComputeMicros,us);}
  auto value=std::make_shared<Chunk const>(decodeChunk(bytes));memoryPut(key,value);++worldSession->cacheComputed;
  worldSession->calculationMs+=std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now()-began).count();
  worldSession->cacheWriter.submit(file,std::move(bytes));return value;
@@ -381,6 +385,7 @@ void resolveRegistry(Dimension& dim){
 int index(ChunkPos const& p){return !validChunk(p.x,p.z)?-1:unboundedWorld?0:(p.z+Half)*Side+p.x+Half;}
 template<class F>void column(Chunk const& c,int col,F fn){size_t p=c.columns[col];int n=c.runs[p]|(c.runs[p+1]<<8);p+=2;int y=0;for(int r=0;r<n;r++){int len=c.runs[p]|(c.runs[p+1]<<8);int b=c.runs[p+2]|(c.runs[p+3]<<8);p+=4;fn(y,len,b);y+=len;}}
 void fill(LevelChunk& lc,Chunk const& c){
+ auto tracePos=bedrock_compat::position(lc);terrain_runtime::LoadingSpan fillTrace(terrain_runtime::loadingRecorder,"terrain.fill",tracePos.x,tracePos.z);
  auto fillStarted=Clock::now();
  resolveRegistry(bedrock_compat::dimension(lc));
  buildHeight.requireDimension(bedrock_compat::heightRange(lc).mMin,bedrock_compat::heightRange(lc).mMax);
