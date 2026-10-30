@@ -21,6 +21,7 @@ class Field {
  friend struct CompletedBiomesTest;
  friend struct TerrainRevisionTest;
  friend struct ElevationVariantsTest;
+ friend struct CoastalContinuityTest;
  // Only owners whose conservative influence bounds touch a sample are needed.
  bool localPlanningCulling=false;
  J const&data;J const&C;uint32_t terrainSeed;Density graph,caves;
@@ -30,6 +31,7 @@ class Field {
  bool elevatedLandscape=C.value("landscapeRevision",0)>=2;
  bool elevationVariants=C.value("elevationRevision",0)>=1;
  bool landformRefresh=C.value("elevationRevision",0)>=2;
+ bool continuousCoast=C.value("coastalContinuity",0)>=1;
  double landscapeAltitude(double height)const{return elevationVariants?height-60.:elevatedLandscape?height-24.:height;}
  bool raisedSnowline=C.value("mountainSnowline",0)>=1;
  bool raisedEcology=C.value("mountainEcology",0)>=1;
@@ -124,7 +126,9 @@ class Field {
  }
 
  s.coast=s.stone>0?0:coastWeight(wx,wz,v);
- v+=s.coast*24*smooth(seaLevelValue-2,seaLevelValue+14,v)*(1-smooth(seaLevelValue+21,seaLevelValue+65,v));
+ // New recipes include the upper fade in the shared coast weight, so both
+ // relief and surface materials lose their coastal influence continuously.
+ v+=s.coast*24*smooth(seaLevelValue-2,seaLevelValue+14,v)*(continuousCoast?1:1-smooth(seaLevelValue+21,seaLevelValue+65,v));
  oceanRelief(s,v,wx,wz);
  volcanicRelief(s,v,wx,wz);
  elevationRelief(s,v,wx,wz);

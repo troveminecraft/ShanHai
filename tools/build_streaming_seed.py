@@ -14,6 +14,7 @@ def finish_recipe(data):
     height_settings(data)
     data["config"]["badlandsRegions"]=3
     data["config"]["riverBankSurvey"]=1
+    data["config"]["coastalContinuity"]=1
     data["config"]["mountainSnowline"]=1
     data["config"]["mountainEcology"]=1
     data["config"]["regionalPlateaus"]=1
