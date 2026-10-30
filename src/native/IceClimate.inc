@@ -68,7 +68,10 @@ void glacierSkin(Surface&s,int wx,int wz){
  double lowland=uplandGlaciers?smooth(seaLevelValue-8,seaLevelValue+6,s.height)*(1-smooth(400,470,s.height)):
      smooth(32,40,landscapeAltitude(s.height))*(1-smooth(72,96,landscapeAltitude(s.height)));
  if(continuousIceEdges)lowland*=(1-smooth(0.,.10,s.barren))*(1-smooth(0.,.01,s.stone))*(1-smooth(0.,.01,s.giant))*(1-smooth(0.,.08,s.desert))*(1-smooth(0.,.01,s.volcanic));
- s.superGlacier=super*lowland;s.glacier=std::max(super,cold*patch)*lowland;
+ s.superGlacier=super*lowland;
+ // A cold/snowy parent biome is not an independent glacier. Keep the old
+ // noise-driven ice patches only for saved recipes that explicitly used them.
+ s.glacier=C.value("glacierBodyRevision",0)>=1?s.superGlacier:std::max(super,cold*patch)*lowland;
  if(glacierEcology&&s.glacier>0&&!s.kind&&!s.river&&!s.lake&&s.wetland<=.01&&s.water<s.height&&s.cliffLow==-32768){
   // One climate field controls the retreating forest, exposed mineral ground,
   // and ice body. Do this before ecology, not by burying existing vegetation.
