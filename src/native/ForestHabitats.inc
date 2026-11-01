@@ -29,13 +29,18 @@ void forestHabitat(Surface& s,int x,int z){
     &&biomeNoise.at(x/610.+217.,z/610.-81.)>.10){
   s.biome=forest_capabilities::Cherry;s.treeD=.009;return;
  }
- if(!forest||t<.36||t>.70||h<.53||s.soilSand>.20)return;
- double stand=biomeNoise.at(x/510.,z/510.);
- if(stand<-.04)return;
+ bool temperate=forest&&t>=.36&&t<=.70&&h>=.53&&s.soilSand<=.20;
+ double stand=temperate?biomeNoise.at(x/510.,z/510.):-1.;
  // Sheltered humid benches/valleys carry rarer pale stands inside the same
  // broad temperate forest region. Coherent noise avoids scattered biome dots.
- bool pale=stand>.19&&s.height<295&&s.ridge<.60&&h>.58
+ bool pale=temperate&&stand>.19&&s.height<295&&s.ridge<.60&&h>.58
      &&biomeNoise.at(x/235.+97.,z/235.-143.)>.13;
- s.biome=pale?forest_capabilities::Pale:forest_capabilities::Dark;
- s.treeD=pale?.012:.016;
+ if(pale){s.biome=forest_capabilities::Pale;s.treeD=.012;return;}
+ // A new optional forest must not consume the rarer common habitats above.
+ if(forest_capabilities::dappled(forestProfile)&&(forest||s.biome==6)
+    &&t>=.30&&t<=.62&&h>=.42&&s.soilSand<.15&&s.height<=315
+    &&biomeNoise.at(x/490.-157.,z/490.+231.)>.03){
+  s.biome=forest_capabilities::Dappled;s.treeD=.012;return;
+ }
+ if(temperate&&stand>=-.04){s.biome=forest_capabilities::Dark;s.treeD=.016;}
 }

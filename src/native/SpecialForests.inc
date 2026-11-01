@@ -2,7 +2,7 @@
 // in world coordinates, so neighbouring chunks consume the same tree model.
 struct ForestCell {int x,y,z;uint16_t block;uint8_t phase;};
 struct ForestTree {
- int x=0,z=0,ground=0,height=0,biome=0,width=1,stemBottom=0;
+ int x=0,z=0,ground=0,height=0,biome=0,width=1,stemBottom=0,leafColor=0,fallenLength=0,fallenAxis=0;
  std::array<int,4> feet{};
  std::array<std::array<int,3>,4> rootFeet{};
  double angle=0,crown=0;
@@ -41,7 +41,7 @@ ForestTree specialTreeCandidate(int gx,int gz){return specialTreeCache.get(key2(
  }
  if(!specialForestHabitat(s)||!glacierPlantKept(s,a.x,a.z)||!treeGroundAllowed(s,a.x,a.z,false)
     ||r(3)>.78*field.ecologyTreeWeight(s)||blocked(a.x,a.z,false))return a;
- a.biome=s.biome;a.width=a.biome==forest_capabilities::Cherry?1:2;a.ground=s.height;
+ a.biome=s.biome;a.width=(a.biome==forest_capabilities::Cherry||a.biome==forest_capabilities::Dappled)?1:2;a.ground=s.height;
  int lo=s.height,hi=s.height;
  for(int z=0;z<2;++z)for(int x=0;x<2;++x){
   auto b=field.surface(a.x+x,a.z+z,false);
@@ -61,14 +61,27 @@ ForestTree specialTreeCandidate(int gx,int gz){return specialTreeCache.get(key2(
  if(a.height<(a.biome==forest_capabilities::Cherry?8:10))return ForestTree{};
  a.crown=3.5+r(6)*1.7+(a.exceptional?1.2:0);a.angle=r(7)*6.283185307;
  a.heart=a.biome==forest_capabilities::Pale&&r(8)<.10;
+ if(a.biome==forest_capabilities::Dappled){
+  if(!field.dappledForestEnabled())return ForestTree{};
+  // Colour belongs to a coherent stand, rather than an independent tree roll.
+  double stand=forestNoise.at(a.x/185.+37,a.z/185.-53);
+  a.leafColor=stand<-.10?0:stand>.12?2:1;
+  a.height=15+int(r(5)*11)+(a.exceptional?7:0);a.crown=2.1+r(6)*1.1;
+  if(r(9)<.08){
+   int length=6+int(r(10)*4),axis=r(11)<.5?0:1;bool supported=true;
+   for(int n=0;n<length;++n){int x=a.x+(axis==0?n:0),z=a.z+(axis==1?n:0);auto b=field.surface(x,z,false);
+    if(b.biome!=a.biome||b.height!=a.feet[0]||!treeGroundAllowed(b,x,z,false)){supported=false;break;}}
+   if(supported){a.fallenLength=length;a.fallenAxis=axis;a.ground=a.feet[0];a.height=2;}
+  }
+ }
  return a;
 });}
 std::shared_ptr<ForestModel> specialTreeModel(int gx,int gz){return specialShapeCache.get(key2(gx,gz),[&]{
  auto a=specialTreeCandidate(gx,gz);auto out=std::make_shared<ForestModel>();out->tree=a;
- if(!a.height)return out;
+ if(!a.height||(a.biome==forest_capabilities::Dappled&&!field.dappledForestEnabled()))return out;
  using namespace forest_palette;
- bool pale=a.biome==forest_capabilities::Pale,cherry=a.biome==forest_capabilities::Cherry,mangrove=a.biome==forest_capabilities::Mangrove;
- int log=pale?PaleLog:cherry?CherryLog:mangrove?MangroveLog:DarkLog,wood=pale?PaleWood:cherry?CherryWood:mangrove?MangroveWood:DarkWood,leaf=pale?PaleLeaves:cherry?CherryLeaves:mangrove?MangroveLeaves:DarkLeaves;
+ bool pale=a.biome==forest_capabilities::Pale,cherry=a.biome==forest_capabilities::Cherry,mangrove=a.biome==forest_capabilities::Mangrove,dappled=a.biome==forest_capabilities::Dappled;
+ int log=pale?PaleLog:cherry?CherryLog:mangrove?MangroveLog:dappled?PoplarLog:DarkLog,wood=pale?PaleWood:cherry?CherryWood:mangrove?MangroveWood:dappled?PoplarWood:DarkWood,leaf=pale?PaleLeaves:cherry?CherryLeaves:mangrove?MangroveLeaves:dappled?RedPoplarLeaves+a.leafColor:DarkLeaves;
  auto add=[&](int x,int y,int z,int b,int phase){
   if(y>=-59&&y<=Height-65)out->cells.push_back({x,y,z,uint16_t(b),uint8_t(phase)});
  };
@@ -90,6 +103,33 @@ std::shared_ptr<ForestModel> specialTreeModel(int gx,int gz){return specialShape
    if(from.y!=to.y){from.y+=from.y<to.y?1:-1;add(from.x,from.y,from.z,wood,1);}
   }
  };
+ auto shelf=[&](int x,int y,int z,int direction,int size){
+  constexpr int dx[4]={0,1,0,-1},dz[4]={-1,0,1,0};
+  add(x+dx[direction],y,z+dz[direction],Shelf0North+size*4+direction,2);
+ };
+ if(dappled){
+  if(a.fallenLength){
+   for(int n=0;n<a.fallenLength;++n){int x=a.x+(a.fallenAxis==0?n:0),z=a.z+(a.fallenAxis==1?n:0);
+    add(x,a.ground+1,z,a.fallenAxis==0?PoplarLogX:PoplarLogZ,1);
+    if(n%3==1)shelf(x,a.ground+1,z,a.fallenAxis==0?0:1,n%2);
+   }
+   return out;
+  }
+  int top=a.ground+a.height-2;
+  crown(a.x,a.ground+a.height*.64,a.z,a.crown,a.height*.29);
+  crown(a.x,a.ground+a.height*.86,a.z,a.crown*.70,a.height*.15);
+  for(int k=0;k<3;++k){double angle=a.angle+k*2.094395102;int y=a.ground+int(a.height*(.52+k*.09));
+   OakPoint end{a.x+roundJS(std::cos(angle)*2),y+2,a.z+roundJS(std::sin(angle)*2)};
+   crown(end.x,end.y+1,end.z,a.crown*.72,2.2);limb({a.x,y,a.z},end);
+  }
+  for(int y=a.feet[0]+1;y<=top;++y)add(a.x,y,a.z,PoplarLog,1);
+  if(hash01(a.x,a.z,terrainSeed^88501)<.28){
+   int direction=int(hash01(a.x,a.z,terrainSeed^88503)*4);
+   shelf(a.x,a.ground+2,a.z,direction,0);
+   if(hash01(a.x,a.z,terrainSeed^88505)<.45)shelf(a.x,a.ground+4,a.z,(direction+1)%4,1);
+  }
+  return out;
+ }
  int top=a.ground+a.height-3;
  crown(a.x+.5,top+1,a.z+.5,a.crown,cherry?1.8:2.5);
  for(int k=0;k<(cherry?3:4);++k){
@@ -164,8 +204,15 @@ void specialForests(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,2
   if(c.y<=std::max({s.height,s.water,s.lava}))continue;
   auto col=raw.data()+(z*16+x)*Height;auto&v=col[c.y+64];
   if(phase==2&&c.y<Height-65){int above=col[c.y+65];bool propagule=c.block>=Propagule0&&c.block<=Propagule4;
-   if(v==0&&(propagule?above==MangroveLeaves:above==PaleLeaves||above==HangingMoss))v=c.block;}
-  else if(replaceable(v)||(phase==1&&(leaves(v)||v==PaleLog||v==DarkLog||v==PaleWood||v==DarkWood||v==CherryWood||v==CherryLog||v==MangroveLog||v==MangroveWood)))v=c.block;
+   if(c.block>=Shelf0North&&c.block<=Shelf1West){
+    constexpr int dx[4]={0,1,0,-1},dz[4]={-1,0,1,0};int d=(c.block-Shelf0North)%4;
+    int sx=c.x-dx[d],sz=c.z-dz[d],lx=sx-x0,lz=sz-z0;bool supported=false;
+    if(nativeReserved(sx,sz))continue;
+    if(lx>=0&&lx<16&&lz>=0&&lz<16){int b=raw[(lz*16+lx)*Height+c.y+64];supported=b>=PoplarLog&&b<=PoplarWood;}
+    else for(auto const&p:m->cells)if(p.x==sx&&p.y==c.y&&p.z==sz&&p.block>=PoplarLog&&p.block<=PoplarWood){supported=true;break;}
+    if(v==0&&supported)v=c.block;
+   }else if(v==0&&(propagule?above==MangroveLeaves:above==PaleLeaves||above==HangingMoss))v=c.block;
+  }else if(replaceable(v)||(phase==1&&(leaves(v)||v==PaleLog||v==DarkLog||v==PaleWood||v==DarkWood||v==CherryWood||v==CherryLog||v==MangroveLog||v==MangroveWood||(v>=PoplarLog&&v<=PoplarWood))))v=c.block;
  }
  for(int i=0;i<256;++i){auto const&s=surfaces[i];if(s.biome!=forest_capabilities::Pale||s.snowCover>.7||s.height>=Height-66||s.water>=s.height)continue;
   int x=x0+i%16,z=z0+i/16;if(nativeReserved(x,z)||!glacierPlantKept(s,x,z))continue;
@@ -184,5 +231,13 @@ void specialForests(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,2
    int facing=int(hash01(x,z,terrainSeed^88415)*4);
    col[y+64]=(q<.11?Petal3North:Petal0North)+facing;
   }
+ }
+ if(field.dappledForestEnabled())for(int i=0;i<256;++i){auto const&s=surfaces[i];if(s.biome!=forest_capabilities::Dappled||s.snowCover>.65||s.height>=Height-66||s.water>=s.height)continue;
+  int x=x0+i%16,z=z0+i/16;if(nativeReserved(x,z)||!glacierPlantKept(s,x,z))continue;
+  auto col=raw.data()+i*Height;int y=s.height+1;
+  if(col[y+64]!=0||(col[y+63]!=4&&col[y+63]!=3&&col[y+63]!=80))continue;
+  double patch=understoryNoise.at(x/29.-71,z/29.+91),q=hash01(x,z,terrainSeed^88551);
+  if(q<.025&&patch>.04)col[y+64]=RedShrub;
+  else if(q<.22+.22*smooth(-.2,.3,patch))col[y+64]=71+int(hash01(x,z,terrainSeed^88553)*4);
  }
 }

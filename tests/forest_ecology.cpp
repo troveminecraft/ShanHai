@@ -51,10 +51,10 @@ struct ForestEcologyTest {
   s.biome=forest_capabilities::Dark;s.height=160;assert(worldgen_rules::extraAnchorAllowed(7,s,true));
   s.biome=9;assert(!worldgen_rules::extraAnchorAllowed(7,s,true));
  }
- static J model(J const&data,int biome){
+ static J model(J const&data,int biome,int colour=0){
   Field field(data);Engine e(data,{},false,&field);
   constexpr int X=32767,Z=32767,gx=X/12,gz=Z/12;
-  Engine::ForestTree a;a.x=X;a.z=Z;a.ground=150;a.feet.fill(150);a.height=21;a.width=biome==forest_capabilities::Cherry?1:2;a.biome=biome;a.crown=4.2;a.angle=.7;a.heart=biome==forest_capabilities::Pale;
+  Engine::ForestTree a;a.x=X;a.z=Z;a.ground=150;a.feet.fill(150);a.height=21;a.width=(biome==forest_capabilities::Cherry||biome==forest_capabilities::Dappled)?1:2;a.biome=biome;a.crown=biome==forest_capabilities::Dappled?2.7:4.2;a.angle=.7;a.heart=biome==forest_capabilities::Pale;a.leafColor=colour;
   for(int z=gz-8;z<=gz+8;++z)for(int x=gx-8;x<=gx+8;++x)e.specialTreeCache.get(key2(x,z),[]{return Engine::ForestTree{};});
   e.specialTreeCache.m[key2(gx,gz)]=a;
   auto model=e.specialTreeModel(gx,gz);
@@ -80,7 +80,7 @@ struct ForestEcologyTest {
     for(int i=0;i<256;++i){surfaces[i].height=150;surfaces[i].biome=biome;raw[i*576+214]=4;}
     e.specialForests(32768+cx*16,32768+cz*16,raw,surfaces);
     uint64_t hash=1469598103934665603ULL;
-    for(int i=0;i<int(raw.size());++i){auto b=raw[i];hash=(hash^b)*1099511628211ULL;if(!pass){actualHearts+=b==forest_palette::Heart;if(b==forest_palette::DarkLog||b==forest_palette::DarkWood||b==forest_palette::PaleLog||b==forest_palette::PaleWood||b==forest_palette::Heart||b==forest_palette::CherryLog||b==forest_palette::CherryWood)++actualWood;
+    for(int i=0;i<int(raw.size());++i){auto b=raw[i];hash=(hash^b)*1099511628211ULL;if(!pass){actualHearts+=b==forest_palette::Heart;if(b==forest_palette::DarkLog||b==forest_palette::DarkWood||b==forest_palette::PaleLog||b==forest_palette::PaleWood||b==forest_palette::Heart||b==forest_palette::CherryLog||b==forest_palette::CherryWood||(b>=forest_palette::PoplarLog&&b<=forest_palette::PoplarWood))++actualWood;
      if(b>=forest_palette::Petal0North&&b<=forest_palette::Petal3West)assert(i%576==215&&raw[i-1]==4);
     }}
     if(pass)assert(hashes.at({cx,cz})==hash);else hashes[{cx,cz}]=hash;
@@ -88,7 +88,33 @@ struct ForestEcologyTest {
    std::reverse(chunks.begin(),chunks.end());
   }
   assert(actualHearts==hearts&&actualWood==int(wood.size()));
-  return {{"biome",biome},{"connectedWood",wood.size()},{"heart",hearts},{"negativeBoundaryChunks",chunks.size()},{"orderIndependent",true}};
+  return {{"biome",biome},{"colour",colour},{"connectedWood",wood.size()},{"heart",hearts},{"negativeBoundaryChunks",chunks.size()},{"orderIndependent",true}};
+ }
+ static void dappled(J data){
+  data["capabilityProfile"]=forest_capabilities::Modern;Field modern(data);J common=data;common["capabilityProfile"]=forest_capabilities::Common;Field old(common);
+  int selected=0;
+  for(int z=-2048;z<=2048;z+=113)for(int x=-2048;x<=2048;x+=109){
+   Surface a;a.biome=9;a.T=.45;a.H=.64;a.height=170;auto b=a;
+   modern.forestHabitat(a,x+32768,z+32768);old.forestHabitat(b,x+32768,z+32768);
+   assert(b.biome!=forest_capabilities::Dappled);selected+=a.biome==forest_capabilities::Dappled;
+  }assert(selected>0);
+  Engine e(data,{},false,&modern);constexpr int X=32767,Z=32767,gx=X/12,gz=Z/12;
+  for(int z=gz-8;z<=gz+8;++z)for(int x=gx-8;x<=gx+8;++x)e.specialTreeCache.get(key2(x,z),[]{return Engine::ForestTree{};});
+  Engine::ForestTree a;a.x=X;a.z=Z;a.ground=150;a.feet.fill(150);a.height=2;a.width=1;a.biome=forest_capabilities::Dappled;a.fallenLength=9;a.fallenAxis=0;
+  e.specialTreeCache.m[key2(gx,gz)]=a;
+  std::map<Cell,int> cells;int shelves=0,logs=0;
+  for(int cz=-1;cz<=0;++cz)for(int cx=-1;cx<=0;++cx){std::array<Surface,256> surfaces;std::vector<uint16_t> raw(256*576);
+   for(int i=0;i<256;++i){surfaces[i].height=150;surfaces[i].biome=forest_capabilities::Dappled;raw[i*576+214]=4;}
+   e.specialForests(32768+cx*16,32768+cz*16,raw,surfaces);
+   for(int i=0;i<256;++i)for(int y=151;y<153;++y)if(int b=raw[i*576+y+64])cells[{32768+cx*16+i%16,y,32768+cz*16+i/16}]=b;
+  }
+  for(auto const&[p,b]:cells){using namespace forest_palette;if(b==PoplarLogX){++logs;assert(std::get<1>(p)==151);}
+   if(b>=Shelf0North&&b<=Shelf1West){++shelves;int d=(b-Shelf0North)%4;constexpr int dx[4]={0,1,0,-1},dz[4]={-1,0,1,0};auto[x,y,z]=p;
+    assert(cells.at({x-dx[d],y,z-dz[d]})==PoplarLogX);
+   }
+  }assert(logs==9&&shelves==3);
+  std::cout<<J{{"modernOnlySamples",selected},{"supportedFallenLogs",logs},{"attachedShelves",shelves}}<<'\n';
+  for(int colour=0;colour<3;++colour)std::cout<<model(data,forest_capabilities::Dappled,colour)<<'\n';
  }
  static void mangrove(J const&data){
   Field f(data);Engine e(data,{},false,&f);constexpr int X=32767,Z=32767,gx=X/12,gz=Z/12;
@@ -127,5 +153,6 @@ int main(int argc,char**argv){try{
  if(argc>2&&std::string(argv[2])=="--scan"){nativegen::ForestEcologyTest::scan(data,expected);return 0;}
  using T=nativegen::ForestEcologyTest;T::habitats(data);
  T::mangrove(data);
+ T::dappled(data);
  std::cout<<T::model(data,forest_capabilities::Dark)<<'\n'<<T::model(data,forest_capabilities::Pale)<<'\n'<<T::model(data,forest_capabilities::Cherry)<<'\n';
 }catch(std::exception const&e){std::cerr<<e.what()<<'\n';return 1;}}
