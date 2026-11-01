@@ -17,7 +17,7 @@ $kernel = Join-Path $output 'kernel'
 New-Item -ItemType Directory -Path $kernel | Out-Null
 Push-Location $kernel
 try {
-    & $Xmake f -P $root -o $kernel -m release -a x64 --game_line=$GameLine -y
+    & $Xmake f -P $root -o $kernel -m release -a x64 -y
     if ($LASTEXITCODE) { throw 'Kernel configuration failed' }
     & $Xmake build -P $root native-worldgen-check
     if ($LASTEXITCODE) { throw 'Kernel build failed' }
