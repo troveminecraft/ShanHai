@@ -1,3 +1,13 @@
+## 0.4.0 — 2026-11-01
+
+Adds dark forests, pale gardens, cherry groves and mangrove swamps to new worlds on both supported game versions. Minecraft 1.26.51.01 also gains dappled forests with poplar foliage, fallen logs and shelf mushrooms. Forests follow the existing climate and terrain; occasional large trees remain local features.
+
+Pale trees include native natural creaking hearts; mangrove roots preserve water in the secondary block layer. Woodland mansions now require an actual dark forest. `/karma` adds forest entries 141–144, plus 145 on 26.51; existing numbers and optional teleport modes remain unchanged.
+
+New worlds use recipe **2.217** and a fixed game capability profile. Existing worlds retain their saved recipe and terrain, including 2.216. A world using 26.51-only forest content cannot open on 26.20. Sea level remains Y100 and the building range remains Y-64..511. The update also fixes world-to-world biome table reuse and seed preparation under non-ASCII paths.
+
+Dense terrain, large view distances and native structure processing can still cause loading delays. Nighttime creaking behavior and new forest save/reload behavior need further compatibility coverage across the supported game builds.
+
 ## 0.3.12 — 2026-10-31
 
 Reduces terrain generation work by skipping relief samples with zero influence and applying the existing broadleaf density filter before querying neighbouring terrain. Generated terrain and vegetation layouts remain unchanged.

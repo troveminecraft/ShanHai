@@ -35,7 +35,7 @@ def finish_recipe(data,target_game=None):
                                 completeSeedBake=False)
     if target_game is not None:enable_forests(data,target_game)
 
-def build(seed,output,status=None,native_tool=None,target_game=None):
+def build(seed,output,status=None,native_tool=None,target_game="26.20"):
     if str(int(seed))!=seed or not -(1<<63)<=int(seed)<(1<<63):raise ValueError('Signed 64-bit seed required')
     output=Path(output);output.parent.mkdir(parents=True,exist_ok=True)
     progress=ProgressReporter(status);progress.stage(0,.65,'正在建立种子与区域生成规则')
@@ -62,5 +62,5 @@ def build(seed,output,status=None,native_tool=None,target_game=None):
     return dict(seed=seed,generationMode='regional-on-demand',wholeWorldSamples=0)
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--seed',required=True);p.add_argument('--output',required=True,type=Path);p.add_argument('--status',type=Path);p.add_argument('--target-game',choices=['26.20','26.51']);a=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--seed',required=True);p.add_argument('--output',required=True,type=Path);p.add_argument('--status',type=Path);p.add_argument('--target-game',choices=['26.20','26.51'],default='26.20');a=p.parse_args()
     print(json.dumps(build(a.seed,a.output,a.status,target_game=a.target_game)))

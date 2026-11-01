@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory=$true)][string]$OutputDirectory,
     [string]$Python = 'python',
-    [string]$Xmake = 'xmake'
+    [string]$Xmake = 'xmake',
+    [ValidateSet('26.20','26.51')][string]$GameLine = '26.51'
 )
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -16,17 +17,18 @@ $kernel = Join-Path $output 'kernel'
 New-Item -ItemType Directory -Path $kernel | Out-Null
 Push-Location $kernel
 try {
-    & $Xmake f -P $root -o $kernel -m release -a x64 -y
+    & $Xmake f -P $root -o $kernel -m release -a x64 --game_line=$GameLine -y
     if ($LASTEXITCODE) { throw 'Kernel configuration failed' }
     & $Xmake build -P $root native-worldgen-check
     if ($LASTEXITCODE) { throw 'Kernel build failed' }
 } finally { Pop-Location }
-& (Join-Path $root 'ports/windows-client/build.ps1') -Xmake $Xmake -BuildDir (Join-Path $output 'client')
+& (Join-Path $root 'ports/windows-client/build.ps1') -Xmake $Xmake -GameLine $GameLine -BuildDir (Join-Path $output 'client')
 $pythonHome = & $Python -c "import sys;print(sys.base_prefix)"
 if ($LASTEXITCODE) { throw 'Python 3.13 required' }
 $node = (Get-Command node -ErrorAction Stop).Source
-& $Python -B (Join-Path $root 'ports/windows-client/build_runtime.py') --output (Join-Path $output 'runtime') --python-home $pythonHome --node $node --template (Join-Path $root 'tests/fixtures/void-world/level.dat') --native-tool (Join-Path $kernel 'windows/x64/release/native-worldgen-check.exe')
+& $Python -B (Join-Path $root 'ports/windows-client/build_runtime.py') --output (Join-Path $output 'runtime') --game-line $GameLine --python-home $pythonHome --node $node --template (Join-Path $root 'tests/fixtures/void-world/level.dat') --native-tool (Join-Path $kernel 'windows/x64/release/native-worldgen-check.exe')
 if ($LASTEXITCODE) { throw 'Runtime assembly failed' }
 $version = (Get-Content -LiteralPath (Join-Path $root 'ports/windows-client/manifest.json') -Raw | ConvertFrom-Json).version
-& $Python -B (Join-Path $root 'ports/package_windows.py') --runtime (Join-Path $output 'runtime') --binary (Join-Path $output 'client/windows/x64/release/karma-worldgen-client.dll') --output (Join-Path $output "ShanHai-Windows-$version.zip")
+$packageName = if ($GameLine -eq '26.20') { "ShanHai-Windows-26.20-$version.zip" } else { "ShanHai-Windows-$version.zip" }
+& $Python -B (Join-Path $root 'ports/package_windows.py') --runtime (Join-Path $output 'runtime') --binary (Join-Path $output 'client/windows/x64/release/karma-worldgen-client.dll') --output (Join-Path $output $packageName)
 if ($LASTEXITCODE) { throw 'Packaging failed' }

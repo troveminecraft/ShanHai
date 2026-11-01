@@ -28,4 +28,4 @@ The 26.51 biome assets add `has_structure_abandoned_camp` to pale gardens and ch
 
 Existing numeric block and biome entries are frozen; new entries append. Old recipes keep their exact tables and generation behavior. New recipes identify the target capability profile, and both profile and recipe contents participate in cache identity. A 26.51-only world must not silently substitute missing blocks when opened on 26.20.
 
-Development keeps the installed 0.3.12 baseline untouched. Regression compares old-recipe bytes and new-recipe determinism separately. Cold/warm exploration includes calculator queues and longest completion gaps, rather than only prewarmed average throughput. Native entity behavior, persistence and visual appearance require their own checks; compilation is not gameplay acceptance.
+Recipe profiles isolate both block registries and seed caches. Native creature behavior and persistence have not yet been exhaustively checked on every supported build.

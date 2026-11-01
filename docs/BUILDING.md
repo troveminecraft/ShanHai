@@ -74,3 +74,8 @@ The default client target is Minecraft 1.26.51.01. For a separate legacy build, 
 ### Check ongoing exploration and stalls
 
 Build `terrain_exploration` from the tests project for both revisions, then use `tests/compare_exploration.py` with `--baseline`, `--candidate`, `--recipe`, `--route` (integer chunk coordinate pairs), and a fresh `--output` directory outside the source tree. The default uses four calculator workers and three alternating cold/warm comparisons. It checks identical chunk hashes, median throughput and the worst observed first-completion and inter-completion gaps. Each warm run recreates generators and reuses only persisted regional plans. Run separately from builds and other benchmarks. This models the terrain kernel and calculator queue, not native structure placement, chunk publication or rendering.
+
+
+### Forest targets (0.4.0)
+
+Pass `-GameLine 26.20` or `-GameLine 26.51` to the root `build.ps1`, using separate output directories. The runtime records its target in `game-target.json`; DLL, seed helper, profile and package must match. Direct runtime assembly requires `--game-line`. Seed preparation defaults to 26.20; use `--target-game 26.51` for the additional dappled forest. Saved world profiles are immutable.
