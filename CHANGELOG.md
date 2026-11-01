@@ -1,8 +1,12 @@
-## 0.4.0 — 2026-11-01
+## 0.4.0 — in development
 
 Adds dark forests, pale gardens, cherry groves and mangrove swamps to new worlds on both supported game versions. Minecraft 1.26.51.01 also gains dappled forests with poplar foliage, fallen logs and shelf mushrooms. Forests follow the existing climate and terrain; occasional large trees remain local features.
 
 Pale trees include native natural creaking hearts; mangrove roots preserve water in the secondary block layer. Woodland mansions now require an actual dark forest. `/karma` adds forest entries 141–144, plus 145 on 26.51; existing numbers and optional teleport modes remain unchanged.
+
+New forest recipes place denser mangroves in warm, shallow-water inland basins with a continuous span of at least 160 blocks. Coastal mudflats and the glacier vegetation collar are excluded. Existing forest revision 1 worlds keep their saved placement rules.
+
+In mountains&seas worlds, `/locate biome` searches the world's frozen terrain recipe in the background. Ordinary worlds retain the native command. A bounded search reports incomplete work separately from an unavailable biome; it does not request or generate world chunks.
 
 New worlds use recipe **2.217** and a fixed game capability profile. Existing worlds retain their saved recipe and terrain, including 2.216. A world using 26.51-only forest content cannot open on 26.20. Sea level remains Y100 and the building range remains Y-64..511. The update also fixes world-to-world biome table reuse and seed preparation under non-ASCII paths.
 

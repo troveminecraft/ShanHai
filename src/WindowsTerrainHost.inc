@@ -28,6 +28,7 @@ void clientActivate() {
     active = true;
 }
 void clientRelease() {
+    clearBiomeLocate();
     stopPolarBearSpawning();
     worldSession->close();
     active = false;
@@ -53,6 +54,7 @@ void clientTick(Level& level) {
     updatePlayerStreaming(level);
     pollLoads(level);
     glacierWeatherTick(level);
+    tickBiomeLocate(level);
 }
 terrain_runtime::BuildHeight clientHeight() { return buildHeight; }
 Json clientStatus() {
@@ -89,8 +91,10 @@ void clientHooks(terrain_runtime::HookTransaction& hooks) {
     hooks.add<GenerateVoid>("terrain::GenerateVoid");
     hooks.add<ObserveLoad>("terrain::ObserveLoad");
     hooks.add<StreamPriority>("terrain::StreamPriority");
+    biomeLocateHooks(hooks);
 }
 void clientUnhook() {
+    biomeLocateUnhook();
     nativeTimingUnhook();
     Generate::unhook(); GenerateVoid::unhook(); ObserveLoad::unhook(); StreamPriority::unhook();
 }

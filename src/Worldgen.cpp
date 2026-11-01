@@ -8,6 +8,11 @@
 #endif
 #include "NativeRuntime.h"
 #include "TerrainSession.h"
+#include "BiomeSearch.h"
+#include "mc/server/commands/standard/LocateCommand.h"
+#include "mc/server/commands/standard/locate_command_util/LocateCommandUtil.h"
+#include "mc/world/level/biome/Biome.h"
+#include "mc/platform/UUID.h"
 #include "PaletteContract.h"
 #include "native/ForestPalette.h"
 #include "mc/world/level/block/actor/VanillaBlockActorFactory.h"
@@ -145,6 +150,7 @@ Json verificationSnowExamples=Json::array();
 unsigned missingSavedChunks=0;
 bedrock_compat::View view;
 ll::event::ListenerPtr tickListener;
+void clearBiomeLocate();
 std::filesystem::path worldPath(){
 #ifdef KARMA_CLIENT
  return clientWorldPath;
@@ -248,6 +254,7 @@ std::string sha256(std::vector<uint8_t> const& data){
 #include "NativeCache.inc"
 void readData(){
  if(active)throw std::runtime_error("Cannot replace an active terrain session");
+ clearBiomeLocate();
  worldSession->close();
  worldSession=std::make_shared<Session>();
  publishedSession.store(worldSession);
@@ -597,10 +604,11 @@ bool check(LevelChunk& lc){
  }
  return true;
 }
+#include "LocateBiomes.inc"
 #include "TestAssist.inc"
 void tick(Level& level){
  auto tickAt=Clock::now();if(lastTick!=Clock::time_point{})worldSession->tickGapLatency.observe(std::chrono::duration_cast<std::chrono::microseconds>(tickAt-lastTick).count());lastTick=tickAt;
- mainThread=GetCurrentThreadId();updatePlayerStreaming(level);pollLoads(level);testAssistTick(level);glacierWeatherTick(level);
+ mainThread=GetCurrentThreadId();updatePlayerStreaming(level);pollLoads(level);testAssistTick(level);glacierWeatherTick(level);tickBiomeLocate(level);
  if(logTicks%100==0)writeReport();
  if(!requested||!active)return;
  auto dim=level.getOrCreateDimension(0).lock();if(!dim)return;
@@ -633,6 +641,7 @@ bool Mod::load() {
         hooks.add<Generate>("terrain::Generate");
         hooks.add<GenerateVoid>("terrain::GenerateVoid");
         hooks.add<ObserveLoad>("terrain::ObserveLoad");
+        biomeLocateHooks(hooks);
         nativeTimingHooks(hooks);
         active = true;
         hooks.commit();
@@ -687,6 +696,7 @@ bool Mod::disable(){
  stopPolarBearSpawning();
  if(testJoin)ll::event::EventBus::getInstance().removeListener(testJoin);if(testLeave)ll::event::EventBus::getInstance().removeListener(testLeave);
  requested=false;if(tickListener)ll::event::EventBus::getInstance().removeListener(tickListener);
+ biomeLocateUnhook();
  worldSession->close(); // Drain admitted callbacks before releasing native view state.
  nativeTimingUnhook();active=false;glacierWeatherPlayers.clear();playerStreams.clear();streamingPolicy=nullptr;StreamPriority::unhook();view.reset();ObserveLoad::unhook();GenerateVoid::unhook();Generate::unhook();return true;
 }
