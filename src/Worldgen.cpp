@@ -468,7 +468,7 @@ void fill(LevelChunk& lc,Chunk const& c){
    lc._placeBlockEntity(std::move(actor));
   }
 
-  if(b!=49&&b!=50&&(b<56||b>60))return;
+  if(b!=49&&b!=50&&(b<56||b>60)&&b!=nativegen::forest_palette::WetRoots)return;
   for(int j=y;j<y+len;j++)lc.setExtraBlock(ChunkBlockPos{BlockPos{col%16,j-64,col/16},-64},*palette[8],nullptr);
  });
  lc.setPreWorldGenHeightMap(volume.computeHeightMap());lc.recomputeHeightMap(true);bedrock_compat::markUnsaved(lc);
@@ -590,7 +590,7 @@ bool check(LevelChunk& lc){
   bool ok=true;column(c,col,[&](int y,int len,int b){if(b<25)return;for(int j=y;j<y+len;j++){
    auto const& actual=lc.getBlock(ChunkBlockPos{BlockPos{col%16,j-64,col/16},-64});
    if(!(actual==*palette[b])){if(supportedSnowVariation(lc,c,col,j,b,actual))continue;++errors;ok=false;log().error("Block state mismatch at {},{},{}: {} expected {}",bedrock_compat::position(lc).x*16+col%16,j-64,bedrock_compat::position(lc).z*16+col/16,actual.toDebugString(),palette[b]->toDebugString());}
-   if((b==49||b==50||(b>=56&&b<=60))&&!(bedrock_compat::extraBlock(lc,ChunkBlockPos{BlockPos{col%16,j-64,col/16},-64},*palette[0])==*palette[8])){
+   if((b==49||b==50||(b>=56&&b<=60)||b==nativegen::forest_palette::WetRoots)&&!(bedrock_compat::extraBlock(lc,ChunkBlockPos{BlockPos{col%16,j-64,col/16},-64},*palette[0])==*palette[8])){
     ++errors;ok=false;log().error("Aquatic plant missing source-water layer at {},{},{}: {} expected {}",bedrock_compat::position(lc).x*16+col%16,j-64,bedrock_compat::position(lc).z*16+col/16,bedrock_compat::extraBlock(lc,ChunkBlockPos{BlockPos{col%16,j-64,col/16},-64},*palette[0]).toDebugString(),palette[8]->toDebugString());
    }
   }});if(!ok)return false;

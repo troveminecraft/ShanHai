@@ -90,6 +90,33 @@ struct ForestEcologyTest {
   assert(actualHearts==hearts&&actualWood==int(wood.size()));
   return {{"biome",biome},{"connectedWood",wood.size()},{"heart",hearts},{"negativeBoundaryChunks",chunks.size()},{"orderIndependent",true}};
  }
+ static void mangrove(J const&data){
+  Field f(data);Engine e(data,{},false,&f);constexpr int X=32767,Z=32767,gx=X/12,gz=Z/12;
+  for(int z=gz-8;z<=gz+8;++z)for(int x=gx-8;x<=gx+8;++x)e.specialTreeCache.get(key2(x,z),[]{return Engine::ForestTree{};});
+  Engine::ForestTree a;a.x=X;a.z=Z;a.ground=98;a.feet.fill(98);a.stemBottom=104;a.height=20;a.width=1;a.biome=forest_capabilities::Mangrove;a.crown=4.;a.angle=.7;
+  a.rootFeet={{{X-4,98,Z},{X+4,98,Z},{X,98,Z-4},{X,98,Z+4}}};e.specialTreeCache.m[key2(gx,gz)]=a;
+  std::map<Cell,int> roots;int wet=0,mud=0,props=0;
+  for(int cz=-2;cz<=1;++cz)for(int cx=-2;cx<=1;++cx){
+   std::array<Surface,256> surfaces;std::vector<uint16_t> raw(256*576);
+   for(int i=0;i<256;++i){auto&s=surfaces[i];s.height=98;s.water=100;s.seaLevel=100;s.biome=forest_capabilities::Mangrove;auto col=raw.data()+i*576;col[162]=85;col[163]=col[164]=8;}
+   e.specialForests(32768+cx*16,32768+cz*16,raw,surfaces);
+   for(int i=0;i<256;++i)for(int y=98;y<140;++y){int b=raw[i*576+y+64];using namespace forest_palette;
+    wet+=b==WetRoots;mud+=b==MuddyRoots;
+    if(b==WetRoots)assert(y>98&&y<=100);
+    if(b==MuddyRoots)assert(y==98);
+    if(b==Roots)assert(y>100);
+    if(b>=Propagule0&&b<=Propagule4){++props;assert(raw[i*576+y+65]==MangroveLeaves);}
+    if(b==Roots||b==WetRoots||b==MuddyRoots||b==MangroveLog||b==MangroveWood)roots[{32768+cx*16+i%16,y,32768+cz*16+i/16}]=b;
+   }
+  }
+  assert(wet>0&&mud>=4&&props>0);
+  std::set<Cell> reached;std::queue<Cell> queue;
+  for(auto const&[p,b]:roots)if(b==forest_palette::MuddyRoots){reached.insert(p);queue.push(p);}
+  while(!queue.empty()){auto[x,y,z]=queue.front();queue.pop();for(auto[dx,dy,dz]:{Cell{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}}){Cell p{x+dx,y+dy,z+dz};if(roots.contains(p)&&reached.insert(p).second)queue.push(p);}}
+  assert(reached.size()==roots.size());
+  for(int height:{130,180,250,320}){Surface s;s.biome=10;s.height=height;s.water=height+1;s.wetland=1;s.wetlandLevel=s.water;s.T=.75;s.H=.85;s.seaLevel=100;f.forestHabitat(s,32767,32767);assert(s.biome!=forest_capabilities::Mangrove);}
+  std::cout<<J{{"mangroveConnected",roots.size()},{"wetRoots",wet},{"muddyFeet",mud},{"supportedPropagules",props}}<<'\n';
+ }
 };
 }
 int main(int argc,char**argv){try{
@@ -99,5 +126,6 @@ int main(int argc,char**argv){try{
  nativegen::regional::Store store;nativegen::regional::StoreScope scope(store);
  if(argc>2&&std::string(argv[2])=="--scan"){nativegen::ForestEcologyTest::scan(data,expected);return 0;}
  using T=nativegen::ForestEcologyTest;T::habitats(data);
+ T::mangrove(data);
  std::cout<<T::model(data,forest_capabilities::Dark)<<'\n'<<T::model(data,forest_capabilities::Pale)<<'\n'<<T::model(data,forest_capabilities::Cherry)<<'\n';
 }catch(std::exception const&e){std::cerr<<e.what()<<'\n';return 1;}}
