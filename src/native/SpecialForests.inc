@@ -23,7 +23,7 @@ ForestTree specialTreeCandidate(int gx,int gz){return specialTreeCache.get(key2(
  auto s=field.surface(a.x,a.z,false);
  if(!specialForestHabitat(s)||!glacierPlantKept(s,a.x,a.z)||!treeGroundAllowed(s,a.x,a.z,false)
     ||r(3)>.78*field.ecologyTreeWeight(s)||blocked(a.x,a.z,false))return a;
- a.biome=s.biome;a.width=2;a.ground=s.height;
+ a.biome=s.biome;a.width=a.biome==forest_capabilities::Cherry?1:2;a.ground=s.height;
  int lo=s.height,hi=s.height;
  for(int z=0;z<2;++z)for(int x=0;x<2;++x){
   auto b=field.surface(a.x+x,a.z+z,false);
@@ -38,9 +38,9 @@ ForestTree specialTreeCandidate(int gx,int gz){return specialTreeCache.get(key2(
  if(hi-lo>5)return ForestTree{};
  a.ground=*std::max_element(a.feet.begin(),a.feet.end());
  a.exceptional=r(4)<.045&&hi-lo<=2&&s.height<270&&s.H>.62;
- a.height=12+int(r(5)*10)+(a.exceptional?8:0);
+ a.height=(a.biome==forest_capabilities::Cherry?8:12)+int(r(5)*(a.biome==forest_capabilities::Cherry?6:10))+(a.exceptional?8:0);
  a.height=std::min(a.height,Height-68-a.ground);
- if(a.height<10)return ForestTree{};
+ if(a.height<(a.biome==forest_capabilities::Cherry?8:10))return ForestTree{};
  a.crown=3.5+r(6)*1.7+(a.exceptional?1.2:0);a.angle=r(7)*6.283185307;
  a.heart=a.biome==forest_capabilities::Pale&&r(8)<.10;
  return a;
@@ -49,8 +49,8 @@ std::shared_ptr<ForestModel> specialTreeModel(int gx,int gz){return specialShape
  auto a=specialTreeCandidate(gx,gz);auto out=std::make_shared<ForestModel>();out->tree=a;
  if(!a.height)return out;
  using namespace forest_palette;
- bool pale=a.biome==forest_capabilities::Pale;
- int log=pale?PaleLog:DarkLog,wood=pale?PaleWood:DarkWood,leaf=pale?PaleLeaves:DarkLeaves;
+ bool pale=a.biome==forest_capabilities::Pale,cherry=a.biome==forest_capabilities::Cherry;
+ int log=pale?PaleLog:cherry?CherryLog:DarkLog,wood=pale?PaleWood:cherry?CherryWood:DarkWood,leaf=pale?PaleLeaves:cherry?CherryLeaves:DarkLeaves;
  auto add=[&](int x,int y,int z,int b,int phase){
   if(y>=-59&&y<=Height-65)out->cells.push_back({x,y,z,uint16_t(b),uint8_t(phase)});
  };
@@ -73,13 +73,13 @@ std::shared_ptr<ForestModel> specialTreeModel(int gx,int gz){return specialShape
   }
  };
  int top=a.ground+a.height-3;
- crown(a.x+.5,top+1,a.z+.5,a.crown,2.5);
- for(int k=0;k<4;++k){
-  double angle=a.angle+k*1.570796327;
+ crown(a.x+.5,top+1,a.z+.5,a.crown,cherry?1.8:2.5);
+ for(int k=0;k<(cherry?3:4);++k){
+  double angle=a.angle+k*(cherry?2.094395102:1.570796327);
   double reach=3.+hash01(a.x+k,a.z,terrainSeed^88251)*3.;
   OakPoint start{a.x,top-3-int(k%2),a.z};
   OakPoint end{a.x+roundJS(std::cos(angle)*reach),top-1+int(k%2),a.z+roundJS(std::sin(angle)*reach)};
-  crown(end.x,end.y+1,end.z,a.crown*.78,2.1);limb(start,end);
+  crown(end.x,end.y+1,end.z,a.crown*(cherry?.95:.78),cherry?1.65:2.1);limb(start,end);
  }
  for(int z=0;z<a.width;++z)for(int x=0;x<a.width;++x)
   for(int y=a.feet[z*2+x]+1;y<=top;++y)add(a.x+x,y,a.z+z,log,1);
@@ -123,7 +123,7 @@ void specialForests(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,2
   auto const&s=surfaces[z*16+x];if(c.y<=std::max({s.height,s.water,s.lava}))continue;
   auto col=raw.data()+(z*16+x)*Height;auto&v=col[c.y+64];
   if(phase==2){int above=col[c.y+65];if(v==0&&(above==PaleLeaves||above==HangingMoss))v=c.block;}
-  else if(replaceable(v)||(phase==1&&(leaves(v)||v==PaleLog||v==DarkLog||v==PaleWood||v==DarkWood)))v=c.block;
+  else if(replaceable(v)||(phase==1&&(leaves(v)||v==PaleLog||v==DarkLog||v==PaleWood||v==DarkWood||v==CherryWood||v==CherryLog)))v=c.block;
  }
  for(int i=0;i<256;++i){auto const&s=surfaces[i];if(s.biome!=forest_capabilities::Pale||s.snowCover>.7||s.height>=Height-66||s.water>=s.height)continue;
   int x=x0+i%16,z=z0+i/16;if(nativeReserved(x,z)||!glacierPlantKept(s,x,z))continue;
@@ -132,5 +132,15 @@ void specialForests(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,2
   double q=hash01(x,z,terrainSeed^88341);
   if(q<.012)col[y+64]=Eyeblossom;
   else if(q<.24&&understoryNoise.at(x/23.,z/23.)>-.1)col[y+64]=PaleCarpet;
+ }
+ for(int i=0;i<256;++i){auto const&s=surfaces[i];if(s.biome!=forest_capabilities::Cherry||s.snowCover>.65||s.height>=Height-66||s.water>=s.height)continue;
+  int x=x0+i%16,z=z0+i/16;if(nativeReserved(x,z)||!glacierPlantKept(s,x,z))continue;
+  auto col=raw.data()+i*Height;int y=s.height+1;
+  if(col[y+64]!=0||(col[y+63]!=4&&col[y+63]!=3&&col[y+63]!=80))continue;
+  double patch=understoryNoise.at(x/21.+41,z/21.-17),q=hash01(x,z,terrainSeed^88413);
+  if(q<.12+.40*smooth(-.2,.35,patch)){
+   int facing=int(hash01(x,z,terrainSeed^88415)*4);
+   col[y+64]=(q<.11?Petal3North:Petal0North)+facing;
+  }
  }
 }
