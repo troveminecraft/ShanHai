@@ -52,7 +52,7 @@
 
 请下载 Releases 中的安装包，GitHub 自动生成的 **Source code** 是源码。安装包已带齐运行依赖，无需另装 Python 或 Node.js，也不要只复制 DLL。
 
-模组管理中的名称为 **mountains&seas**，作者为 **troveminecraft**。从旧名称升级时，先备份并将 `karma-worldgen-client` 文件夹移出 `mods`，再导入新包；不要同时启用两个条目。
+模组管理中的名称为 **mountains&seas**，作者为 **peakarma**。从旧名称升级时，先备份并将 `karma-worldgen-client` 文件夹移出 `mods`，再导入新包；不要同时启用两个条目。
 
 本次更新见 [更新记录](CHANGELOG.md)，生成和存档机制见 [说明](docs/RUNTIME.md)。
 

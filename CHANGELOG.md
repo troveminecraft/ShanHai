@@ -1,5 +1,7 @@
 ## 0.4.0 — in development
 
+Package and launcher author attribution is corrected to **peakarma**.
+
 Adds dark forests, pale gardens, cherry groves and mangrove swamps to new worlds on both supported game versions. Minecraft 1.26.51.01 also gains dappled forests with poplar foliage, fallen logs and shelf mushrooms. Forests follow the existing climate and terrain; occasional large trees remain local features.
 
 Pale trees include native natural creaking hearts; mangrove roots preserve water in the secondary block layer. Woodland mansions now require an actual dark forest. `/karma` adds forest entries 141–144, plus 145 on 26.51; existing numbers and optional teleport modes remain unchanged.

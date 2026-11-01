@@ -5,7 +5,7 @@
   "type": "native",
   "platform": "client",
   "description": "mountains&seas（山&海）：Minecraft 基岩版主世界地形与结构生成",
-  "author": "troveminecraft",
+  "author": "peakarma",
   "conflicts": [
     {
       "name": "karma-worldgen-client"

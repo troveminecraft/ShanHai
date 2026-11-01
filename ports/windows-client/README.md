@@ -1,6 +1,6 @@
 # mountains&seas · 山&海 0.4.0
 
-Minecraft 基岩版 Windows 地形与结构生成模组。作者：troveminecraft。
+Minecraft 基岩版 Windows 地形与结构生成模组。作者：peakarma。
 
 ## 兼容版本
 
