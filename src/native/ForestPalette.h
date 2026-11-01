@@ -61,5 +61,17 @@ inline constexpr int Shelf1North=235;
 inline constexpr int Shelf1East=236;
 inline constexpr int Shelf1South=237;
 inline constexpr int Shelf1West=238;
-inline constexpr bool leaves(int id){return id==DarkLeaves||id==PaleLeaves||id==CherryLeaves||id==MangroveLeaves||(id>=RedPoplarLeaves&&id<=YellowPoplarLeaves);}
+inline constexpr int HollowLampNorth=239;
+inline constexpr int HollowLampEast=240;
+inline constexpr int HollowLampSouth=241;
+inline constexpr int HollowLampWest=242;
+inline constexpr int RootLichenNorth=243;
+inline constexpr int RootLichenEast=244;
+inline constexpr int RootLichenSouth=245;
+inline constexpr int RootLichenWest=246;
+inline constexpr int RootLichenDown=247;
+inline constexpr int CanopyDarkLeaves=248;
+inline constexpr int CanopyPaleLeaves=249;
+inline constexpr int CanopyCherryLeaves=250;
+inline constexpr bool leaves(int id){return id==DarkLeaves||id==PaleLeaves||id==CherryLeaves||id==MangroveLeaves||(id>=RedPoplarLeaves&&id<=YellowPoplarLeaves)||(id>=CanopyDarkLeaves&&id<=CanopyCherryLeaves);}
 }

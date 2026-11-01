@@ -1,4 +1,6 @@
+#undef NDEBUG
 #include "ForestCapabilities.h"
+#include "PaletteContract.h"
 #include "native/ForestPalette.h"
 #include "native/RegionalPlanStore.h"
 #include <cassert>
@@ -15,6 +17,16 @@ int main(){
  requireHost(common,false);requireHost(modern,true);requireMatch(common,common);
  auto basins=common;basins["config"]["forestEcologyRevision"]=2;
  assert(recipe(basins)==Profile::Bedrock2620);
+ auto canopy=basins;canopy["config"]["forestEcologyRevision"]=3;canopy["capabilityProfile"]=CommonCanopy;
+ assert(recipe(canopy)==Profile::Bedrock2620);requireHost(canopy,false);
+ auto const&contract=terrain_runtime::paletteContract();auto metadata=canopy;
+ metadata["palette"]=contract["palette"];metadata["biomeNames"]=J::array();
+ for(int i=0;i<62;++i)metadata["biomeNames"].push_back(contract["biomeNames"][i]);
+ for(int i=223;i<239;++i)metadata["palette"][i]="air";
+ terrain_runtime::validatePaletteContract(metadata);
+ auto mismatched=metadata;mismatched["palette"][223]=contract["palette"][223];bool rejected=false;
+ try{terrain_runtime::validatePaletteContract(mismatched);}catch(std::exception const&){rejected=true;}assert(rejected);
+ rejected=false;try{requireMatch(basins,canopy);}catch(std::exception const&){rejected=true;}assert(rejected);
  assert(nativegen::regional::identity(basins)!=nativegen::regional::identity(common));
  assert(old!=nativegen::regional::identity(common));
  assert(nativegen::regional::identity(modern)!=nativegen::regional::identity(common));

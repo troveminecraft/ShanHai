@@ -758,6 +758,81 @@
         "growth": 1,
         "minecraft:cardinal_direction": "west"
       }
+    },
+    {
+      "name": "minecraft:lit_pumpkin",
+      "states": {
+        "minecraft:cardinal_direction": "north"
+      }
+    },
+    {
+      "name": "minecraft:lit_pumpkin",
+      "states": {
+        "minecraft:cardinal_direction": "east"
+      }
+    },
+    {
+      "name": "minecraft:lit_pumpkin",
+      "states": {
+        "minecraft:cardinal_direction": "south"
+      }
+    },
+    {
+      "name": "minecraft:lit_pumpkin",
+      "states": {
+        "minecraft:cardinal_direction": "west"
+      }
+    },
+    {
+      "name": "minecraft:glow_lichen",
+      "states": {
+        "multi_face_direction_bits": 16
+      }
+    },
+    {
+      "name": "minecraft:glow_lichen",
+      "states": {
+        "multi_face_direction_bits": 32
+      }
+    },
+    {
+      "name": "minecraft:glow_lichen",
+      "states": {
+        "multi_face_direction_bits": 4
+      }
+    },
+    {
+      "name": "minecraft:glow_lichen",
+      "states": {
+        "multi_face_direction_bits": 8
+      }
+    },
+    {
+      "name": "minecraft:glow_lichen",
+      "states": {
+        "multi_face_direction_bits": 1
+      }
+    },
+    {
+      "name": "minecraft:dark_oak_leaves",
+      "states": {
+        "persistent_bit": true,
+        "update_bit": false
+      }
+    },
+    {
+      "name": "minecraft:pale_oak_leaves",
+      "states": {
+        "persistent_bit": true,
+        "update_bit": false
+      }
+    },
+    {
+      "name": "minecraft:cherry_leaves",
+      "states": {
+        "persistent_bit": true,
+        "update_bit": false
+      }
     }
   ],
   "biomeNames": [
@@ -885,7 +960,19 @@
     "Shelf1North": 235,
     "Shelf1East": 236,
     "Shelf1South": 237,
-    "Shelf1West": 238
+    "Shelf1West": 238,
+    "HollowLampNorth": 239,
+    "HollowLampEast": 240,
+    "HollowLampSouth": 241,
+    "HollowLampWest": 242,
+    "RootLichenNorth": 243,
+    "RootLichenEast": 244,
+    "RootLichenSouth": 245,
+    "RootLichenWest": 246,
+    "RootLichenDown": 247,
+    "CanopyDarkLeaves": 248,
+    "CanopyPaleLeaves": 249,
+    "CanopyCherryLeaves": 250
   },
   "profiles": {
     "legacy": {
@@ -906,6 +993,32 @@
     },
     "bedrock-26.51-forests-v1": {
       "palette": 239,
+      "biomeNames": 63
+    },
+    "bedrock-26.20-forests-v2": {
+      "palette": 251,
+      "biomeNames": 62,
+      "paletteOverrides": {
+        "223": "air",
+        "224": "air",
+        "225": "air",
+        "226": "air",
+        "227": "air",
+        "228": "air",
+        "229": "air",
+        "230": "air",
+        "231": "air",
+        "232": "air",
+        "233": "air",
+        "234": "air",
+        "235": "air",
+        "236": "air",
+        "237": "air",
+        "238": "air"
+      }
+    },
+    "bedrock-26.51-forests-v2": {
+      "palette": 251,
       "biomeNames": 63
     }
   }

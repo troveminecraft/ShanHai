@@ -780,6 +780,81 @@
         "growth": 1,
         "minecraft:cardinal_direction": "west"
       }
+    },
+    {
+      "name": "minecraft:lit_pumpkin",
+      "states": {
+        "minecraft:cardinal_direction": "north"
+      }
+    },
+    {
+      "name": "minecraft:lit_pumpkin",
+      "states": {
+        "minecraft:cardinal_direction": "east"
+      }
+    },
+    {
+      "name": "minecraft:lit_pumpkin",
+      "states": {
+        "minecraft:cardinal_direction": "south"
+      }
+    },
+    {
+      "name": "minecraft:lit_pumpkin",
+      "states": {
+        "minecraft:cardinal_direction": "west"
+      }
+    },
+    {
+      "name": "minecraft:glow_lichen",
+      "states": {
+        "multi_face_direction_bits": 16
+      }
+    },
+    {
+      "name": "minecraft:glow_lichen",
+      "states": {
+        "multi_face_direction_bits": 32
+      }
+    },
+    {
+      "name": "minecraft:glow_lichen",
+      "states": {
+        "multi_face_direction_bits": 4
+      }
+    },
+    {
+      "name": "minecraft:glow_lichen",
+      "states": {
+        "multi_face_direction_bits": 8
+      }
+    },
+    {
+      "name": "minecraft:glow_lichen",
+      "states": {
+        "multi_face_direction_bits": 1
+      }
+    },
+    {
+      "name": "minecraft:dark_oak_leaves",
+      "states": {
+        "persistent_bit": true,
+        "update_bit": false
+      }
+    },
+    {
+      "name": "minecraft:pale_oak_leaves",
+      "states": {
+        "persistent_bit": true,
+        "update_bit": false
+      }
+    },
+    {
+      "name": "minecraft:cherry_leaves",
+      "states": {
+        "persistent_bit": true,
+        "update_bit": false
+      }
     }
   ],
   "biomeNames": [
