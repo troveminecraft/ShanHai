@@ -5,6 +5,24 @@ int main() {
     using namespace terrain_runtime;
     try {
         validatePaletteContract(paletteContract());
+        auto current=paletteContract();current["version"]="karma-terrain-2.216.0-native-agent-a";
+        current["palette"].erase(current["palette"].begin()+179,current["palette"].end());
+        current["biomeNames"].erase(current["biomeNames"].begin()+58,current["biomeNames"].end());
+        validatePaletteContract(current);
+        auto forest=paletteContract();forest["version"]=current["version"];
+        forest["capabilityProfile"]=forest_capabilities::Modern;
+        validatePaletteContract(forest);
+        forest["capabilityProfile"]=forest_capabilities::Common;
+        auto sizes=contractSizes(forest);
+        forest["palette"].erase(forest["palette"].begin()+sizes["palette"].get<int>(),forest["palette"].end());
+        forest["biomeNames"].erase(forest["biomeNames"].begin()+sizes["biomeNames"].get<int>(),forest["biomeNames"].end());
+        validatePaletteContract(forest);
+        forest_capabilities::requireHost(forest,false);
+        forest["capabilityProfile"]=forest_capabilities::Modern;
+        bool unsupported=false;try{forest_capabilities::requireHost(forest,false);}catch(...){unsupported=true;}
+        if(!unsupported)throw std::runtime_error("26.20 accepted 26.51-only forest capabilities");
+        bool mismatch=false;try{validatePaletteContract(forest);}catch(...){mismatch=true;}
+        if(!mismatch)throw std::runtime_error("Modern forest accepted incomplete table");
         auto previous=paletteContract();previous["version"]="karma-terrain-2.207.0-native-agent-a";
         previous["palette"].erase(previous["palette"].begin()+178,previous["palette"].end());
         previous["biomeNames"].erase(previous["biomeNames"].begin()+29,previous["biomeNames"].end());

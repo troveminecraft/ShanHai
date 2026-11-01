@@ -13,6 +13,8 @@
 #include "RegionalPlans.h"
 #include "WaterfallLandform.h"
 #include "TerrainParameters.h"
+#include "../ForestCapabilities.h"
+#include "ForestPalette.h"
 namespace nativegen {
 inline double num(J const&j,char const*k){return j.at(k).get<double>();}
 
@@ -30,6 +32,7 @@ class Field {
  // Only owners whose conservative influence bounds touch a sample are needed.
  bool localPlanningCulling=false;
  J const&data;J const&C;uint32_t terrainSeed;TerrainParameters const parameters{C};Density graph,caves;
+ forest_capabilities::Profile const forestProfile=forest_capabilities::recipe(data);
  int seaLevelValue=C.value("seaLevel",31);
  int generatedMaxYExclusive=C.value("generatedMaxYExclusive",320);
  int mountainPeakY=C.value("mountainPeakY",0);

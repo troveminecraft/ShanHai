@@ -250,7 +250,13 @@ void readData(){
  publishedSession.store(worldSession);
  lastTick={};resetStreamingPipeline();
 
- metadata=jsonFile(Base/"terrain.json");terrain_runtime::validatePaletteContract(metadata);activation=jsonFile(Base/"active-world.json");worldName=activation.at("worldName").get<std::string>();
+ metadata=jsonFile(Base/"terrain.json");terrain_runtime::validatePaletteContract(metadata);
+#ifdef SHANHAI_MC_26_51
+ forest_capabilities::requireHost(metadata,true);
+#else
+ forest_capabilities::requireHost(metadata,false);
+#endif
+ activation=jsonFile(Base/"active-world.json");worldName=activation.at("worldName").get<std::string>();
  buildHeight=terrain_runtime::BuildHeight::read(metadata);
  flatGenerated=0;voidGenerated=0;observedMinY=0;observedMaxYExclusive=0;
  std::ifstream profileFile(Base/"profile.json",std::ios::binary);std::vector<uint8_t> profile((std::istreambuf_iterator<char>(profileFile)),{});
@@ -272,6 +278,7 @@ void readData(){
  if(ec)log().warn("无法创建地形缓存目录，本次仅用内存缓存：{}",ec.message());
  worldSession->nativeData=jsonFile(Base/"native/native-input.json");
  buildHeight.requireNativeRecipe(worldSession->nativeData,metadata);
+ forest_capabilities::requireMatch(worldSession->nativeData,metadata);
  generationMode=terrain_runtime::WorldGenerationMode::read(metadata,worldSession->nativeData);
  unboundedWorld=generationMode.unbounded;
  if(!NativeRuntime::supports(worldSession->nativeData.at("version").get<std::string>())||worldSession->nativeData.at("version")!=metadata.at("version")||!worldSession->nativeData.at("seedManifest").value("ready",false)||!worldSession->nativeData.at("seedManifest").value("riversReady",false)||worldSession->nativeData.at("seedManifest").at("terrainSeed")!=metadata.at("terrainSeed"))throw std::runtime_error("Native data identity mismatch");
@@ -335,10 +342,25 @@ void resolveRegistry(Dimension& dim){
     if(!base)throw std::runtime_error("Unregistered custom block "+entry.dump());
     auto parsed=CompoundTag::fromSnbt(entry.at("states").dump());
     if(!parsed)throw std::runtime_error("Invalid block states "+entry.dump());
-    CompoundTag tag=*base->mSerializationId;tag["states"]=std::move(*parsed);
+    CompoundTag tag=*base->mSerializationId;
+    if(palette.size()>=179){
+     // New permutations specify only the states they change. Retain all
+     // native defaults and reject unknown/ignored state keys after lookup.
+     auto& states=tag["states"].get<CompoundTag>();
+     for(auto const& [key,value]:parsed->mTags)states[key]=value;
+    }else tag["states"]=*parsed;
     auto block=Block::tryGetFromRegistry(tag);
     if(!block)throw std::runtime_error("Missing custom block permutation "+entry.dump());
-    for(size_t i=71;i<palette.size();i++)if(*palette[i]==*block)throw std::runtime_error("Duplicate custom permutation "+entry.dump()+" actual="+block->toDebugString());
+    if(palette.size()>=179){
+     auto const& actual=block->mSerializationId->at("states").get<CompoundTag>();
+     for(auto const& [key,value]:parsed->mTags)
+      if(!actual.contains(key)||!actual.at(key).get().equals(value.get()))throw std::runtime_error("Unresolved forest block state "+entry.dump());
+    }
+    for(size_t i=71;i<palette.size();i++)if(*palette[i]==*block){
+     auto const& previous=metadata.at("palette").at(i);
+     bool previousWater=previous.is_object()&&previous.value("extraWater",false);
+     if(previousWater==entry.value("extraWater",false))throw std::runtime_error("Duplicate custom permutation "+entry.dump()+" actual="+block->toDebugString());
+    }
     palette.push_back(&*block);continue;
    }
    std::string name=entry.get<std::string>();

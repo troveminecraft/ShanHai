@@ -20,6 +20,7 @@ inline std::string identity(J const&data){
  config.erase("sharedRules");config.erase("villageSpacing");
  J key{{"algorithm",data.at("regionalGeneration").value("algorithm",std::string(Algorithm))},{"seed",data.at("seedManifest").at("terrainSeed")},
        {"config",config},{"template",data.at("seedManifest").at("templateSha256")}};
+ if(data.contains("capabilityProfile"))key["capabilityProfile"]=data.at("capabilityProfile");
  return std::to_string(digest(key.dump()));
 }
 // A world owns this store; concurrent workers may share it. The default is

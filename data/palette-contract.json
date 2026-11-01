@@ -495,7 +495,270 @@
     "white_terracotta",
     "light_gray_terracotta",
     "red_sandstone",
-    "obsidian"
+    "obsidian",
+    "dark_oak_log",
+    {
+      "name": "minecraft:dark_oak_log",
+      "states": {
+        "pillar_axis": "x"
+      }
+    },
+    {
+      "name": "minecraft:dark_oak_log",
+      "states": {
+        "pillar_axis": "z"
+      }
+    },
+    "dark_oak_wood",
+    "dark_oak_leaves",
+    "pale_oak_log",
+    {
+      "name": "minecraft:pale_oak_log",
+      "states": {
+        "pillar_axis": "x"
+      }
+    },
+    {
+      "name": "minecraft:pale_oak_log",
+      "states": {
+        "pillar_axis": "z"
+      }
+    },
+    "pale_oak_wood",
+    "pale_oak_leaves",
+    "pale_moss_block",
+    "pale_moss_carpet",
+    {
+      "name": "minecraft:pale_hanging_moss",
+      "states": {
+        "tip": false
+      }
+    },
+    {
+      "name": "minecraft:pale_hanging_moss",
+      "states": {
+        "tip": true
+      }
+    },
+    "closed_eyeblossom",
+    "open_eyeblossom",
+    {
+      "name": "minecraft:creaking_heart",
+      "states": {
+        "pillar_axis": "y",
+        "creaking_heart_state": "dormant",
+        "natural": true
+      }
+    },
+    "cherry_log",
+    {
+      "name": "minecraft:cherry_log",
+      "states": {
+        "pillar_axis": "x"
+      }
+    },
+    {
+      "name": "minecraft:cherry_log",
+      "states": {
+        "pillar_axis": "z"
+      }
+    },
+    "cherry_wood",
+    "cherry_leaves",
+    {
+      "name": "minecraft:pink_petals",
+      "states": {
+        "growth": 0,
+        "minecraft:cardinal_direction": "north"
+      }
+    },
+    {
+      "name": "minecraft:pink_petals",
+      "states": {
+        "growth": 0,
+        "minecraft:cardinal_direction": "east"
+      }
+    },
+    {
+      "name": "minecraft:pink_petals",
+      "states": {
+        "growth": 0,
+        "minecraft:cardinal_direction": "south"
+      }
+    },
+    {
+      "name": "minecraft:pink_petals",
+      "states": {
+        "growth": 0,
+        "minecraft:cardinal_direction": "west"
+      }
+    },
+    {
+      "name": "minecraft:pink_petals",
+      "states": {
+        "growth": 3,
+        "minecraft:cardinal_direction": "north"
+      }
+    },
+    {
+      "name": "minecraft:pink_petals",
+      "states": {
+        "growth": 3,
+        "minecraft:cardinal_direction": "east"
+      }
+    },
+    {
+      "name": "minecraft:pink_petals",
+      "states": {
+        "growth": 3,
+        "minecraft:cardinal_direction": "south"
+      }
+    },
+    {
+      "name": "minecraft:pink_petals",
+      "states": {
+        "growth": 3,
+        "minecraft:cardinal_direction": "west"
+      }
+    },
+    "mangrove_log",
+    {
+      "name": "minecraft:mangrove_log",
+      "states": {
+        "pillar_axis": "x"
+      }
+    },
+    {
+      "name": "minecraft:mangrove_log",
+      "states": {
+        "pillar_axis": "z"
+      }
+    },
+    "mangrove_wood",
+    "mangrove_leaves",
+    "mangrove_roots",
+    {
+      "name": "minecraft:mangrove_roots",
+      "states": {},
+      "extraWater": true
+    },
+    "muddy_mangrove_roots",
+    {
+      "name": "minecraft:mangrove_propagule",
+      "states": {
+        "hanging": true,
+        "propagule_stage": 0
+      }
+    },
+    {
+      "name": "minecraft:mangrove_propagule",
+      "states": {
+        "hanging": true,
+        "propagule_stage": 1
+      }
+    },
+    {
+      "name": "minecraft:mangrove_propagule",
+      "states": {
+        "hanging": true,
+        "propagule_stage": 2
+      }
+    },
+    {
+      "name": "minecraft:mangrove_propagule",
+      "states": {
+        "hanging": true,
+        "propagule_stage": 3
+      }
+    },
+    {
+      "name": "minecraft:mangrove_propagule",
+      "states": {
+        "hanging": true,
+        "propagule_stage": 4
+      }
+    },
+    {
+      "name": "minecraft:mangrove_propagule",
+      "states": {
+        "hanging": false,
+        "propagule_stage": 4
+      }
+    },
+    "poplar_log",
+    {
+      "name": "minecraft:poplar_log",
+      "states": {
+        "pillar_axis": "x"
+      }
+    },
+    {
+      "name": "minecraft:poplar_log",
+      "states": {
+        "pillar_axis": "z"
+      }
+    },
+    "poplar_wood",
+    "red_poplar_leaves",
+    "orange_poplar_leaves",
+    "yellow_poplar_leaves",
+    "red_shrub",
+    {
+      "name": "minecraft:shelf_mushroom",
+      "states": {
+        "growth": 0,
+        "minecraft:cardinal_direction": "north"
+      }
+    },
+    {
+      "name": "minecraft:shelf_mushroom",
+      "states": {
+        "growth": 0,
+        "minecraft:cardinal_direction": "east"
+      }
+    },
+    {
+      "name": "minecraft:shelf_mushroom",
+      "states": {
+        "growth": 0,
+        "minecraft:cardinal_direction": "south"
+      }
+    },
+    {
+      "name": "minecraft:shelf_mushroom",
+      "states": {
+        "growth": 0,
+        "minecraft:cardinal_direction": "west"
+      }
+    },
+    {
+      "name": "minecraft:shelf_mushroom",
+      "states": {
+        "growth": 1,
+        "minecraft:cardinal_direction": "north"
+      }
+    },
+    {
+      "name": "minecraft:shelf_mushroom",
+      "states": {
+        "growth": 1,
+        "minecraft:cardinal_direction": "east"
+      }
+    },
+    {
+      "name": "minecraft:shelf_mushroom",
+      "states": {
+        "growth": 1,
+        "minecraft:cardinal_direction": "south"
+      }
+    },
+    {
+      "name": "minecraft:shelf_mushroom",
+      "states": {
+        "growth": 1,
+        "minecraft:cardinal_direction": "west"
+      }
+    }
   ],
   "biomeNames": [
     "deep_ocean",
@@ -555,6 +818,95 @@
     "ice_plains",
     "ice_plains",
     "ice_plains",
-    "ice_plains"
-  ]
+    "ice_plains",
+    "roofed_forest",
+    "pale_garden",
+    "cherry_grove",
+    "mangrove_swamp",
+    "dappled_forest"
+  ],
+  "forestBlocks": {
+    "DarkLog": 179,
+    "DarkLogX": 180,
+    "DarkLogZ": 181,
+    "DarkWood": 182,
+    "DarkLeaves": 183,
+    "PaleLog": 184,
+    "PaleLogX": 185,
+    "PaleLogZ": 186,
+    "PaleWood": 187,
+    "PaleLeaves": 188,
+    "PaleMoss": 189,
+    "PaleCarpet": 190,
+    "HangingMoss": 191,
+    "HangingMossTip": 192,
+    "Eyeblossom": 193,
+    "OpenEyeblossom": 194,
+    "Heart": 195,
+    "CherryLog": 196,
+    "CherryLogX": 197,
+    "CherryLogZ": 198,
+    "CherryWood": 199,
+    "CherryLeaves": 200,
+    "Petal0North": 201,
+    "Petal0East": 202,
+    "Petal0South": 203,
+    "Petal0West": 204,
+    "Petal3North": 205,
+    "Petal3East": 206,
+    "Petal3South": 207,
+    "Petal3West": 208,
+    "MangroveLog": 209,
+    "MangroveLogX": 210,
+    "MangroveLogZ": 211,
+    "MangroveWood": 212,
+    "MangroveLeaves": 213,
+    "Roots": 214,
+    "WetRoots": 215,
+    "MuddyRoots": 216,
+    "Propagule0": 217,
+    "Propagule1": 218,
+    "Propagule2": 219,
+    "Propagule3": 220,
+    "Propagule4": 221,
+    "PlantedPropagule": 222,
+    "PoplarLog": 223,
+    "PoplarLogX": 224,
+    "PoplarLogZ": 225,
+    "PoplarWood": 226,
+    "RedPoplarLeaves": 227,
+    "OrangePoplarLeaves": 228,
+    "YellowPoplarLeaves": 229,
+    "RedShrub": 230,
+    "Shelf0North": 231,
+    "Shelf0East": 232,
+    "Shelf0South": 233,
+    "Shelf0West": 234,
+    "Shelf1North": 235,
+    "Shelf1East": 236,
+    "Shelf1South": 237,
+    "Shelf1West": 238
+  },
+  "profiles": {
+    "legacy": {
+      "palette": 168,
+      "biomeNames": 25
+    },
+    "completed": {
+      "palette": 178,
+      "biomeNames": 29
+    },
+    "elevated": {
+      "palette": 179,
+      "biomeNames": 58
+    },
+    "bedrock-26.20-forests-v1": {
+      "palette": 223,
+      "biomeNames": 62
+    },
+    "bedrock-26.51-forests-v1": {
+      "palette": 239,
+      "biomeNames": 63
+    }
+  }
 }

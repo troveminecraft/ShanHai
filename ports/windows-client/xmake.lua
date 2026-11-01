@@ -1,4 +1,5 @@
-set_targetdir(path.absolute(path.join(get_config("builddir") or "build", "$(plat)/$(arch)/$(mode)"), os.projectdir()))
+-- Relative dependency paths also support a checkout beneath non-ASCII parents.
+set_targetdir(path.join(get_config("builddir") or "build", "$(plat)/$(arch)/$(mode)"))
 -- A separate SDK build directory: never reconfigure the running BDS project.
 add_rules("mode.debug", "mode.release")
 includes("../../build-support/game-line.lua")

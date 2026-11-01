@@ -1,4 +1,4 @@
-set_targetdir(path.absolute(path.join(get_config("builddir") or "build", "$(plat)/$(arch)/$(mode)"), os.projectdir()))
+set_targetdir(path.join(get_config("builddir") or "build", "$(plat)/$(arch)/$(mode)"))
 add_rules("mode.debug", "mode.release")
 set_runtimes("MD")
 includes("src/kernel")

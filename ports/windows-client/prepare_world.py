@@ -5,6 +5,7 @@ P = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(P / 'tools'))
 from level_dat import read_file, write_file
 from select_spawn import select
+from forest_profile import palette as recipe_palette
 
 HEIGHT_PACK_FOLDER = 'shan-hai-build-height'
 
@@ -73,6 +74,7 @@ def prepare(source, template, destination, name, dll, creative=False, spawn_repo
         base = json.loads((P/'data/runtime-template.json').read_bytes())
         meta = {k:base[k] for k in ['format','mode','version','origin','sizeBlocks','sizeChunks','productionOffset','minY','maxY','palette','biomeNames','backend','chunkCodec','vanillaBlocksOnly']}
         meta["version"]=data["version"]
+        meta.update(recipe_palette(data))
         meta.update(maxY=511,buildMaxYExclusive=512, generatedMaxYExclusive=512,
                     buildHeightPack=install_height_pack(world))
         meta.update(terrainSeed=seed, worldSeed=seed, worldSeedIndependent=False, spawn=spawn,
