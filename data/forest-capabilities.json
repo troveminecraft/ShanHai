@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "profiles": {
+    "bedrock-26.20-forests-v1": {
+      "minecraft": ["1.26.20.04", "1.26.20.5"],
+      "forests": ["roofed_forest", "pale_garden", "cherry_grove", "mangrove_swamp"]
+    },
+    "bedrock-26.51-forests-v1": {
+      "minecraft": ["1.26.51.01"],
+      "forests": ["roofed_forest", "pale_garden", "cherry_grove", "mangrove_swamp", "dappled_forest"]
+    }
+  },
+  "biomes": {
+    "roofed_forest": {
+      "blocks": ["dark_oak_log", "dark_oak_wood", "dark_oak_leaves", "brown_mushroom_block", "red_mushroom_block", "mushroom_stem"],
+      "nativeTags": ["animal", "forest", "monster", "overworld", "roofed"],
+      "habitat": "Humid wooded hills, with gradual edges, clear waterways and fewer trees at high elevation.",
+      "structure": "Existing woodland mansion policy, restricted to this biome and suitable terrain."
+    },
+    "pale_garden": {
+      "blocks": ["pale_oak_log", "pale_oak_wood", "pale_oak_leaves", "pale_moss_block", "pale_moss_carpet", "pale_hanging_moss", "closed_eyeblossom", "open_eyeblossom", "creaking_heart"],
+      "nativeTags": ["monster", "overworld", "pale_garden"],
+      "habitat": "Rare sheltered humid valleys, benches and basin woodland; irregular boundaries.",
+      "behavior": "Native biome suppresses ordinary animal spawning. Hearts require aligned logs, natural=true, a saved native block actor and vanilla ticks; flowers keep vanilla day/night behavior."
+    },
+    "cherry_grove": {
+      "blocks": ["cherry_log", "cherry_wood", "cherry_leaves", "pink_petals"],
+      "nativeTags": ["mountains", "monster", "overworld", "cherry_grove", "bee_habitat"],
+      "habitat": "Sunny foothills and stable terraces above lakes; spreading crowns, petals and open grassy gaps."
+    },
+    "mangrove_swamp": {
+      "blocks": ["mangrove_log", "mangrove_wood", "mangrove_leaves", "mangrove_roots", "muddy_mangrove_roots", "mangrove_propagule", "mud", "vine"],
+      "nativeTags": ["mangrove_swamp", "overworld", "monster", "spawns_slimes_on_surface", "spawns_warm_variant_farm_animals", "spawns_warm_variant_frogs", "slime"],
+      "habitat": "Warm wet coastal/estuarine lowlands linked to the local water network; never isolated high plateaus.",
+      "behavior": "Submerged roots retain source water in Bedrock's secondary layer; hanging propagules require leaf support."
+    },
+    "dappled_forest": {
+      "blocks": ["poplar_log", "poplar_wood", "red_poplar_leaves", "orange_poplar_leaves", "yellow_poplar_leaves", "red_shrub", "shelf_mushroom", "leaf_litter"],
+      "nativeTags": ["animal", "dappled_forest", "monster", "forest", "overworld", "spawns_cold_variant_farm_animals"],
+      "habitat": "Cool wooded hills and valley terraces with coherent color stands, fallen logs and clearings.",
+      "minimumProfile": "bedrock-26.51-forests-v1",
+      "behavior": "Shelf mushrooms use growth and cardinal direction states with adjacent log support."
+    }
+  }
+}
