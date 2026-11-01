@@ -53,6 +53,12 @@ ForestTree specialTreeCandidate(int gx,int gz,bool denseMangrove=false){return (
  if(!specialForestHabitat(s)||!glacierPlantKept(s,a.x,a.z)||!treeGroundAllowed(s,a.x,a.z,false)
     ||r(3)>.78*field.ecologyTreeWeight(s)||blocked(a.x,a.z,false))return a;
  a.biome=s.biome;a.width=(a.biome==forest_capabilities::Cherry||a.biome==forest_capabilities::Dappled)?1:2;a.ground=s.height;
+ if(field.canopyForestsEnabled()){
+  if(a.biome==forest_capabilities::Dark||a.biome==forest_capabilities::Pale)return ForestTree{};
+  if(a.biome==forest_capabilities::Cherry){auto grove=field.centralCherryGrove(a.x,a.z);
+   if(grove.valid&&std::hypot(a.x-grove.x,a.z-grove.z)<grove.trunkRadius+14)return ForestTree{};
+  }
+ }
  int lo=s.height,hi=s.height;
  for(int z=0;z<2;++z)for(int x=0;x<2;++x){
   auto b=field.surface(a.x+x,a.z+z,false);
@@ -205,6 +211,7 @@ std::vector<std::shared_ptr<ForestModel>> specialForestModels(int x0,int z0,int 
 void specialForests(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>const&surfaces){
  if(!field.forestEcologyEnabled())return;
  using namespace forest_palette;
+ joinedCanopyForest(x0,z0,raw,surfaces);centralCherryTree(x0,z0,raw,surfaces);
  auto models=specialForestModels(x0,z0,16);
  auto replaceable=[](int b){return b==0||b==146||b==147||b==148||(b>=36&&b<=41)||(b>=62&&b<=64)||b==67||b==68||(b>=71&&b<=74)||b==PaleCarpet||b==Eyeblossom;};
  for(int phase=0;phase<3;++phase)for(auto const&m:models)for(auto const&c:m->cells){

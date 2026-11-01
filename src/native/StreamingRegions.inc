@@ -40,7 +40,7 @@ double streamingDesertWeight(double wx,double wz){
 }
 Cache<uint64_t,regional::Ground> waterSurveyNodes{16384};
 regional::Ground waterSurvey(int x,int z){
- auto sample=[&]{auto s=regionalClimateSample(x+32768,z+32768);return regional::Ground{s.height,s.H,s.T,s.stone,s.volcanic,s.closedBasin,s.water};};
+ auto sample=[&]{auto s=regionalClimateSample(x+32768,z+32768);return regional::Ground{s.height,s.H,s.T,cherryCoreReserved(x+32768,z+32768)?1.:s.stone,s.volcanic,s.closedBasin,s.water};};
  // Adjacent owner grids overlap. Preserve their small coarse descriptors
  // separately from fine shoreline samples, which churn the base-field cache.
  return containedWaterways&&x%regional::Pitch==0&&z%regional::Pitch==0?waterSurveyNodes.get(key2(x,z),sample):sample();

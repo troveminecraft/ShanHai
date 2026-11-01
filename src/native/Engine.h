@@ -19,6 +19,7 @@ struct Structure {int x=0,z=0,type=-1;double e=0;};
 struct SmallTree {int x,z,h,type;double radius,ground;};
 class Engine {
  friend struct ForestEcologyTest;
+ friend struct CanopyForestRegression;
  friend struct LandscapeRedoTest;
  friend struct ElevationVariantsTest;
  friend struct IceSpireRegression;
@@ -94,6 +95,7 @@ class Engine {
  #include "JungleEcology.inc"
  #include "WetDryEcology.inc"
  #include "SpecialForests.inc"
+ #include "CanopyForests.inc"
  #include "ForestMushrooms.inc"
  #include "DesertEcology.inc"
  #include "UndergroundEcology.inc"

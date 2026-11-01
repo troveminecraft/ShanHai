@@ -16,6 +16,12 @@ target("terrain_connections")
     add_files("terrain_connections.cpp")
 target_end()
 
+target("canopy_forests")
+    set_kind("binary")
+    add_packages("nlohmann_json")
+    add_files("canopy_forests.cpp")
+target_end()
+
 target("basin_mangroves")
     set_kind("binary")
     add_packages("nlohmann_json")

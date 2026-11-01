@@ -23,6 +23,7 @@ struct ReliefNode{double v,relief,pos,corr;};
 struct Cliff{bool valid=false;double x=0,z=0,h=0,slope=0,nx=0,nz=0,crest=0,warp=0,drop=0;std::array<double,9> trace{};};
 class Field {
  friend struct ForestEcologyTest;
+ friend struct CanopyForestRegression;
  friend struct GlacierEcologyRegression;
  friend struct CompletedBiomesTest;
  friend struct TerrainRevisionTest;
@@ -37,6 +38,7 @@ class Field {
  J const&data;J const&C;uint32_t terrainSeed;TerrainParameters const parameters{C};Density graph,caves;
  forest_capabilities::Profile const forestProfile=forest_capabilities::recipe(data);
  bool const basinMangroves=forest_capabilities::enabled(forestProfile)&&C.value("forestEcologyRevision",0)>=2;
+ bool const canopyForests=forest_capabilities::enabled(forestProfile)&&C.value("forestEcologyRevision",0)>=3;
  int seaLevelValue=C.value("seaLevel",31);
  int generatedMaxYExclusive=C.value("generatedMaxYExclusive",320);
  int mountainPeakY=C.value("mountainPeakY",0);
@@ -79,6 +81,7 @@ class Field {
  #include "BadlandsRegions.inc"
  #include "ElevationForms.inc"
  #include "SnowVariants.inc"
+ #include "CherryGroves.inc"
  #include "ForestHabitats.inc"
  double v0(int level,int x,int z){auto const&q=parameters.relief.levels[level];return rawNodes[level].get(key2(x,z),[&]{return vcont(x*q.pitch,z*q.pitch);});}
  ReliefNode node(int level,int x,int z){return nodes[level].get(key2(x,z),[&]{auto const&q=parameters.relief.levels[level];double v=v0(level,x,z),lo=v,hi=v,sum=0;for(int dz=-1;dz<=1;dz++)for(int dx=-1;dx<=1;dx++){if(!dx&&!dz)continue;double a=v0(level,x+dx,z+dz);lo=std::min(lo,a);hi=std::max(hi,a);sum+=a;}double r=hi-lo,p=r>1e-6?(v-lo)/r:.5,w=smooth(0,q.edgeBand,p)*smooth(0,q.edgeBand,1-p),cap=std::min(q.cap,q.reliefCap*r);return ReliefNode{v,r,p,clamp(-q.gain*(v-sum/8)*w*smooth(q.reliefLo,q.reliefHi,r),-cap,cap)};});}
@@ -184,6 +187,9 @@ public:
  J inspectElevationForms(int lo,int hi){return elevationInventory(lo,hi);}
  int seaLevel()const{return seaLevelValue;}
  bool forestEcologyEnabled()const{return forest_capabilities::enabled(forestProfile);}
+ bool canopyForestsEnabled()const{return canopyForests;}
+ auto centralCherryGrove(int x,int z){return cherryGroveAt(x,z);}
+ auto centralCherrySite(int x,int z){return cherryGroveSite(int(std::floor(x/1024.)),int(std::floor(z/1024.)));}
  bool basinMangrovesEnabled()const{return basinMangroves;}
  bool mangroveBasinArea(int x,int z,int size){
   if(!basinMangroves)return false;

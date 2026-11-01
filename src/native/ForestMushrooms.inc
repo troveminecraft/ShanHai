@@ -40,6 +40,7 @@ void forestMushrooms(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,
   }
   for(auto const&t:conifers(a.x,a.z,0))if(forestTreeKept(t.x,t.z)&&std::hypot(t.x-a.x,t.z-a.z)<a.r+2)collision=true;
   auto habitat=field.surface(a.x,a.z,false);
+  if(habitat.biome==forest_capabilities::Dark&&field.canopyForestsEnabled()&&canopyTrunkNear(a.x,a.z,a.r+1))collision=true;
   if(habitat.biome==forest_capabilities::Dark)for(auto const&t:specialForestModels(a.x,a.z,0))if(std::hypot(t->tree.x-a.x,t->tree.z-a.z)<a.r+t->tree.crown+4){collision=true;break;}
   if(habitat.biome==10)for(int gz=(a.z-12)/16;gz<=(a.z+12)/16;++gz)for(int gx=(a.x-12)/16;gx<=(a.x+12)/16;++gx){auto t=wetDrySite(gx,gz);if(wetDryAccepted(gx,gz,t)&&forestTreeKept(t.x,t.z)&&std::hypot(t.x-a.x,t.z-a.z)<a.r+8)collision=true;}
   if(habitat.biome==23){

@@ -30,7 +30,8 @@ void forestHabitat(Surface& s,int x,int z){
  if(s.kind||s.lake||s.river||s.water>=s.height||s.height<seaLevelValue+8||s.height>340)return;
  bool forest=s.biome==9||s.biome==23;
  bool meadow=forest||s.biome==7||s.biome==8||s.biome==14;
- if(meadow&&t>=.38&&t<=.67&&h>=.38&&h<=.76&&s.soilSand<.15
+ if(canopyForests&&cherryGroveAt(x,z).valid){s.biome=forest_capabilities::Cherry;s.treeD=.009;return;}
+ if(!canopyForests&&meadow&&t>=.38&&t<=.67&&h>=.38&&h<=.76&&s.soilSand<.15
     &&s.height>=seaLevelValue+35&&s.height<=310
     &&(s.upland>.10||s.mount>.05||s.height>=165)
     &&biomeNoise.at(x/610.+217.,z/610.-81.)>.10){
