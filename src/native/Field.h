@@ -13,13 +13,14 @@
 #include "RegionalPlans.h"
 #include "WaterfallLandform.h"
 #include "TerrainParameters.h"
+#include "CliffTransition.h"
 #include "../ForestCapabilities.h"
 #include "ForestPalette.h"
 namespace nativegen {
 inline double num(J const&j,char const*k){return j.at(k).get<double>();}
 
 struct ReliefNode{double v,relief,pos,corr;};
-struct Cliff{bool valid=false;double x=0,z=0,h=0,slope=0,nx=0,nz=0,crest=0,warp=0;};
+struct Cliff{bool valid=false;double x=0,z=0,h=0,slope=0,nx=0,nz=0,crest=0,warp=0,drop=0;};
 class Field {
  friend struct ForestEcologyTest;
  friend struct GlacierEcologyRegression;
@@ -30,6 +31,7 @@ class Field {
  friend struct UplandTerrainRegression;
  friend struct WaterContainmentRegression;
  friend struct HeadwardWaterfallRegression;
+ friend struct TerrainConnectionRegression;
  // Only owners whose conservative influence bounds touch a sample are needed.
  bool localPlanningCulling=false;
  J const&data;J const&C;uint32_t terrainSeed;TerrainParameters const parameters{C};Density graph,caves;
@@ -43,6 +45,7 @@ class Field {
  bool landformRefresh=C.value("elevationRevision",0)>=2;
  bool continuousCoast=C.value("coastalContinuity",0)>=1;
  bool containedWaterways=C.value("waterContainment",0)>=1;
+ bool voxelRiverConnections=C.value("waterContainment",0)>=2;
  bool headwardWaterways=C.value("waterfallRevision",0)>=1;
  double landscapeAltitude(double height)const{return elevationVariants?height-60.:elevatedLandscape?height-24.:height;}
  bool raisedSnowline=C.value("mountainSnowline",0)>=1;
@@ -107,6 +110,7 @@ class Field {
   if(high-low<(tall?100:60)||high-low>(tall?300:100)||low<seaLevelValue+4||high>470)a.valid=false;
  }
  return a;});}
+ #include "ConnectedCliffs.inc"
  Surface compute(int wx,int wz,bool drainage=true){double x=(wx-32768)*parameters.horizontalScale,z=(wz-32768)*parameters.horizontalScale;Surface s;s.seaLevel=seaLevelValue;double er=erosion(x,0,z);s.ridge=ridge(x,0,z);s.raw=224+192*offset(x,0,z);double v=shaped(wx,wz,-64+(s.raw+64)*.75);
  smallStoneRelief(s,v,wx,wz);
  auto const&q=C.at("stoneForest");double px=wx-32768-num(q,"centerX"),pz=wz-32768-num(q,"centerZ"),d=std::hypot(px,pz);if(largeStoneForestEnabled()&&d<num(q,"outerRadius")+num(q,"edgeWarp")){
@@ -118,6 +122,7 @@ class Field {
  // Continuous patch support: a patch may cross the selection grid without being cut off.
  // Shape the slope; sparse ellipsoidal alcoves are restricted to the cliff waist.
  if(s.stone==0){
+  if(parameters.cliffRevision>=3){connectedCliffRelief(s,v,wx,wz);}else{
   auto const& c=parameters.cliffs;double grid=c.grid,shift=0;
   int gx=int(std::floor(wx/grid)),gz=int(std::floor(wz/grid));
   for(int iz=gz-1;iz<=gz+1;++iz)for(int ix=gx-1;ix<=gx+1;++ix){
@@ -153,6 +158,7 @@ class Field {
    }
   }
   v+=clamp(shift,-c.maxShift,c.maxShift);
+  }
  }
 
  s.coast=s.stone>0?0:coastWeight(wx,wz,v);

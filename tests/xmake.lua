@@ -10,6 +10,12 @@ target("forest_capabilities")
     add_files("forest_capabilities.cpp")
 target_end()
 
+target("terrain_connections")
+    set_kind("binary")
+    add_packages("nlohmann_json")
+    add_files("terrain_connections.cpp")
+target_end()
+
 target("basin_mangroves")
     set_kind("binary")
     add_packages("nlohmann_json")

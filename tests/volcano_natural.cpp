@@ -14,7 +14,7 @@ std::vector<uint16_t> unpack(std::vector<uint8_t>const&bytes,int height){
 }
 int main(int argc,char**argv){try{
  if(argc!=3)throw std::runtime_error("recipe/report required");J data;std::ifstream(argv[1])>>data;
- assert(data.at("config").at("volcanoRevision")==4);Engine engine(data);auto&f=engine.terrain();
+ int revision=data.at("config").at("volcanoRevision");assert(revision==4||revision==5);Engine engine(data);auto&f=engine.terrain();
  auto volcanoes=f.inspectVolcanoes(-16384,16384);assert(volcanoes.size()>15);J sites=J::array();size_t checked=0;int sizes[3]{};
  for(auto const&v:volcanoes){int cx=v.at("x"),cz=v.at("z");double outer=v.at("outer"),crater=v.at("crater");int top=v.at("lavaTop"),size=v.at("sizeClass");++sizes[size];
   assert(crater>=18&&crater<=58);assert(size==2||crater<=42);

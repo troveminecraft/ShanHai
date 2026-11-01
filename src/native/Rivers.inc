@@ -340,7 +340,10 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true,bool fitWater=fa
    bed=std::min(bed,mix(bank,bed,alluvialBanks?water-1.5-1.5*outer:water-3.-3.*outer));
    s.riverOuter=bank;
   }
-  if((waterfallReach||terraceReach||shoal>0||largeMouthBlend>0||(fittedRiverBanks&&slopeMax>.45)||(progressiveRiverBeds&&bed>=water-1.))&&connectWater){
+  // Match the final voxel rounding. A fractional bed just below water-1 can
+  // round up by 1e-6 and otherwise skip the carve at a falling water edge.
+  double connectionBed=voxelRiverConnections?std::floor(bed+1e-6):bed;
+  if((waterfallReach||terraceReach||shoal>0||largeMouthBlend>0||(fittedRiverBanks&&slopeMax>.45)||(progressiveRiverBeds&&connectionBed>=water-1.))&&connectWater){
    // Minimum carve that keeps cardinal water columns face-connected. Probe
    // only cascades, shoals and large-lake mouths, with recursion disabled.
    for(auto [dx,dz]:std::array<std::pair<int,int>,4>{{{1,0},{-1,0},{0,1},{0,-1}}}){

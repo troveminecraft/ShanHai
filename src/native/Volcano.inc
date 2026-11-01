@@ -1,7 +1,8 @@
 // Seed-driven, non-overlapping volcanic regions. No configured center coordinates.
 struct VolcanoCone {double x,z,radius,crater,height,depth,vent;};
 struct VolcanoRegion {bool valid=false,mountain=false;VolcanoCone cone{};double inner=0,outer=0,base=0,lavaTop=-32768;int sizeClass=0;std::array<float,16> terrain{};magma::Layers layers{};};
-bool irregularMagma=C.value("volcanoRevision",0)==4;
+bool gentleVolcano=C.value("volcanoRevision",0)>=5;
+bool irregularMagma=C.value("volcanoRevision",0)>=4;
 bool continuousMagma=C.value("volcanoRevision",0)==3;
 bool volcanicGeology=irregularMagma||continuousMagma||C.value("volcanoRevision",0)==2;
 bool integratedVolcano=terrainRevision(data)>=182;
@@ -124,15 +125,18 @@ void volcanicRelief(Surface&s,double&height,int wx,int wz){
    double regional=mix(smooth(0,1,f),region.terrain[(index+8)&15],region.terrain[(index+9)&15]);
    double outer=volcanoOuter*(.88+.10*std::tanh((regional-volcanoBase)/45.));
    double t=clamp((d-crater)/(outer-crater),0,1),fall=1-t;
-   double profile=fall*fall*fall;
+   // A bounded Hermite flank spreads the same summit height over the apron.
+   // Its initial gradient is 1.35 rather than 3; both profiles meet the
+   // unchanged crater lip, and the outer contribution has zero slope.
+   double profile=gentleVolcano?fall*fall*(1+.65*t):fall*fall*fall;
    double inheritance=smooth(crater+6,crater+(outer-crater)*.48,r);
    double channel=std::pow(.5+.5*std::sin(angle*9+2.8*direction),7);
-   double incision=16*channel*smooth(crater,crater+24,r)*profile;
+   double incision=(gentleVolcano?10.:16.)*channel*smooth(crater,crater+(gentleVolcano?36.:24.),r)*profile;
    // Background height participates throughout the flank, rather than only
    // at the edge of a fixed cone. Its own valleys and ridges survive.
-   double crest=volcanoBase+(a.height+rim)*profile
-       +(height-volcanoBase)*inheritance
-       +(rough*.55-incision)*smooth(crater,crater+18,r)*fall*fall;
+   double crest=gentleVolcano?height+(volcanoBase+a.height+rim-height)*profile:
+       volcanoBase+(a.height+rim)*profile+(height-volcanoBase)*inheritance;
+   crest+=(rough*(gentleVolcano?.45:.55)-incision)*smooth(crater,crater+(gentleVolcano?24.:18.),r)*fall*fall;
    double join=smooth(crater+12,crater+55,r);
    double excess=crest-height;
    // Positive smooth union: do not dig a circular moat into existing hills.

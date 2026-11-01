@@ -15,6 +15,6 @@ Cliff highCliffPatch(int gx,int gz){
   // steepest crest puts almost every fall on an isolated ridge spring.
   double valley=(uncliff(x-a.nz*32,z+a.nx*32)+uncliff(x+a.nz*32,z-a.nx*32)-2*h)/16;
   double score=sl+clamp(valley,-2.,2.);if(score<=best)continue;
-  best=score;a.crest=high;result=a;
+  best=score;a.crest=high;a.drop=high-low;result=a;
  }return result;
 }
