@@ -36,6 +36,17 @@ int main() {
         assert(ids.insert(101 + i).second);
     }
     assert(ids.size() == 85);
+    // Existing IDs remain unchanged; only append the current target's forests.
+#ifdef SHANHAI_MC_26_51
+    constexpr int biomeCount=45;
+#else
+    constexpr int biomeCount=44;
+#endif
+    for(int id=141;id<101+biomeCount;++id){
+        auto d=destination(id,biomeCount);
+        assert(d&&d->biome&&d->group==id-101&&d->point==0);
+    }
+    assert(!destination(101+biomeCount,biomeCount));
     for (int i : {INT_MIN, -1, 0, 46, 100, 133, INT_MAX}) assert(!destination(i, 32));
     auto message = joinMessage();
     assert(message.find("back")==std::string::npos && message.find("[模式]")!=std::string::npos);
@@ -43,7 +54,7 @@ int main() {
     for (size_t i = message.find('\n'); i != std::string::npos; i = message.find('\n', i + 1))
         assert(message.compare(i + 1, std::string("§9").size(), "§9") == 0);
     for (auto const& u : updates) {
-        assert(destination(u.id, 40));
+        assert(destination(u.id, biomeCount));
         assert(message.find("[" + std::to_string(u.id) + "] " + u.name) != std::string::npos);
         assert(message.find(u.content) != std::string::npos);
     }

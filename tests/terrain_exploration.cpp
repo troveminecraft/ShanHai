@@ -70,7 +70,7 @@ int main(int argc,char**argv){try{
         {"requestMs",distribution(requests)},{"maxNoCompletionMs",worstGap},{"noCompletionStartedAtMs",at},
         {"firstCompletedMs",completions.front()},{"maxNoCompletionAfterFirstMs",explorationGap},{"explorationGapStartedAtMs",explorationAt},
         {"regional",ctx->statistics()},{"biomeCounts",biomeCounts},{"rows",rows}};
-    result["forestStageOrder"]={"conifers","broadleaves","birches","jungles"};
+    result["forestStageOrder"]={"conifers","broadleaves","birches","jungles","nativeForestExpansion"};
     std::ofstream out(argv[3]);out<<result.dump(2);out.close();if(!out)throw std::runtime_error("result write failed");
     result.erase("rows");std::cout<<result.dump()<<std::endl;
 }catch(std::exception const& e){std::cerr<<e.what()<<std::endl;return 1;}}

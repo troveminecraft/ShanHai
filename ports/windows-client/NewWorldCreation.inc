@@ -145,7 +145,13 @@ struct Job {
   static std::atomic_uint serial=0;
   path=modFolder/"creation-jobs"/(std::to_string(GetTickCount64())+"-"+std::to_string(++serial));
   std::filesystem::create_directories(path);
-  std::ofstream(path/"request.json")<<Json{{"seed",seed},{"name",name}}.dump();
+  std::ofstream(path/"request.json")<<Json{{"seed",seed},{"name",name},
+#ifdef SHANHAI_MC_26_51
+   {"gameLine","26.51"}
+#else
+   {"gameLine","26.20"}
+#endif
+  }.dump();
   auto runtime=modFolder/"runtime";
   auto exe=runtime/"python/python.exe";
   if(!std::filesystem::exists(exe)||!std::filesystem::exists(runtime/"bundle.json"))

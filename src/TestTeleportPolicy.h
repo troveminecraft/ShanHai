@@ -60,8 +60,13 @@ inline std::optional<Destination> destination(int id, int biomeCount) {
 }
 struct Update { int id; char const* name; char const* content; };
 inline constexpr Update updates[]{
-    {116, "河流", "减少河湖区域规划中的无效地形采样；江流瀑布与退蚀地形保持一致"},
-    {114, "山地", "跳过零权重修形采样并提前筛选树木候选；地形与植被保持一致"}
+    {141, "黑森林", "新增深色橡木密林与巨型蘑菇，按实际林地适配林地府邸"},
+    {142, "苍白之园", "新增苍白橡木、苔藓、眼眸花及天然嘎枝之心"},
+    {143, "樱花树林", "新增山麓与高原缓坡的樱花树和落樱花瓣"},
+    {144, "红树林沼泽", "新增沿海河口红树林，支柱根保留浸水层"},
+#ifdef SHANHAI_MC_26_51
+    {145, "斑驳森林", "新增成片三色杨树林、倒木、层架菌、红灌木和落叶"},
+#endif
 };
 inline std::string joinMessage() {
     std::string result = std::string("§9[山&海] 最近地形更新（") + shanhai_release::Windows + "）";

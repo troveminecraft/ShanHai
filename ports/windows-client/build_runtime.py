@@ -3,7 +3,10 @@ import argparse, ast, hashlib, json, shutil, sys, time, subprocess
 from pathlib import Path
 P=Path(__file__).resolve().parents[2]
 
-def build(destination, python_home, node, template, native_tool):
+def build(destination, python_home, node, template, native_tool, game_line):
+    sys.path.insert(0,str(P/'tools'))
+    from forest_profile import TARGETS
+    if game_line not in TARGETS: raise ValueError('Unsupported runtime game line')
     if destination.exists(): raise ValueError('Use a new staging destination')
     destination.mkdir(parents=True)
     def copy(src, rel):
@@ -42,7 +45,7 @@ def build(destination, python_home, node, template, native_tool):
         copy(src,str(src.relative_to(P)))
     for src in (P/'tools/seed').glob('*'):
         if src.is_file(): copy(src,'tools/seed/'+src.name)
-    for rel in ['data/seed-template.json','data/runtime-template.json','src/NativeRuntime.h','src/WorldBounds.h',
+    for rel in ['data/seed-template.json','data/runtime-template.json','data/palette-contract.json','src/NativeRuntime.h','src/WorldBounds.h',
                 'native/vanilla-ore-rules.json','native/DEEPSLATE-LICENSE.txt','native/EPIC-TERRAIN-LICENSE.txt']:
         copy(P/rel,rel)
     copy(native_tool,'build/windows/x64/release/native-worldgen-check.exe')
@@ -51,6 +54,8 @@ def build(destination, python_home, node, template, native_tool):
     for name in ['prepare_world.py','seed_service.py']:
         copy(P/'ports/windows-client'/name,'ports/windows-client/'+name)
     copy(template,'void-level.dat')
+    (destination/'game-target.json').write_text(json.dumps(dict(schema=1,gameLine=game_line,
+        capabilityProfile=TARGETS[game_line]),indent=2),encoding='utf-8')
     # Import the uncached path with the shipped interpreter, not the developer's
     # environment. A successful cached-world test does not exercise these tools.
     probe="import sys,importlib;from pathlib import Path;p=Path.cwd();sys.path[:0]=[str(p/'tools')];" \
@@ -73,5 +78,6 @@ if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True)
     p.add_argument('--python-home',type=Path,required=True);p.add_argument('--node',type=Path,required=True)
     p.add_argument('--template',type=Path,required=True)
-    p.add_argument('--native-tool',type=Path,required=True);a=p.parse_args()
-    print(build(a.output,a.python_home,a.node,a.template,a.native_tool))
+    p.add_argument('--native-tool',type=Path,required=True)
+    p.add_argument('--game-line',choices=['26.20','26.51'],required=True);a=p.parse_args()
+    print(build(a.output,a.python_home,a.node,a.template,a.native_tool,a.game_line))

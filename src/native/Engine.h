@@ -150,7 +150,7 @@ public:
    rows.push_back({{"centre",{p->x-32768,p->y,p->z-32768}},{"ground",p->ground},{"fluid",p->fluid},{"columns",columns}});
   }return rows;
  }
- std::array<double,4> forestMs{};
+ std::array<double,5> forestMs{};
  double surfaceMs=0,columnMs=0,featureMs=0,undergroundMs=0;uint64_t columnNoise=0;
  J inspectForest(bool includeRuns=false,int limit=0,bool footprintsOnly=false) {
   J rows=J::array();std::vector<Site> ordered;for(auto const&[key,list]:sites)ordered.insert(ordered.end(),list.begin(),list.end());
@@ -255,7 +255,9 @@ for(auto const&s:ss){if(field.surface(s.x,s.z,false).glacier>.15)continue;int x=
  {auto t=clock();broadleafForest(x0,z0,raw,surfaces);forestMs[1]=std::chrono::duration<double,std::milli>(clock()-t).count();}
  {auto t=clock();birchForest(x0,z0,raw,surfaces);forestMs[2]=std::chrono::duration<double,std::milli>(clock()-t).count();}
  {auto t=clock();jungleEcology(x0,z0,raw,surfaces);forestMs[3]=std::chrono::duration<double,std::milli>(clock()-t).count();}
- wetDryEcology(x0,z0,raw,surfaces);specialForests(x0,z0,raw,surfaces);forestMushrooms(x0,z0,raw,surfaces);
+ wetDryEcology(x0,z0,raw,surfaces);
+ if(field.forestEcologyEnabled()){auto t=clock();specialForests(x0,z0,raw,surfaces);forestMs[4]=std::chrono::duration<double,std::milli>(clock()-t).count();}
+ forestMushrooms(x0,z0,raw,surfaces);
  understory(x0,z0,raw,surfaces,ss,gs);
  oceanFeatures(x0,z0,raw,surfaces);
  sealedFluidCaves(x0,z0,raw);

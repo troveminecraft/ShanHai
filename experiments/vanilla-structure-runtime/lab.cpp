@@ -14,6 +14,7 @@
 #include "mc/world/level/block/MultifaceBlock.h"
 // Native structure adapter, bound to the terrain runtime's active world.
 #include "TerrainKernel.h"
+#include "ForestCapabilities.h"
 #include "WorldTasks.h"
 #include "ll/api/service/GamingStatus.h"
 #include "native/Noise.h"
@@ -221,11 +222,13 @@ thread_local std::optional<int> auditVillageSpacing;
 struct StructureSession {
     terrain_runtime::WorldTasks tasks;
     J input;
+    std::vector<std::string> biomeNames;
     terrain_kernel::ContextPtr kernelContext;
     std::unique_ptr<terrain_kernel::Field> field;
 };
 StructureSession structureSession;
 auto& input=structureSession.input;
+auto& worldBiomeNames=structureSession.biomeNames;
 auto& field=structureSession.field;
 auto& kernelContext=structureSession.kernelContext;
 auto& structureTasks=structureSession.tasks;
@@ -299,6 +302,14 @@ void ensureLoaded(Dimension &dim, BoundingBox const &b) {
 void initialize() {
     if (!field) {
         input = entity_store::read((terrainFolder() / "native/native-input.json"));
+        auto metadata=entity_store::read(terrainFolder()/"terrain.json");
+        forest_capabilities::requireMatch(input,metadata);
+#ifdef SHANHAI_MC_26_51
+        forest_capabilities::requireHost(metadata,true);
+#else
+        forest_capabilities::requireHost(metadata,false);
+#endif
+        worldBiomeNames=metadata.at("biomeNames").get<std::vector<std::string>>();
         // The executable owns structure policy. Old seed packages must not silently
         // select a different planner on BDS than on the Windows client.
         auto &rules = input["config"]["sharedRules"];

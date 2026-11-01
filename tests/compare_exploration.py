@@ -15,8 +15,8 @@ def run(executable, recipe, route, destination, workers):
     for state in ('cold', 'warm'):
         report_path = destination / (state + '.json')
         process = subprocess.run(
-            [str(executable), str(destination / 'recipe.json'), str(destination / 'route.json'),
-             str(report_path), str(destination / 'regional-cache'), str(workers)],
+            [str(executable), 'recipe.json', 'route.json', state + '.json',
+             'regional-cache', str(workers)], cwd=destination,
             capture_output=True, text=True, check=True, timeout=600)
         report = json.loads(report_path.read_bytes())
         rows = report.pop('rows')

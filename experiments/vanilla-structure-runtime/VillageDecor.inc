@@ -24,7 +24,7 @@ public:
  Block const&getBlock(BlockPos const&p)const override{return mBlockSource.getBlock(p);}
  Block const&getBlockNoBoundsCheck(BlockPos const&p)const override{return mBlockSource.getBlock(p);}
  Block const&getExtraBlock(BlockPos const&p)const override{return mBlockSource.getBlock(p,1);}
- Biome const*getBiome(BlockPos const&p)const override{static std::vector<std::string> names;if(names.empty()){J metadata;std::ifstream((terrainFolder()/"terrain.json"))>>metadata;names=metadata["biomeNames"].get<std::vector<std::string>>();}auto s=field->surface(p.x+32768,p.z+32768);auto b=bedrock_compat::dimension(mBlockSource).getBiomeRegistry().lookupByName("minecraft:"+names.at(s.biome));return b?&*b:nullptr;}
+ Biome const*getBiome(BlockPos const&p)const override{auto s=field->surface(p.x+32768,p.z+32768);auto b=bedrock_compat::dimension(mBlockSource).getBiomeRegistry().lookupByName("minecraft:"+worldBiomeNames.at(s.biome));return b?&*b:nullptr;}
  short getHeightmap(int x,int z)override{return short(villageGround(plan,x,z,field->surface(x+32768,z+32768).height)+1);}
 };
 void placeVillageDecor(BlockSource&blocks,ChunkPos cp,VillagePlan&plan,uint seed){

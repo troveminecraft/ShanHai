@@ -414,13 +414,7 @@ StructureFeature &extraDelegate(Dimension &d, int type) {
 std::unique_ptr<StructureStart> createExtra(Dimension &d, int type, ChunkPos cp) {
     initialize();
     auto s = field->surface(cp.x * 16 + 32768, cp.z * 16 + 32768);
-    static std::vector<std::string> biomeNames;
-    if (biomeNames.empty()) {
-        J metadata;
-        std::ifstream((terrainFolder() / "terrain.json")) >> metadata;
-        biomeNames = metadata["biomeNames"].get<std::vector<std::string>>();
-    }
-    auto const &name = biomeNames.at(s.biome);
+    auto const &name = worldBiomeNames.at(s.biome);
     auto b = d.getBiomeRegistry().lookupByName("minecraft:" + name);
     if (!b)
         throw std::runtime_error("Missing native biome");

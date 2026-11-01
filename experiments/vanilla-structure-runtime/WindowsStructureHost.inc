@@ -78,6 +78,7 @@ void clientRelease(Level& level) {
     atlasCatalog.terrain.reset();
     atlasCatalog.delegate.reset();
     input=J::object();
+    worldBiomeNames.clear();
 }
 void clientWarmTemplates(Level& level) { warmVillageTemplates(level); warmFossilTemplates(level); }
 void clientTick(Level& level) {

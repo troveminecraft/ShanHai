@@ -33,8 +33,18 @@ constexpr TestBiomeGroup testBiomes[]={
  {"rolling_plateau","高原",-6},{"inland_basin","内陆盆地",-7},
  {"small_rift","小型裂谷",-8},{"medium_rift","中型裂谷",-9},{"large_rift","大型裂谷",-10},
  {"snowy_forest","覆雪森林",-11},{"snowy_desert","覆雪沙漠",-12},
- {"mid_altitude","中海拔地带",-13},{"high_altitude","高海拔地带",-14}
+ {"mid_altitude","中海拔地带",-13},{"high_altitude","高海拔地带",-14},
+ {"roofed_forest","黑森林",58},{"pale_garden","苍白之园",59},
+ {"cherry_grove","樱花树林",60},{"mangrove_swamp","红树林沼泽",61},
+#ifdef SHANHAI_MC_26_51
+ {"dappled_forest","斑驳森林",62},
+#endif
 };
+bool testBiomeAvailable(size_t i){
+ int b=testBiomes[i].biome;if(b<58)return true;
+ auto p=forest_capabilities::profile(input);
+ return b==62?forest_capabilities::dappled(p):forest_capabilities::enabled(p);
+}
 template<class S> bool testBiomeMatches(int i,S const&s){
  int b=testBiomes[i].biome;
  if(b==14&&s.altitudeBand==2&&s.height>=300&&s.water<s.height)return true;
@@ -60,7 +70,7 @@ struct StructureTestTeleport {
  std::array<J,std::size(testBiomes)> biomeSpots;
  size_t biomeCursor=0;
  std::vector<structure_test::Cell> biomeCells;
- bool biomesDone()const{return std::all_of(biomeSpots.begin(),biomeSpots.end(),[](auto const&j){return j.is_object();})||biomeCursor>=biomeCells.size();}
+ bool biomesDone()const{if(biomeCursor>=biomeCells.size())return true;for(size_t i=0;i<biomeSpots.size();++i)if(testBiomeAvailable(i)&&!biomeSpots[i].is_object())return false;return true;}
  int biomeCount()const{return int(std::count_if(biomeSpots.begin(),biomeSpots.end(),[](auto const&j){return j.is_object();}));}
  int maxYExclusive()const{return field->generationHeight()-64;}
  void sampleBiomes(int x,int z){
@@ -75,7 +85,7 @@ struct StructureTestTeleport {
   }
   auto s=field->surface(x+32768,z+32768);
   auto y=test_teleport::aboveSurface(std::max({s.height+s.drip,s.water,s.lava}),8,maxYExclusive());
-  if(y)for(size_t i=0;i<biomeSpots.size();++i)if(!biomeSpots[i].is_object()&&testBiomeMatches(int(i),s)){
+  if(y)for(size_t i=0;i<biomeSpots.size();++i)if(testBiomeAvailable(i)&&!biomeSpots[i].is_object()&&testBiomeMatches(int(i),s)){
    if(testBiomes[i].biome==11&&!test_teleport::desertDestination(x,z,[&](int X,int Z){return field->surface(X+32768,Z+32768);}))continue;
    if(testBiomes[i].biome==-6&&!test_teleport::plateauDestination(x,z,[&](int X,int Z){return field->surface(X+32768,Z+32768);}))continue;
    biomeSpots[i]={{"x",x},{"y",*y},{"z",z},{"family",testBiomes[i].key}};
@@ -122,7 +132,7 @@ struct StructureTestTeleport {
   if(field->unbounded())searchRadius=std::clamp(config.value("testSearchRadius",20000)/20000,1,5)*20000;
   for(auto&s:spots)s=J::array();
   biomeCells=structure_test::expandingCells(16,searchRadius);
-  for(int t=0;t<14;++t){if(t==7)continue;int spacing=t==12?villageSpacing():t==13?32:extraSpec(t)->spacing;cells[t]=structure_test::expandingCells(spacing,searchRadius);}
+  for(int t=0;t<14;++t){if(t==7&&!forest_capabilities::enabled(forest_capabilities::profile(input)))continue;int spacing=t==12?villageSpacing():t==13?32:extraSpec(t)->spacing;cells[t]=structure_test::expandingCells(spacing,searchRadius);}
   auto path=folder/"test-teleports.json";
   if(std::filesystem::exists(path))try{
    auto j=entity_store::read(path);
@@ -160,7 +170,8 @@ struct StructureTestTeleport {
  void listBiomes(TestTeleportListOutput&out)const{
   out.success("群系传送 {}/{}（101 起）；空服时继续搜索，每种保留一个位置。",biomeCount(),std::size(testBiomes));
   for(size_t i=0;i<biomeSpots.size();++i){auto const&b=biomeSpots[i];
-   if(b.is_object())out.success("[{}] {}：{} {} {}",101+i,testBiomes[i].name,b.at("x").get<int>(),b.at("y").get<int>(),b.at("z").get<int>());
+   if(!testBiomeAvailable(i))out.success("[{}] {}：当前存档配方不包含",101+i,testBiomes[i].name);
+   else if(b.is_object())out.success("[{}] {}：{} {} {}",101+i,testBiomes[i].name,b.at("x").get<int>(),b.at("y").get<int>(),b.at("z").get<int>());
    else out.success("[{}] {}：{}",101+i,testBiomes[i].name,biomesDone()?"搜索范围内未找到":"搜索中");
   }
  }
@@ -268,7 +279,7 @@ void registerStructureTest(J const&config){
   auto d=test_teleport::destination(id,int(std::size(testBiomes)));
   if(!d){fail("编号无效；输入 /karma 查看全部群系和结构。");return;}
   J const*spot=nullptr;std::string name;
-  if(d->biome){spot=&structureTest.biomeSpots[d->group];name=testBiomes[d->group].name;}
+  if(d->biome){if(!testBiomeAvailable(d->group)){fail("当前存档的生成配方不包含该群系；新群系在对应版本的新世界中生成。");return;}spot=&structureTest.biomeSpots[d->group];name=testBiomes[d->group].name;}
   else{
    auto const&points=structureTest.spots[d->group];
    if(d->point<int(points.size()))spot=&points[d->point];

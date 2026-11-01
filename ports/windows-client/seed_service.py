@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from prepare_world import prepare, sha, P
 from process_guard import run_checked
+from forest_profile import TARGETS
 
 def atomic_json(path, value):
     temporary = path.with_suffix('.tmp')
@@ -23,6 +24,10 @@ def run(request_path):
     if not isinstance(seed, str) or str(int(seed)) != seed or not -(1<<63) <= int(seed) < (1<<63):
         raise ValueError('Invalid signed 64-bit seed')
     bundle = json.loads((P/'bundle.json').read_bytes())
+    target=json.loads((P/'game-target.json').read_bytes())
+    game_line=target.get('gameLine')
+    if game_line not in TARGETS or target.get('capabilityProfile')!=TARGETS[game_line] or request.get('gameLine')!=game_line:
+        raise ValueError('The installed seed runtime does not match this Minecraft game version')
     # All destinations are derived from the installed helper, never supplied by UI.
     mod = P.parent
     cache = mod/'seed-cache'/bundle['identity']/seed
@@ -32,7 +37,7 @@ def run(request_path):
     usable = False
     if source.is_file() and receipt.is_file():
         r = json.loads(receipt.read_bytes())
-        usable = r.get('identity') == bundle['identity'] and r.get('sha256') == sha(source) and r.get('generationMode')=='regional-on-demand'
+        usable = r.get('identity') == bundle['identity'] and r.get('sha256') == sha(source) and r.get('generationMode')=='regional-on-demand' and r.get('capabilityProfile')==target['capabilityProfile']
     env = os.environ.copy()
     env.pop('PYTHONHOME', None)
     env.pop('PYTHONPATH', None)
@@ -47,10 +52,10 @@ def run(request_path):
         output = job/'native-input.json'
         run_checked([sys.executable, '-X', 'utf8', str(P/'tools/build_streaming_seed.py'),
                         '--seed', seed, '--output', str(output),
-                        '--status', str(status)], cwd=P, env=env, timeout=600, stage="world recipe preparation")
+                        '--status', str(status),'--target-game',game_line], cwd=P, env=env, timeout=600, stage="world recipe preparation")
         # Publication is last; a cancelled worker never leaves a trusted partial cache.
         os.replace(output, source)
-        atomic_json(receipt, dict(identity=bundle['identity'], sha256=sha(source),generationMode='regional-on-demand'))
+        atomic_json(receipt, dict(identity=bundle['identity'], sha256=sha(source),generationMode='regional-on-demand',capabilityProfile=target['capabilityProfile']))
     atomic_json(status, dict(state='running', phase='正在准备出生点周围区域',progress=.65,progressMode='stage-weighted'))
     spawn = None
     spawn_path = cache/'spawn-check.json'
