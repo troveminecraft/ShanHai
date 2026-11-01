@@ -6,9 +6,16 @@ void forestHabitat(Surface& s,int x,int z){
     ||s.volcanic>.01||s.barren>.01||s.stone>.01||s.giant>.01||s.glacier>.18||s.iceHabitat>=.60
     ||s.scarp>.05||s.cliffLow>-32768||s.fluvialType||s.riftWeight>.15)return;
  double t=ecologyTemperature(s),h=s.H;
+ // New worlds use the existing enclosed basin water plane. Do not fill dry
+ // land or carve a new lake, and do not mistake a rift's closedBasin for a basin.
+ if(basinMangrovesEnabled()&&s.closedBasin&&s.basinWeight>.75
+    &&s.water>s.height&&s.water-s.height<=6&&s.basinWater==s.water
+    &&s.river==0&&s.mainRiver<.20&&s.lava<s.height&&mangroveBasinAt(x,z)){
+  s.biome=forest_capabilities::Mangrove;s.treeD=.024;s.soilSand=0;return;
+ }
  // Rooted warm coastal wetlands use the existing connected sea/estuary plane.
  // No new water is introduced and inland/highland basins cannot qualify.
- if(t>=.62&&h>=.54&&!s.closedBasin&&!s.lake&&s.river==0&&s.mainRiver<.20
+ if(!basinMangrovesEnabled()&&t>=.62&&h>=.54&&!s.closedBasin&&!s.lake&&s.river==0&&s.mainRiver<.20
     &&s.height>=seaLevelValue-4&&s.height<=seaLevelValue+6
     &&s.water<=seaLevelValue&&s.lava<s.height&&s.coast<.20){
   int gx=int(std::floor(x/128.)),gz=int(std::floor(z/128.));

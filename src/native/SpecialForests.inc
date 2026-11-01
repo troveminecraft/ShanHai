@@ -11,33 +11,44 @@ struct ForestTree {
 struct ForestModel {ForestTree tree;std::vector<ForestCell> cells;};
 Cache<uint64_t,ForestTree> specialTreeCache{2048};
 Cache<uint64_t,std::shared_ptr<ForestModel>> specialShapeCache{192};
+Cache<uint64_t,ForestTree> mangroveTreeCache{2048};
+Cache<uint64_t,std::shared_ptr<ForestModel>> mangroveShapeCache{192};
 static constexpr int ForestGrid=12,ForestHalo=18;
+static constexpr int MangroveGrid=8;
 bool specialForestHabitat(Surface const&s)const{
+ if(s.biome==forest_capabilities::Mangrove&&field.basinMangrovesEnabled())
+  return s.closedBasin&&s.basinWeight>.75&&s.water>s.height&&s.water-s.height<=6
+      &&s.basinWater==s.water&&s.river==0&&s.mainRiver<.20&&s.lava<s.height&&s.stone<.01&&s.barren<.01;
  if(s.biome==forest_capabilities::Mangrove)return !s.lake&&s.river==0&&s.mainRiver<.20&&s.water<=s.seaLevel
      &&s.height>=s.seaLevel-4&&s.height<=s.seaLevel+6&&s.lava<s.height&&s.stone<.01&&s.barren<.01;
  return forest_capabilities::biome(s.biome)&&!s.kind&&!s.lake&&!s.river&&s.water<s.height
      &&s.lava<s.height&&s.stone<.01&&s.barren<.01&&s.cliffLow==-32768;
 }
-ForestTree specialTreeCandidate(int gx,int gz){return specialTreeCache.get(key2(gx,gz),[&]{
+ForestTree specialTreeCandidate(int gx,int gz,bool denseMangrove=false){return (denseMangrove?mangroveTreeCache:specialTreeCache).get(key2(gx,gz),[&]{
  ForestTree a;auto r=[&](int salt){return hash01(gx,gz,terrainSeed^(88100+salt));};
- a.x=gx*ForestGrid+3+int(r(1)*6);a.z=gz*ForestGrid+3+int(r(2)*6);
+ int grid=denseMangrove?MangroveGrid:ForestGrid;
+ a.x=gx*grid+(denseMangrove?2:3)+int(r(1)*(denseMangrove?4:6));a.z=gz*grid+(denseMangrove?2:3)+int(r(2)*(denseMangrove?4:6));
  // This independent rejection precedes any neighbour terrain request.
- if(r(3)>.78)return a;
+ if(r(3)>(denseMangrove?.90:.78))return a;
+ if(denseMangrove&&!field.mangroveBasinAt(a.x,a.z))return a;
  auto s=field.surface(a.x,a.z,false);
+ if(denseMangrove&&s.biome!=forest_capabilities::Mangrove)return a;
  if(s.biome==forest_capabilities::Mangrove){
-  if(!specialForestHabitat(s)||!glacierPlantKept(s,a.x,a.z)||r(3)>.60*field.ecologyTreeWeight(s)||blocked(a.x,a.z,false))return a;
+  if(field.basinMangrovesEnabled()!=denseMangrove)return a;
+  if(!specialForestHabitat(s)||!glacierPlantKept(s,a.x,a.z)||r(3)>(denseMangrove?.90:.60)*field.ecologyTreeWeight(s)||blocked(a.x,a.z,false))return a;
   a.biome=s.biome;a.width=1;a.ground=s.height;a.feet.fill(s.height);a.angle=r(7)*6.283185307;
   int low=s.height,high=s.height;
   for(int k=0;k<4;++k){double angle=a.angle+k*1.570796327;
    int x=a.x+roundJS(std::cos(angle)*4),z=a.z+roundJS(std::sin(angle)*4);auto b=field.surface(x,z);
-   if(b.height<s.seaLevel-4||b.height>s.seaLevel+6||b.water>s.seaLevel||b.river>0||b.mainRiver>.20
+   if(denseMangrove){if(b.biome!=forest_capabilities::Mangrove||!specialForestHabitat(b)||b.water!=s.water||b.rock)return ForestTree{};}
+   else if(b.height<s.seaLevel-4||b.height>s.seaLevel+6||b.water>s.seaLevel||b.river>0||b.mainRiver>.20
       ||b.desert>.05||b.badlands||b.aridType||b.closedBasin||b.lake||b.stone>.01||b.rock||b.lava>=b.height||b.barren>.01)return ForestTree{};
    int soil=field.material(b,x,b.height,z);if(soil!=85&&soil!=3&&soil!=4&&soil!=5&&soil!=20&&soil!=42)return ForestTree{};
    a.rootFeet[k]={x,b.height,z};low=std::min(low,b.height);high=std::max(high,b.height);
   }
   if(high-low>4)return ForestTree{};
-  a.stemBottom=std::max(s.seaLevel+3,high+3);a.height=a.stemBottom-a.ground+9+int(r(5)*8);
-  a.crown=3.5+r(6)*1.5;return a;
+  a.stemBottom=std::max((denseMangrove?s.water+2:s.seaLevel+3),high+3);a.height=a.stemBottom-a.ground+9+int(r(5)*8);
+  a.crown=(denseMangrove?4.5:3.5)+r(6)*1.5;return a;
  }
  if(!specialForestHabitat(s)||!glacierPlantKept(s,a.x,a.z)||!treeGroundAllowed(s,a.x,a.z,false)
     ||r(3)>.78*field.ecologyTreeWeight(s)||blocked(a.x,a.z,false))return a;
@@ -76,8 +87,8 @@ ForestTree specialTreeCandidate(int gx,int gz){return specialTreeCache.get(key2(
  }
  return a;
 });}
-std::shared_ptr<ForestModel> specialTreeModel(int gx,int gz){return specialShapeCache.get(key2(gx,gz),[&]{
- auto a=specialTreeCandidate(gx,gz);auto out=std::make_shared<ForestModel>();out->tree=a;
+std::shared_ptr<ForestModel> specialTreeModel(int gx,int gz,bool denseMangrove=false){return (denseMangrove?mangroveShapeCache:specialShapeCache).get(key2(gx,gz),[&]{
+ auto a=specialTreeCandidate(gx,gz,denseMangrove);auto out=std::make_shared<ForestModel>();out->tree=a;
  if(!a.height||(a.biome==forest_capabilities::Dappled&&!field.dappledForestEnabled()))return out;
  using namespace forest_palette;
  bool pale=a.biome==forest_capabilities::Pale,cherry=a.biome==forest_capabilities::Cherry,mangrove=a.biome==forest_capabilities::Mangrove,dappled=a.biome==forest_capabilities::Dappled;
@@ -182,6 +193,12 @@ std::vector<std::shared_ptr<ForestModel>> specialForestModels(int x0,int z0,int 
  for(int gx=int(std::floor((x0-ForestHalo)/double(ForestGrid)));gx<=int(std::floor((x0+size+ForestHalo)/double(ForestGrid)));++gx){
   auto a=specialTreeCandidate(gx,gz);
   if(a.height&&!nativeReserved(a.x,a.z))models.push_back(specialTreeModel(gx,gz));
+ }
+ if(field.mangroveBasinArea(x0-ForestHalo,z0-ForestHalo,size+2*ForestHalo+MangroveGrid))
+ for(int gz=int(std::floor((z0-ForestHalo)/double(MangroveGrid)));gz<=int(std::floor((z0+size+ForestHalo)/double(MangroveGrid)));++gz)
+ for(int gx=int(std::floor((x0-ForestHalo)/double(MangroveGrid)));gx<=int(std::floor((x0+size+ForestHalo)/double(MangroveGrid)));++gx){
+  auto a=specialTreeCandidate(gx,gz,true);
+  if(a.height&&!nativeReserved(a.x,a.z))models.push_back(specialTreeModel(gx,gz,true));
  }
  return models;
 }

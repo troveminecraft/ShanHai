@@ -34,6 +34,7 @@ class Field {
  bool localPlanningCulling=false;
  J const&data;J const&C;uint32_t terrainSeed;TerrainParameters const parameters{C};Density graph,caves;
  forest_capabilities::Profile const forestProfile=forest_capabilities::recipe(data);
+ bool const basinMangroves=forest_capabilities::enabled(forestProfile)&&C.value("forestEcologyRevision",0)>=2;
  int seaLevelValue=C.value("seaLevel",31);
  int generatedMaxYExclusive=C.value("generatedMaxYExclusive",320);
  int mountainPeakY=C.value("mountainPeakY",0);
@@ -177,6 +178,39 @@ public:
  J inspectElevationForms(int lo,int hi){return elevationInventory(lo,hi);}
  int seaLevel()const{return seaLevelValue;}
  bool forestEcologyEnabled()const{return forest_capabilities::enabled(forestProfile);}
+ bool basinMangrovesEnabled()const{return basinMangroves;}
+ bool mangroveBasinArea(int x,int z,int size){
+  if(!basinMangroves)return false;
+  double x0=x-32768.,z0=z-32768.,x1=x0+size,z1=z0+size;
+  for(int gz=int(std::floor(z0/basinGrid()));gz<=int(std::floor(z1/basinGrid()));++gz)
+  for(int gx=int(std::floor(x0/basinGrid()));gx<=int(std::floor(x1/basinGrid()));++gx){
+   auto b=basinSite(gx,gz);
+   // q<.72 with <=.27 boundary warp fits inside this conservative box.
+   if(b.valid&&b.mangrove&&x1>=b.x-b.rx&&x0<=b.x+b.rx&&z1>=b.z-b.rz&&z0<=b.z+b.rz)return true;
+  }
+  return false;
+ }
+ bool mangroveBasinAt(int x,int z){
+  if(!basinMangrovesEnabled())return false;
+  double wx=x-32768.,wz=z-32768.;
+  int gx=int(std::floor(wx/basinGrid())),gz=int(std::floor(wz/basinGrid()));
+  auto b=basinSite(gx,gz);
+  if(!b.valid||!b.mangrove||basinRadius(b,wx,wz)>=.72)return false;
+  return mangroveBasinHabitats.get(key2(gx,gz),[&]{
+   // Qualify the complete stand, not individual columns. The glacier collar
+   // can suppress all vegetation in an otherwise warm low basin. Reject that
+   // site instead of exposing a treeless "mangrove" or a tiny surviving strip.
+   // This runs after basinSite has finished: ice surveys may sample basins.
+   double collar=clamp(C.value("glacierHaloBlocks",1024.),256.,1024.);
+   auto clear=[&](IceRegion const&r){return !r.valid||std::hypot(b.x-r.x,b.z-r.z)>
+       1.08*std::max(r.rx,r.rz)+collar+std::max(b.rx,b.rz);};
+   if(streamingRegions){
+    int ix=int(std::floor(b.x/4608)),iz=int(std::floor(b.z/4608));
+    for(int z=iz-1;z<=iz+1;++z)for(int x=ix-1;x<=ix+1;++x)if(!clear(iceRegion(x,z)))return false;
+   }else for(auto const&r:iceAtlas)if(!clear(r))return false;
+   return true;
+  });
+ }
  bool dappledForestEnabled()const{return forest_capabilities::dappled(forestProfile);}
  int generationHeight()const{return generatedMaxYExclusive+64;}
  J inspectBadlandsRegion(int gx,int gz){auto a=badlandsRegion(gx,gz);return J{{"valid",a.valid},{"x",a.x-32768},{"z",a.z-32768},{"radiusX",a.rx},{"radiusZ",a.rz}};}

@@ -1,7 +1,8 @@
 // New 0.2.0 landforms are cached 2-D regional descriptors. They never query
 // generated chunks, and their surveys exclude this pass to avoid recursion.
-struct BasinSite {bool valid=false;double x=0,z=0,rx=0,rz=0,floor=0,rim=0;};
+struct BasinSite {bool valid=false,mangrove=false;double x=0,z=0,rx=0,rz=0,floor=0,rim=0;};
 Cache<uint64_t,BasinSite> basinSites{256};
+Cache<uint64_t,bool> mangroveBasinHabitats{256};
  int basinGrid()const{return 3072;}
  double basinRadius(BasinSite const&r,double x,double z)const{
   double dx=(x-r.x)/r.rx,dz=(z-r.z)/r.rz,q=std::hypot(dx,dz);if(!landformRefresh)return q;
@@ -32,7 +33,23 @@ BasinSite basinSite(int gx,int gz){return basinSites.get(key2(gx,gz),[&]{
  if(!valid)continue;
  int vx=int(std::floor(b.x/volcanoGrid)),vz=int(std::floor(b.z/volcanoGrid));
  for(int z=vz-1;z<=vz+1;++z)for(int x=vx-1;x<=vx+1;++x){auto v=volcanoRegion(x,z);if(v.valid&&std::hypot(b.x-v.cone.x,b.z-v.cone.z)<v.outer+b.rx*(landformRefresh?1.8:1.)+160)valid=false;}
- if(valid){b.valid=true;break;}
+ if(valid){
+  b.valid=true;
+  // One climate decision for the whole water-filled bowl. Its flat core has
+  // a diameter >= 200 blocks even with the strongest irregular boundary warp.
+  // Sample raw climate functions, never surface()/base(): those call basinSite.
+  if(basinMangrovesEnabled()&&landformRefresh&&std::min(b.rx,b.rz)>=230){
+   double scale=num(C.at("epic"),"horizontalScale");b.mangrove=true;
+   for(int i=0;i<9&&b.mangrove;++i){double a=i*6.283185307179586/8;
+    double X=(b.x+(i?std::cos(a)*b.rx*.35:0))*scale;
+    double Z=(b.z+(i?std::sin(a)*b.rz*.35:0))*scale;
+    // The wet bowl's centre sets its climate; the ring excludes cold/arid
+    // intrusions without requiring every naturally drier bank to be tropical.
+    b.mangrove=.62+.45*temp(X,0,Z)>=(i?.55:.62)&&.52+.45*humidity(X,0,Z)>(i?.52:.60);
+   }
+  }
+  break;
+ }
  }return b;
 });}
 struct LandRift {bool valid=false;int size=0;double x=0,z=0,dx=0,dz=0,length=0,width=0,depth=0,phase=0;};
@@ -97,7 +114,7 @@ void elevationRelief(Surface&s,double&height,int wx,int wz){
 J elevationInventory(int lo,int hi){
  if(hi<lo||int64_t(hi)-lo>100000)throw std::runtime_error("Elevation inventory range too wide");
  J out={{"basins",J::array()},{"rifts",J::array()}};if(!elevationVariants)return out;
- for(int z=int(std::floor(double(lo)/basinGrid()));z<=int(std::floor(double(hi)/basinGrid()));++z)for(int x=int(std::floor(double(lo)/basinGrid()));x<=int(std::floor(double(hi)/basinGrid()));++x){auto b=basinSite(x,z);if(b.valid)out["basins"].push_back({{"x",b.x},{"z",b.z},{"radiusX",b.rx},{"radiusZ",b.rz},{"floor",b.floor},{"rim",b.rim}});}
+ for(int z=int(std::floor(double(lo)/basinGrid()));z<=int(std::floor(double(hi)/basinGrid()));++z)for(int x=int(std::floor(double(lo)/basinGrid()));x<=int(std::floor(double(hi)/basinGrid()));++x){auto b=basinSite(x,z);if(b.valid)out["basins"].push_back({{"x",b.x},{"z",b.z},{"radiusX",b.rx},{"radiusZ",b.rz},{"floor",b.floor},{"rim",b.rim},{"mangrove",b.mangrove}});}
  for(int z=int(std::floor(lo/2304.));z<=int(std::floor(hi/2304.));++z)for(int x=int(std::floor(lo/2304.));x<=int(std::floor(hi/2304.));++x){auto r=landRift(x,z);if(r.valid)out["rifts"].push_back({{"x",r.x},{"z",r.z},{"size",r.size},{"halfLength",r.length},{"halfWidth",r.width},{"depth",r.depth},{"dx",r.dx},{"dz",r.dz}});}
  return out;
 }

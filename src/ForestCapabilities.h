@@ -16,7 +16,7 @@ inline Profile profile(nlohmann::json const& data) {
 }
 inline Profile recipe(nlohmann::json const& data) {
     auto p=profile(data);int revision=data.at("config").value("forestEcologyRevision",0);
-    if((p==Profile::Legacy&&revision!=0)||(p!=Profile::Legacy&&revision!=1))
+    if((p==Profile::Legacy&&revision!=0)||(p!=Profile::Legacy&&(revision<1||revision>2)))
         throw std::runtime_error("Forest recipe and capability profile disagree");
     return p;
 }

@@ -31,7 +31,7 @@
     "mangrove_swamp": {
       "blocks": ["mangrove_log", "mangrove_wood", "mangrove_leaves", "mangrove_roots", "muddy_mangrove_roots", "mangrove_propagule", "mud", "vine"],
       "nativeTags": ["mangrove_swamp", "overworld", "monster", "spawns_slimes_on_surface", "spawns_warm_variant_farm_animals", "spawns_warm_variant_frogs", "slime"],
-      "habitat": "Warm wet coastal/estuarine lowlands linked to the local water network; never isolated high plateaus.",
+      "habitat": "Warm humid inland basins with existing shallow water; continuous stands spanning at least 160 blocks, outside the glacier vegetation collar. Coastal mudflats are excluded in forest revision 2.",
       "behavior": "Submerged roots retain source water in Bedrock's secondary layer; hanging propagules require leaf support."
     },
     "dappled_forest": {

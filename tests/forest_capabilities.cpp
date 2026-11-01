@@ -13,6 +13,9 @@ int main(){
  assert(recipe(common)==Profile::Bedrock2620&&!dappled(recipe(common)));
  assert(recipe(modern)==Profile::Bedrock2651&&dappled(recipe(modern)));
  requireHost(common,false);requireHost(modern,true);requireMatch(common,common);
+ auto basins=common;basins["config"]["forestEcologyRevision"]=2;
+ assert(recipe(basins)==Profile::Bedrock2620);
+ assert(nativegen::regional::identity(basins)!=nativegen::regional::identity(common));
  assert(old!=nativegen::regional::identity(common));
  assert(nativegen::regional::identity(modern)!=nativegen::regional::identity(common));
  auto changed=common;changed["config"]["villageSpacing"]=16;
