@@ -20,7 +20,7 @@ namespace nativegen {
 inline double num(J const&j,char const*k){return j.at(k).get<double>();}
 
 struct ReliefNode{double v,relief,pos,corr;};
-struct Cliff{bool valid=false;double x=0,z=0,h=0,slope=0,nx=0,nz=0,crest=0,warp=0,drop=0;};
+struct Cliff{bool valid=false;double x=0,z=0,h=0,slope=0,nx=0,nz=0,crest=0,warp=0,drop=0;std::array<double,9> trace{};};
 class Field {
  friend struct ForestEcologyTest;
  friend struct GlacierEcologyRegression;

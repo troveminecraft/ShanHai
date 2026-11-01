@@ -9,11 +9,14 @@ void connectedCliffRelief(Surface&s,double&height,int wx,int wz){
   if(std::abs(wx-(ix+.5)*c.grid)>reach||std::abs(wz-(iz+.5)*c.grid)>reach)continue;
   auto a=patch(ix,iz);if(!a.valid)continue;
   double dx=wx-a.x,dz=wz-a.z,w=-dx*a.nz+dz*a.nx;
-  double u=dx*a.nx+dz*a.nz-1.3*std::sin(w/13+a.h);
+  bool curved=parameters.cliffRevision>=4;
+  double u=dx*a.nx+dz*a.nz-(curved?0.:1.3*std::sin(w/13+a.h));
   auto shape=cliff_transition::footprint(c.halfLength,c.front,a.drop);
-  auto part=cliff_transition::sample(shape,u,w,a.warp);
+  double offset=curved?cliff_transition::traceOffset(a.trace,w):0.;
+  auto part=curved?cliff_transition::curvedSample(shape,u,w,a.warp,offset):cliff_transition::sample(shape,u,w,a.warp);
   if(part.weight<=0)continue;
   displacement.add(part,a.nx,a.nz);
+  u-=offset;
   if(!C.contains("alcoves"))continue;
   auto const&q=C.at("alcoves");
   if(!q.value("enabled",false)||a.h<num(q,"minHeight")||hash01(ix,iz,terrainSeed^607)>=num(q,"chance"))continue;

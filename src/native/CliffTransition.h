@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <array>
 
 namespace nativegen::cliff_transition {
 inline double smooth(double lo,double hi,double value){
@@ -18,6 +19,19 @@ inline Sample sample(Footprint const&f,double u,double w,double amplitude){
  if(std::abs(u)>=f.front||std::abs(w)>=f.end)return {};
  double weight=(1-smooth(8.,f.front,std::abs(u)))*(1-smooth(f.core,f.end,std::abs(w)));
  return {amplitude*(2*smooth(-.45,.45,u)-1)*weight,weight};
+}
+// Smooth a surveyed contour, rather than attaching fine ripples to a plane.
+// All control points are immutable patch data; columns perform no surveys.
+inline double traceOffset(std::array<double,9> const&points,double w){
+ double p=std::clamp(w/48.+4.,0.,8.);int i=std::min(7,int(p));double t=p-i;
+ double a=points[std::max(0,i-1)],b=points[i],c=points[i+1],d=points[std::min(8,i+2)];
+ double m0=(c-a)*.5,m1=(d-b)*.5;
+ return (2*t*t*t-3*t*t+1)*b+(t*t*t-2*t*t+t)*m0+(-2*t*t*t+3*t*t)*c+(t*t*t-t*t)*m1;
+}
+inline Sample curvedSample(Footprint const&f,double u,double w,double amplitude,double offset){
+ auto result=sample(f,u,w,amplitude);
+ result.displacement=amplitude*(2*smooth(-.45,.45,u-offset)-1)*result.weight;
+ return result;
 }
 struct Displacement {
  double x=0,z=0,weight=0;

@@ -1,5 +1,7 @@
 ## 0.4.0 — in development
 
+New cliff lines follow surveyed hillside contours and broad erosion-like recesses, producing curved faces with bounded local computation.
+
 New worlds use wider cliff-end transitions and combine overlapping hillside remaps without adding height offsets. Tall central faces remain. Volcanic flanks descend more gradually and retain the existing crater sizes, rim variation and lava levels.
 
 River connectivity now uses the same voxel rounding as the final riverbed, preventing a one-block barrier at shallow falling edges.
@@ -14,7 +16,7 @@ New forest recipes place denser mangroves in warm, shallow-water inland basins w
 
 In mountains&seas worlds, `/locate biome` searches the world's frozen terrain recipe in the background. Ordinary worlds retain the native command. A bounded search reports incomplete work separately from an unavailable biome; it does not request or generate world chunks.
 
-New worlds use recipe **2.218** and a fixed game capability profile. Existing worlds retain their saved recipe and terrain, including 2.217. A world using 26.51-only forest content cannot open on 26.20. Sea level remains Y100 and the building range remains Y-64..511. The update also fixes world-to-world biome table reuse and seed preparation under non-ASCII paths.
+New worlds use recipe **2.219** and a fixed game capability profile. Existing worlds retain their saved recipe and terrain, including 2.217. A world using 26.51-only forest content cannot open on 26.20. Sea level remains Y100 and the building range remains Y-64..511. The update also fixes world-to-world biome table reuse and seed preparation under non-ASCII paths.
 
 Dense terrain, large view distances and native structure processing can still cause loading delays. Nighttime creaking behavior and new forest save/reload behavior need further compatibility coverage across the supported game builds.
 

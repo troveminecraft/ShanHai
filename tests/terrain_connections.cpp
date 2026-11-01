@@ -6,6 +6,26 @@
 
 namespace nativegen {
 struct TerrainConnectionRegression {
+ static J curved(J data){
+  data["config"]["cliffRevision"]=4;Field f(data);int checked=0,bent=0;double largest=0;J sites=J::array();
+  for(int gz=96;gz<160&&checked<48;++gz)for(int gx=96;gx<160&&checked<48;++gx){
+   auto a=f.patch(gx,gz);if(!a.valid)continue;double deviation=0;
+   double left=cliff_transition::traceOffset(a.trace,-96),right=cliff_transition::traceOffset(a.trace,96);
+   for(int w=-96;w<=96;++w){double line=left+(right-left)*(w+96)/192.;
+    deviation=std::max(deviation,std::abs(cliff_transition::traceOffset(a.trace,w)-line));
+   }
+   for(auto offset:a.trace)assert(std::isfinite(offset)&&std::abs(offset)<=56.);
+   auto shape=cliff_transition::footprint(64,256,a.drop);
+   for(int w:{-120,-48,0,48,120}){double offset=cliff_transition::traceOffset(a.trace,w),last=-257;
+    for(int i=0;i<5140;++i){double u=-257+i*.1,mapped=u+cliff_transition::curvedSample(shape,u,w,a.warp,offset).displacement;
+     if(i)assert(mapped>last);last=mapped;
+    }
+   }
+   int drop=faceDrop(f,a);assert(drop<=320);bent+=deviation>=6;largest=std::max(largest,deviation);++checked;
+   sites.push_back({{"x",a.x-32768},{"z",a.z-32768},{"curveDeviation",deviation},{"centerFaceDrop",drop}});
+  }
+  assert(checked==48&&bent>=36);return {{"checked",checked},{"curvedFaces",bent},{"maximumDeviation",largest},{"passed",true},{"sites",sites}};
+ }
  static J waterConnection(J data){
   assert(data.at("seedManifest").at("terrainSeed")=="35");
   data["config"]["cliffRevision"]=3;data["config"]["volcanoRevision"]=5;data["config"]["waterContainment"]=1;
@@ -127,6 +147,7 @@ struct TerrainConnectionRegression {
 int main(int argc,char**argv){try{
  if(argc!=3&&argc!=4)return 2;nativegen::J data;std::ifstream(argv[1])>>data;
  using T=nativegen::TerrainConnectionRegression;
+ if(argc==4&&std::string(argv[3])=="curved"){auto report=T::curved(data);std::ofstream(argv[2])<<report.dump(2);report.erase("sites");std::cout<<report<<std::endl;return 0;}
  if(argc==4&&std::string(argv[3])=="water-connection"){auto report=T::waterConnection(data);std::ofstream(argv[2])<<report.dump(2);std::cout<<report<<std::endl;return 0;}
  if(argc==4){T::geometry();nativegen::J report={{"cliffs",T::cliffs(data)},{"volcanoes",T::volcanoes(data)}};
   std::ofstream(argv[2])<<report.dump(2);report["cliffs"].erase("examples");report["volcanoes"].erase("examples");std::cout<<report<<std::endl;
