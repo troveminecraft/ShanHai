@@ -2,6 +2,7 @@
 #undef NDEBUG
 #endif
 #include "rules/StructureReservations.h"
+#include "native/NativeReservations.h"
 #include <array>
 #include <cassert>
 #include <set>
@@ -9,6 +10,14 @@
 #include <iostream>
 int main(){
  using namespace worldgen_rules;
+ for(auto [id,name]:{std::pair{179,"minecraft:dark_oak_log"},{195,"minecraft:creaking_heart"},{239,"minecraft:lit_pumpkin"},{243,"minecraft:glow_lichen"},{248,"minecraft:dark_oak_leaves"},{249,"minecraft:pale_oak_leaves"},{250,"minecraft:cherry_leaves"}}){
+  assert(structureReservationRemoves(id,0,name));assert(!structureReservationRemoves(id,id,name));assert(!structureReservationRemoves(id,0,"minecraft:stone"));
+ }
+ std::vector<std::array<int,4>> rectangles;
+ for(int z=-12;z<=12;++z)for(int x=-12;x<=12;++x)rectangles.push_back({x*23-5,z*19-7,x*23+8,z*19+4});
+ nativegen::NativeReservations index(rectangles);
+ for(int z=-280;z<=280;++z)for(int x=-320;x<=320;++x){bool expected=false;for(auto const&r:rectangles)expected|=x>=r[0]&&x<=r[2]&&z>=r[1]&&z<=r[3];assert(index.contains(x,z)==expected);}
+ rectangles.push_back({-30000000,-30000000,30000000,30000000});nativegen::NativeReservations large(rectangles);assert(large.contains(-30000000,30000000)&&!large.contains(30000001,0));
  for(int height:{384,576}){
   std::vector<uint16_t>before(256*height,2),after=before;
   std::set<std::array<int,3>>expected{{0,4,0},{1,63,0},{1,height-1,0},{15,height-1,15}};

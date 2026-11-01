@@ -7,7 +7,11 @@ struct VillageGrowthContext {
  }
 };
 thread_local VillageGrowthContext* villageGrowth=nullptr;
+// Captured only while this village's native builder is alive. The callable
+// retains the game's concrete VillagePiece construction and ABI.
+thread_local LegacyJigsawPlacement::PieceFactory* villagePieceFactory=nullptr;
 LL_TYPE_INSTANCE_HOOK(VillageBuilderDepth,ll::memory::HookPriority::Normal,LegacyJigsawPlacement,&LegacyJigsawPlacement::$ctor,void*,int depth,LegacyJigsawPlacement::PieceFactory factory){
+ if(villagePieceFactory)*villagePieceFactory=factory;
  return origin(villageGrowth?std::max(depth,villageGrowth->budget.depth):depth,std::move(factory));
 }
 LL_TYPE_INSTANCE_HOOK(VillageBuilderBudget,ll::memory::HookPriority::Normal,LegacyJigsawPlacement,&LegacyJigsawPlacement::_tryPlacingPiece,bool,

@@ -7,6 +7,14 @@
 using namespace nativegen;
 using namespace std::chrono_literals;
 int main(){
+ J recipe{{"regionalGeneration",{{"algorithm",regional::Algorithm}}},
+  {"seedManifest",{{"terrainSeed","35"},{"templateSha256","fixture"}}},
+  {"config",{{"riverBranches",1}}}};
+ auto structureRecipe=recipe;structureRecipe["config"]["orderedVillages"]=1;
+ structureRecipe["config"]["villageSpacing"]=16;structureRecipe["config"]["sharedRules"]={{"villageSizeClasses",true}};
+ assert(regional::identity(recipe)==regional::identity(structureRecipe));
+ structureRecipe["config"]["riverBranches"]=0;
+ assert(regional::identity(recipe)!=regional::identity(structureRecipe));
  // Identical plan identities in two worlds must not share mutable residency.
  regional::Store worldA,worldB;
  {

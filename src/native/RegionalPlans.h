@@ -15,7 +15,7 @@
 namespace nativegen::regional {
 inline constexpr int Core=2048,Halo=512,Pitch=64,Count=(Core+Halo*2)/Pitch+1;
 struct Ground{int height;double humidity,temperature,stone,volcanic;bool closedBasin=false;int water=-32768;};
-template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool curved=false,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,bool confinedBanks=false,bool refresh=false,bool uplandWaterways=false,J const* resolvedLakes=nullptr,bool lakesOnly=false,bool headward=false){
+template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool curved=false,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,bool confinedBanks=false,bool refresh=false,bool uplandWaterways=false,J const* resolvedLakes=nullptr,bool lakesOnly=false,bool headward=false,bool branches=false){
  constexpr int N=Count,Total=N*N;
  int originX=gx*Core-Halo,originZ=gz*Core-Halo;
  std::array<Ground,Total> ground;
@@ -148,7 +148,7 @@ template<class Sample> J drainage(int gx,int gz,uint32_t seed,Sample sample,bool
   for(auto const&[fall,best]:upstream){fallSources.erase(fall);fallSources.insert(best.second);}
  }else for(auto i=order.rbegin();i!=order.rend();++i)if(parent[*i]>=0)flow[parent[*i]]+=flow[*i];
  if(curved){
-  auto result=curvedDrainage(gx,gz,seed,order,ground,parent,flow,distance,sink,point,sample,seaLevel,maxSurfaceY,meanders,confinedBanks,resolvedLakes?resolvedLakes->at("nearby"):lakes,uplandWaterways,resolvedLakes!=nullptr,&fallSources,headward);
+  auto result=curvedDrainage(gx,gz,seed,order,ground,parent,flow,distance,sink,point,sample,seaLevel,maxSurfaceY,meanders,confinedBanks,resolvedLakes?resolvedLakes->at("nearby"):lakes,uplandWaterways,resolvedLakes!=nullptr,&fallSources,headward,branches);
   result["region"]={gx,gz};result["lakes"]=lakes;result["samples"]=Total;return result;
  }
  std::vector<int> sources;

@@ -218,10 +218,10 @@ void recoverLoadedStructurePlans(Level &level) {
                 if (populationRecoveryQueued.insert(key).second)
                     populationRecovery.push_back(key);
             };
-            for (int z = villageCell(cz - 10); z <= villageCell(cz + 10); ++z)
-                for (int x = villageCell(cx - 10); x <= villageCell(cx + 10); ++x) {
+            for (int z = villageCell(cz - villageChunkReach()); z <= villageCell(cz + villageChunkReach()); ++z)
+                for (int x = villageCell(cx - villageChunkReach()); x <= villageCell(cx + villageChunkReach()); ++x) {
                     auto v = villageCandidate(x, z, seed);
-                    if (std::abs(v.x - cx) <= 10 && std::abs(v.z - cz) <= 10)
+                    if (std::abs(v.x - cx) <= villageChunkReach() && std::abs(v.z - cz) <= villageChunkReach())
                         queue(true, v);
                     auto s = nativeCandidateForCell(x, z, seed);
                     if (std::abs(s.x - cx) <= 3 && std::abs(s.z - cz) <= 3)
@@ -238,7 +238,7 @@ void recoverLoadedStructurePlans(Level &level) {
         populationRecoveryQueued.erase(key);
         auto [village, x, z] = key;
         bool nearbyLoaded = false;
-        int reach = village ? 10 : 3;
+        int reach = village ? villageChunkReach() : 3;
         for (int dz = -reach; dz <= reach && !nearbyLoaded; ++dz)
             for (int dx = -reach; dx <= reach; ++dx) {
                 auto c = dimension->getChunkSource().getExistingChunk({x + dx, z + dz});

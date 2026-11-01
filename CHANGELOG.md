@@ -1,5 +1,7 @@
 ## 0.4.0 — in development
 
+Dark and pale forests now share connected canopies supported by 40–50-block trees with trunk radii of 5–7 blocks. Arched hollows can contain a jack-o’-lantern (66% per hollow); pale hollows can also contain a naturally generated creaking heart (11%). Glow lichen grows on supported root faces. Cherry groves form coherent 160–480-block stands, each with a central tree about 70 blocks high and a trunk radius of 10–20 blocks. Gentle river reaches can split into surveyed side channels and rejoin downstream. Villages target six times the previous building count in connected street rows, retaining native building templates. Initial resident and animal counts remain at the original scale to avoid multiplying AI work. Unsuitable terrain and layouts exceeding the bounded village footprint are rejected.
+
 New cliff lines follow surveyed hillside contours and broad erosion-like recesses, producing curved faces with bounded local computation.
 
 New worlds use wider cliff-end transitions and combine overlapping hillside remaps without adding height offsets. Tall central faces remain. Volcanic flanks descend more gradually and retain the existing crater sizes, rim variation and lava levels.
@@ -8,7 +10,7 @@ River connectivity now uses the same voxel rounding as the final riverbed, preve
 
 Package and launcher author attribution is corrected to **peakarma**.
 
-Adds dark forests, pale gardens, cherry groves and mangrove swamps to new worlds on both supported game versions. Minecraft 1.26.51.01 also gains dappled forests with poplar foliage, fallen logs and shelf mushrooms. Forests follow the existing climate and terrain; occasional large trees remain local features.
+Adds dark forests, pale gardens, cherry groves and mangrove swamps to new worlds on both supported game versions. Minecraft 1.26.51.01 also gains dappled forests with poplar foliage, fallen logs and shelf mushrooms. Forests follow the existing climate and terrain.
 
 Pale trees include native natural creaking hearts; mangrove roots preserve water in the secondary block layer. Woodland mansions now require an actual dark forest. `/karma` adds forest entries 141–144, plus 145 on 26.51; existing numbers and optional teleport modes remain unchanged.
 

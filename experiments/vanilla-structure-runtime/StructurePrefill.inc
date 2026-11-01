@@ -134,10 +134,10 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
         throw std::runtime_error("Structure generation paused after an earlier error");
     uint seed = bedrock_compat::seed(bedrock_compat::level(dim).getLevelData()).to32BitRandomSeed();
     std::vector<ChunkPos> vc, sc;
-    for (int z = villageCell(cp.z - 10); z <= villageCell(cp.z + 10); ++z)
-        for (int x = villageCell(cp.x - 10); x <= villageCell(cp.x + 10); ++x) {
+    for (int z = villageCell(cp.z - villageChunkReach()); z <= villageCell(cp.z + villageChunkReach()); ++z)
+        for (int x = villageCell(cp.x - villageChunkReach()); x <= villageCell(cp.x + villageChunkReach()); ++x) {
             auto c = villageCandidate(x, z, seed);
-            if (std::abs(c.x - cp.x) <= 10 && std::abs(c.z - cp.z) <= 10)
+            if (std::abs(c.x - cp.x) <= villageChunkReach() && std::abs(c.z - cp.z) <= villageChunkReach())
                 vc.push_back(c);
         }
     for (int z = structureCell(cp.z - 3); z <= structureCell(cp.z + 2); ++z)

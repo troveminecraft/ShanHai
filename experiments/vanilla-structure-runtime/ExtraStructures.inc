@@ -842,7 +842,7 @@ ExtraPlan &extraPlan(Dimension &d, int type, ChunkPos cp) {
     } // legacy saved recipes
     auto b = *start->boundingBox;
     if (extraSurface(type)) {
-        constexpr int reach = worldgen_rules::VillageReach + 28;
+        int reach = villageReach()+28;
         uint seed = structureSeed(d);
         for (int z = villageCell(chunk(b.min.z - reach)); z <= villageCell(chunk(b.max.z + reach)); ++z)
             for (int x = villageCell(chunk(b.min.x - reach)); x <= villageCell(chunk(b.max.x + reach));

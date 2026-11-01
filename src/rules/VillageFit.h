@@ -93,7 +93,7 @@ template<class Visit> void villageApproaches(VillageCells const&cells,std::map<V
 // Roads are projected later; no whole-village or bounding-box levelling.
 template<class Sample> std::optional<int> villageOriginOffset(
  VillageCells const&cells,std::map<VillageXZ,int> const&foundations,
- std::map<VillageXZ,int> const&doors,Sample sample,int maxY=319){
+ std::map<VillageXZ,int> const&doors,Sample sample,int maxY=319,int maxRelief=2){
  if(foundations.empty())return 0;
  std::vector<int> offsets,edges;int approachFloor=std::numeric_limits<int>::min();offsets.reserve(foundations.size());
  for(auto const&[xz,h]:foundations){
@@ -113,13 +113,18 @@ template<class Sample> std::optional<int> villageOriginOffset(
  // remote height. Only the walkable footprint has zero-distance authority.
  // Reject lots requiring a tall downhill podium.
  auto [low,high]=std::minmax_element(offsets.begin(),offsets.end());int shift=std::max(*high,approachFloor);
- if(std::abs(shift)>VillagePieceMaxOffset)return {};
- if(shift-*low>2)return {};
+ if(maxRelief<=2&&std::abs(shift)>VillagePieceMaxOffset)return {};
+ if(maxRelief>2){
+  std::sort(offsets.begin(),offsets.end());shift=offsets[offsets.size()/2];
+  // Ordered lots use small cut-and-fill terraces; their door aprons use
+  // the same six-block budget. Old villages retain the strict raised fit.
+  if(std::abs(shift)>VillagePieceMaxOffset||shift-offsets.front()>maxRelief||offsets.back()-shift>maxRelief||approachFloor-shift>maxRelief)return {};
+ }else if(shift-*low>maxRelief)return {};
  return shift;
 }
 template<class Sample> VillageGroundPlan planVillageGround(
  VillageCells const&cells,std::map<VillageXZ,int> const&foundations,
- std::map<VillageXZ,int> const&doors,std::map<VillageXZ,int> const&roadOffsets,Sample sample,int maxY=319){
+ std::map<VillageXZ,int> const&doors,std::map<VillageXZ,int> const&roadOffsets,Sample sample,int maxY=319,int apronRadius=VillageApronRadius,int apronShift=VillageApronMaxShift){
  std::map<VillageXZ,int> finished,result,approachMinimum;
  std::map<VillageXZ,std::pair<double,double>> blends;
  std::map<VillageXZ,double> strength;
@@ -130,18 +135,18 @@ template<class Sample> VillageGroundPlan planVillageGround(
   finished[xz]=top;
   villageApproaches(cells,foundations,xz,top,[&](VillageXZ outside,int distance){auto [it,added]=approachMinimum.emplace(outside,top-distance);if(!added)it->second=std::max(it->second,top-distance);});
   int apron=exposed?top:std::min(top,sample(xz.first,xz.second));
-  for(int dz=-VillageApronRadius;dz<=VillageApronRadius;++dz)for(int dx=-VillageApronRadius;dx<=VillageApronRadius;++dx){double distance=std::hypot(dx,dz);if(distance>=VillageApronRadius)continue;double w=1-distance/VillageApronRadius;w*=w;VillageXZ p{xz.first+dx,xz.second+dz};auto&b=blends[p];b.first+=w*apron;b.second+=w;strength[p]=std::max(strength[p],w);}
+  for(int dz=-apronRadius;dz<=apronRadius;++dz)for(int dx=-apronRadius;dx<=apronRadius;++dx){double distance=std::hypot(dx,dz);if(distance>=apronRadius)continue;double w=1-distance/apronRadius;w*=w;VillageXZ p{xz.first+dx,xz.second+dz};auto&b=blends[p];b.first+=w*apron;b.second+=w;strength[p]=std::max(strength[p],w);}
  }
- for(auto const&[xz,b]:blends){int natural=sample(xz.first,xz.second);result[xz]=natural+std::clamp(int(std::round((b.first/b.second-natural)*strength[xz])),-VillageApronMaxShift,VillageApronMaxShift);}
+ for(auto const&[xz,b]:blends){int natural=sample(xz.first,xz.second);result[xz]=natural+std::clamp(int(std::round((b.first/b.second-natural)*strength[xz])),-apronShift,apronShift);}
  // Keep a walkable descent from an elevated threshold. Bound earthwork to
  // the same one-block apron budget, rather than raising an entire village.
- for(auto const&[xz,minimum]:approachMinimum){int natural=sample(xz.first,xz.second);auto [it,added]=result.emplace(xz,natural);it->second=std::max(it->second,std::min(minimum,natural+VillageApronMaxShift));}
+ for(auto const&[xz,minimum]:approachMinimum){int natural=sample(xz.first,xz.second);auto [it,added]=result.emplace(xz,natural);it->second=std::max(it->second,std::min(minimum,natural+apronShift));}
  for(auto const&[xz,h]:finished)result[xz]=h;
  std::map<VillageXZ,int> tops;
  for(auto const&[xz,offset]:roadOffsets){auto it=result.find(xz);tops[xz]=(it==result.end()?sample(xz.first,xz.second):it->second)+offset;}
  for(int pass=0;pass<RoadRelaxationPasses;++pass){bool changed=false;for(auto&[xz,top]:tops){if(foundations.contains(xz))continue;int target=top;
   for(auto [dx,dz]:std::array<VillageXZ,4>{{{1,0},{-1,0},{0,1},{0,-1}}})if(auto it=tops.find({xz.first+dx,xz.second+dz});it!=tops.end())target=std::min(target,it->second+1);
-  if(auto it=approachMinimum.find(xz);it!=approachMinimum.end())target=std::max(target,std::min(it->second,sample(xz.first,xz.second)+VillageApronMaxShift)+roadOffsets.at(xz));
+  if(auto it=approachMinimum.find(xz);it!=approachMinimum.end())target=std::max(target,std::min(it->second,sample(xz.first,xz.second)+apronShift)+roadOffsets.at(xz));
   if(target!=top){top=target;changed=true;}
  }if(!changed)break;}
  for(auto const&[xz,top]:tops)if(!foundations.contains(xz))result[xz]=top-roadOffsets.at(xz);

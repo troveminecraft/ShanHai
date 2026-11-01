@@ -30,6 +30,7 @@
 #include "rules/ExtraExecution.h"
 #include "rules/VillageFit.h"
 #include "rules/StructurePlan.h"
+#include "rules/OrderedVillage.h"
 #include "rules/ScatteredExecution.h"
 #include "rules/CityPlan.h"
 #include "rules/CityEnvironment.h"
@@ -218,6 +219,8 @@ std::string const &worldIdentity() {
 #endif
 J report;
 std::atomic_int liveVillageSpacing{32};
+std::atomic_int liveVillageReach{worldgen_rules::VillageReach};
+thread_local std::optional<int> auditVillageReach;
 thread_local std::optional<int> auditVillageSpacing;
 struct StructureSession {
     terrain_runtime::WorldTasks tasks;
@@ -323,6 +326,8 @@ void initialize() {
         field = std::make_unique<terrain_kernel::Field>(input, kernelContext);
         liveVillageSpacing.store(worldgen_rules::configuredVillageSpacing(input.at("config").value("villageSpacing",32)));
         rules["villageSpacing"] = liveVillageSpacing.load();
+        liveVillageReach.store(input.at("config").value("orderedVillages",0)>=1?worldgen_rules::OrderedVillageReach:worldgen_rules::VillageReach);
+        rules["villageReach"]=liveVillageReach.load();
         std::ofstream(folder / "effective-structure-rules.json")
             << J{{"world", activeWorld}, {"savedRevision", previous}, {"effective", rules}}.dump(2);
         structureTasks.open();

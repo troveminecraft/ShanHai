@@ -2,6 +2,7 @@
 #include "Field.h"
 #include "OreCluster.h"
 #include "JungleShapeCache.h"
+#include "NativeReservations.h"
 #include "../WorldBounds.h"
 #include "../rules/HighMountainUnderground.h"
 #include <chrono>
@@ -26,13 +27,13 @@ class Engine {
  friend struct GlacierEcologyRegression;
  friend struct UplandTerrainRegression;
  friend struct EngineBoundaryTest; // Offline regression exercises the production passes.
- std::vector<std::array<int,4>> nativeReservations;
+ NativeReservations nativeReservations;
  bool forestDesign=false,sealedFluidsEnabled=false,gradualIceEcotone=false;
  double iceVegetation(Surface const&s)const{return gradualIceEcotone?1-smooth(.06,.60,s.iceHabitat):1.;}
  bool forestTreeKept(int x,int z)const{return !forestDesign||hash01(x,z,terrainSeed^51971)<.75;}
  // One lottery at the feature anchor; never clip individual tree/shrub voxels.
  bool glacierPlantKept(Surface const&s,int x,int z)const{return s.glacierVegetation>=1||hash01(x,z,terrainSeed^73129)<s.glacierVegetation;}
- bool nativeReserved(int x,int z)const{for(auto const& r:nativeReservations)if(x>=r[0]&&x<=r[2]&&z>=r[1]&&z<=r[3])return true;return false;}
+ bool nativeReserved(int x,int z)const{return nativeReservations.contains(x,z);}
  J const&C;uint32_t terrainSeed;std::unique_ptr<Field> ownedField;Field& field;Perlin forestNoise,understoryNoise;
  bool legacyStructures=true;
  bool treeSubstrates=false,glacierEcologyEnabled=false,rootedTreeSoil=false;

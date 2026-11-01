@@ -93,6 +93,8 @@ struct VillageOasisCell {
     bool green;
 };
 struct VillagePlan {
+    std::map<worldgen_rules::VillageXZ,int> plannedRoads;
+    std::vector<bool> populationPieces;
     std::shared_ptr<worldgen_rules::VillageLayoutPlan> sharedLayout;
     worldgen_rules::VillageBlueprint sharedBlueprint;
     std::map<std::pair<int, int>, std::pair<int, int>> roadSurfaceFix;
@@ -115,6 +117,8 @@ thread_local VillagePlan const *capturedVillageGround = nullptr;
 void placeVillageDecor(BlockSource &, ChunkPos, VillagePlan &, uint);
 std::map<std::pair<int, int>, VillagePlan> villages;
 int villageSpacing(){return auditVillageSpacing?*auditVillageSpacing:liveVillageSpacing.load();}
+int villageReach(){return auditVillageReach?*auditVillageReach:liveVillageReach.load();}
+int villageChunkReach(){return (villageReach()+43)/16;}
 int villageCell(int v){return worldgen_rules::spacingCell(v,villageSpacing());}
 ChunkPos villageCandidate(int x, int z, uint seed) {
     int spacing=villageSpacing(),separation=spacing==16?8:spacing==20?16:worldgen_rules::VillageSeparation;
@@ -143,25 +147,36 @@ char const *villageBiome(int biome) {
                                   "minecraft:desert", "minecraft:savanna"};
     return names[villageStyle(biome)];
 }
+#include "OrderedVillage.inc"
 bool buildSharedVillage(StructureStart &start, VillagePlan &result, ChunkPos cp, uint seed, int biome) {
     worldgen_rules::VillageBlueprint blueprint{{cp.x, cp.z}, seed, biome, {}};
+    blueprint.plannedRoads=result.plannedRoads;blueprint.reach=villageReach();
     for (auto const &p : *start.pieces)
         blueprint.pieces.push_back(sharedPoolPiece(*static_cast<PoolElementStructurePiece *>(p.get())));
+    if(!result.populationPieces.empty()){
+        if(result.populationPieces.size()!=blueprint.pieces.size())throw std::runtime_error("Village population mapping mismatch");
+        for(size_t i=0;i<blueprint.pieces.size();++i)blueprint.pieces[i].populate=result.populationPieces[i];
+    }
     auto plan = worldgen_rules::planVillageLayout(
         blueprint, [](int x, int z) { return field->surface(x + 32768, z + 32768); },
         [](int x, int z, uint32_t seed) { return nativegen::hash01(x, z, seed); }, field->generationHeight()-65);
-    if (!plan.accepted)
+    if (!plan.accepted) {
+        result.diagnostics["layoutRejection"]=plan.rejection;
         return false;
+    }
     // The entire plan was validated before committing any native move.
     for (size_t i = 0; i < plan.verticalMoves.size(); ++i)
         if (int dy = plan.verticalMoves[i])
             (*start.pieces)[i]->moveBoundingBox(0, dy, 0);
     bedrock_compat::calculateBoundingBox(start);
+    if(!result.plannedRoads.empty())start.boundingBox=nativeBox(plan.bounds);
     result.foundations = std::move(plan.foundations);
     result.fittedGround = std::move(plan.ground.fitted);
     result.roadSurfaceFix = std::move(plan.roadSurfaceFix);
-    for (auto const &[q, b] : plan.templateBlocks)
+    if(result.plannedRoads.empty())for (auto const &[q, b] : plan.templateBlocks)
         result.templateBlocks[q] = sharedBlock(b);
+    else result.decorReady=true;
+    plan.templateBlocks.clear();
     for (auto const &[cp, writes] : plan.paddingWrites)
         for (auto const &w : writes)
             result.paddingGroundWrites[{cp.x, cp.z}].push_back(
@@ -197,6 +212,10 @@ bool buildSharedVillage(StructureStart &start, VillagePlan &result, ChunkPos cp,
         p.cells.clear();
         p.cells.shrink_to_fit();
     }
+    // Execution retains chunk-indexed writes and placements, not the packing
+    // inputs or duplicate copies of every template air block and street cell.
+    blueprint.plannedRoads.clear();result.plannedRoads.clear();result.populationPieces.clear();
+    plan.ground.finished.clear();plan.doors.clear();plan.roadOffsets.clear();
     result.sharedBlueprint = std::move(blueprint);
     result.sharedLayout = std::make_shared<worldgen_rules::VillageLayoutPlan>(std::move(plan));
     auto const &stats = *result.sharedLayout;
@@ -210,6 +229,7 @@ bool buildSharedVillage(StructureStart &start, VillagePlan &result, ChunkPos cp,
                           {"pieces", pieces},
                           {"groundMin", stats.groundMin},
                           {"groundMax", stats.groundMax},
+                          {"initialEntityMarkers", result.spawns.size()},
                           {"surfaceQueries", stats.surfaceQueries}};
     return true;
 }
@@ -223,7 +243,7 @@ VillagePlan &villagePlan(Dimension &d, ChunkPos cp, uint seed) {
         return it->second;
     auto &result = villages[key];
     int wx = cp.x * 16, wz = cp.z * 16;
-    if (!structureBoxInside(wx - 128, wz - 128, wx + 128, wz + 128))
+    if (!structureBoxInside(wx-villageReach(), wz-villageReach(), wx+villageReach(), wz+villageReach()))
         return result;
     auto fit = [](auto const &s) {
         return worldgen_rules::villageSurfaceAllowed(s, worldgen_rules::villageStyle(s.biome));
@@ -245,6 +265,8 @@ VillagePlan &villagePlan(Dimension &d, ChunkPos cp, uint seed) {
             if (hi - lo > 10)
                 return result;
         }
+    bool ordered=input.at("config").value("orderedVillages",0)>=1;
+    if(ordered&&!worldgen_rules::villageTownOwner({cp.x,cp.z},seed,villageSpacing(),[&](int x,int z){auto c=villageCandidate(x,z,seed);return worldgen_rules::ChunkPosition{c.x,c.z};},[](int x,int z){return field->surface(x+32768,z+32768);})){result.diagnostics["layoutRejection"]="neighbouring-town";return result;}
     auto biome = d.getBiomeRegistry().lookupByName(villageBiome(center.biome));
     if (!biome)
         return result;
@@ -262,6 +284,9 @@ VillagePlan &villagePlan(Dimension &d, ChunkPos cp, uint seed) {
         }
     } reset;
     auto t = std::chrono::steady_clock::now();
+    LegacyJigsawPlacement::PieceFactory factory;
+    if(ordered)villagePieceFactory=&factory;
+    struct FactoryReset{~FactoryReset(){villagePieceFactory=nullptr;}}factoryReset;
     auto start = f.createStructureStart(d, bs, rng, cp, provider);
     if (!start || !start->isValid())
         return result;
@@ -282,8 +307,15 @@ VillagePlan &villagePlan(Dimension &d, ChunkPos cp, uint seed) {
         Random expandedRandom(seed, true);
         bedrock_compat::seedStructure(expandedRandom, cp.x, cp.z, 10387312, seed);
         auto expanded = f.createStructureStart(d, bs, expandedRandom, cp, provider);
-        if (expanded && expanded->isValid())
-            start = std::move(expanded);
+        if (expanded && expanded->isValid()) {
+            auto b=*expanded->boundingBox;
+            // Oversized old jigsaw plans were never accepted villages. Use
+            // their original native plan as the expansion baseline instead.
+            bool previousFootprint=b.min.x>=wx-worldgen_rules::VillageReach&&b.max.x<=wx+worldgen_rules::VillageReach&&
+                b.min.z>=wz-worldgen_rules::VillageReach&&b.max.z<=wz+worldgen_rules::VillageReach;
+            if(!ordered||previousFootprint)start=std::move(expanded);
+        }
+        growth.scanned=0;growth.buildings=0;
         growth.count(*start->pieces);
         result.diagnostics["size"] = {{"scale", budget.scale},
                                       {"baselineBuildings", baseline},
@@ -291,11 +323,14 @@ VillagePlan &villagePlan(Dimension &d, ChunkPos cp, uint seed) {
                                       {"actualBuildings", growth.buildings},
                                       {"pieceLimit", budget.pieces}};
     }
+    if(ordered&&!arrangeVillage(*start,result,cp,seed,center.biome,factory))return result;
     auto size = result.diagnostics.value("size", J::object());
+    auto arranged=result.diagnostics.value("ordered",J::object());
     if (!buildSharedVillage(*start, result, cp, seed, center.biome))
         return result;
     if (!size.empty())
         result.diagnostics["size"] = std::move(size);
+    if(!arranged.empty())result.diagnostics["ordered"]=std::move(arranged);
     J savedPieces = J::array(), savedGround = J::array();
     for (auto const &piece : result.sharedBlueprint.pieces)
         savedPieces.push_back({{"template", std::string(piece.location)},

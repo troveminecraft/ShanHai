@@ -35,8 +35,9 @@ struct StructureBlueprintPiece {
  StructureBox box;StructurePoint origin;int rotation{};bool rigid=true;
  StructurePieceKind kind=StructurePieceKind::Template;std::string_view location;
  std::vector<StructureTemplateCell> cells;
+ bool populate=true;
 };
-struct VillageBlueprint {ChunkPosition anchor;uint32_t seed{};int biome{};std::vector<StructureBlueprintPiece> pieces;};
+struct VillageBlueprint {ChunkPosition anchor;uint32_t seed{};int biome{};std::vector<StructureBlueprintPiece> pieces;std::map<VillageXZ,int> plannedRoads;int reach=VillageReach;};
 struct StructureWrite {StructurePoint position;StructureBlock block;};
 struct VillageOasisColumn {int floor,water;bool green;};
 struct StructurePiecePlacement {size_t index;uint32_t seed;};
@@ -96,7 +97,7 @@ template<class Sample,class Hash> VillageLayoutPlan planVillageLayout(VillageBlu
  for(size_t i=0;i<input.pieces.size();++i){auto const&p=input.pieces[i];
   if(p.kind!=StructurePieceKind::Template)continue;
   int wx=input.anchor.x*16,wz=input.anchor.z*16;
-  if(p.box.valid()&&(p.box.min.x<wx-VillageReach||p.box.max.x>wx+VillageReach||p.box.min.z<wz-VillageReach||p.box.max.z>wz+VillageReach)){out.rejection="piece-reach";return out;}
+  if(p.box.valid()&&(p.box.min.x<wx-input.reach||p.box.max.x>wx+input.reach||p.box.min.z<wz-input.reach||p.box.max.z>wz+input.reach)){out.rejection="piece-reach";return out;}
   if(p.cells.size()>131072){out.rejection="template-limit";return out;}
   VillageCells local;std::map<VillageXZ,int> footing,doors;int entry=INT_MAX;
   for(auto const&c:p.cells)if(c.block.name.ends_with("_door"))entry=std::min(entry,p.origin.y+c.local.y-1);
@@ -109,7 +110,7 @@ template<class Sample,class Hash> VillageLayoutPlan planVillageLayout(VillageBlu
    }
   }
   trimVillageFarmFooting(local,footing);
-  int dy=0;if(p.rigid){auto shift=villageOriginOffset(local,footing,doors,height,maxY);if(!shift){out.rejection="steep-footing";return out;}dy=*shift;}out.verticalMoves[i]=dy;
+  int dy=0;if(p.rigid){auto shift=villageOriginOffset(local,footing,doors,height,maxY,input.plannedRoads.empty()?2:6);if(!shift){out.rejection="steep-footing";return out;}dy=*shift;}out.verticalMoves[i]=dy;
   auto box=p.box.moved(dy);out.bounds.include(box);
   if(box.valid())for(int z=box.min.z;z<=box.max.z;z+=VillagePieceStep)for(int x=box.min.x;x<=box.max.x;x+=VillagePieceStep){auto const&s=at(x,z);
    if(!villageSurfaceAllowed(s,style)||(p.rigid&&std::abs(s.height-(p.origin.y+dy))>VillagePieceMaxOffset)){out.rejection="piece-terrain";return out;}
@@ -122,10 +123,15 @@ template<class Sample,class Hash> VillageLayoutPlan planVillageLayout(VillageBlu
   for(auto const&c:p.cells){if(c.block.name=="minecraft:structure_void"||c.block.name=="minecraft:jigsaw")continue;auto q=villageWorldPoint(p,c.local,dy);out.templateBlocks[{q.x,q.y,q.z}]=c.block;}
  }
  for(auto const&p:input.pieces)if(p.kind!=StructurePieceKind::Template)out.bounds.include(p.box);
+ for(auto const&[xz,offset]:input.plannedRoads){
+  out.roadOffsets[xz]=offset;roadMaterials[xz]=input.biome==11?"minecraft:smooth_sandstone":"minecraft:grass_path";
+  int y=height(xz.first,xz.second);out.bounds.include({{xz.first,y,xz.second},{xz.first,y,xz.second}});
+  out.groundMin=std::min(out.groundMin,y);out.groundMax=std::max(out.groundMax,y);
+ }
  auto b=out.bounds;int wx=input.anchor.x*16,wz=input.anchor.z*16;
- if(!b.valid()||b.min.y< -58||b.max.y>maxY||b.min.x<wx-VillageReach||b.max.x>wx+VillageReach||b.min.z<wz-VillageReach||b.max.z>wz+VillageReach){out.rejection="village-reach";return out;}
+ if(!b.valid()||b.min.y< -58||b.max.y>maxY||b.min.x<wx-input.reach||b.max.x>wx+input.reach||b.min.z<wz-input.reach||b.max.z>wz+input.reach){out.rejection="village-reach";return out;}
  for(size_t i=0;i<input.pieces.size();++i)out.blockedFeatures[i]=villageDecorBlocked(input.pieces[i],input.pieces);
- out.ground=planVillageGround(cells,out.foundations,out.doors,out.roadOffsets,height,maxY);
+ out.ground=planVillageGround(cells,out.foundations,out.doors,out.roadOffsets,height,maxY,VillageApronRadius,input.plannedRoads.empty()?VillageApronMaxShift:6);
  // Publish road surfaces from the same immutable plan used by projection.
  // Do not lower an already placed path based on incidental dirt underneath.
  // Rigid template columns own their blocks, including resolved jigsaw cells.
@@ -178,7 +184,7 @@ template<class Sample,class Hash> VillageLayoutPlan planVillageLayout(VillageBlu
   for(auto const&c:p.cells){auto q=villageWorldPoint(p,c.local,out.verticalMoves[i]);auto n=c.block.name;
    if(n.ends_with("_wall"))out.wallPositions.push_back(q);
    if(!witnessed&&(n.find("_door")!=std::string_view::npos||n=="minecraft:bed")){out.witnesses.push_back({q,c.block});witnessed=true;}
-   if(c.marker.empty()||(box.valid()&&(q.x<box.min.x||q.x>box.max.x||q.y<box.min.y||q.y>box.max.y||q.z<box.min.z||q.z>box.max.z)))continue;
+   if(!p.populate||c.marker.empty()||(box.valid()&&(q.x<box.min.x||q.x>box.max.x||q.y<box.min.y||q.y>box.max.y||q.z<box.min.z||q.z>box.max.z)))continue;
    markers[{q.x,q.y,q.z}]=c.marker;
   }
   for(auto const&[xyz,label]:markers)if(label.starts_with("minecraft:")){StructurePoint q{xyz[0],xyz[1],xyz[2]};out.population[{spacingCell(q.x,16),spacingCell(q.z,16)}].push_back({q,std::string(label)});}

@@ -76,7 +76,7 @@ std::shared_ptr<J const> regionalWaterPlan(int a,int b){
   // Rerouting against an added lake reuses the same terrain samples. This
   // cache is scoped to one bounded owner build and has a hard entry limit.
   if(containedWaterways&&routeSurvey.size()<262144)routeSurvey.emplace(key,ground);return ground;
- },curved,seaLevelValue,generatedMaxYExclusive-1,algorithm=="regional-drainage-v3",C.value("riverBankSurvey",0)>=1,landformRefresh,C.value("uplandWaterways",0)>=1,containedWaterways?&lakes:nullptr,false,C.value("waterfallRevision",0)>=1);};
+ },curved,seaLevelValue,generatedMaxYExclusive-1,algorithm=="regional-drainage-v3",C.value("riverBankSurvey",0)>=1,landformRefresh,C.value("uplandWaterways",0)>=1,containedWaterways?&lakes:nullptr,false,C.value("waterfallRevision",0)>=1,C.value("riverBranches",0)>=1);};
   auto plan=build();if(!containedWaterways)return plan;
   // Lakes stay inside their owner's core. Resolve only owners touched by
   // the planned wet corridor and bank halo; do not eagerly survey nine full

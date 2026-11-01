@@ -12,6 +12,7 @@ inline int configuredVillageSpacing(int value){return value==16?16:value==20?20:
 inline constexpr int VillageSpacing=32,VillageSeparation=8,VillageSalt=10387312;
 inline constexpr int VillageSampleRadius=32,VillageSampleStep=32,VillageMaxSlope=10;
 inline constexpr int VillageReach=128,VillagePieceStep=3,VillagePieceMaxOffset=8;
+inline constexpr int OrderedVillageReach=256;
 inline constexpr int VillageTreeMargin=12,VillageApronRadius=4,VillageApronMaxShift=1;
 inline constexpr int RoadRelaxationPasses=16;
 inline constexpr bool MansionHabitatAvailable=true; // Actual dark-forest identity, absent from old recipes.

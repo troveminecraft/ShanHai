@@ -115,7 +115,10 @@ void joinedCanopyForest(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surfa
    auto&b=raw[i*Height+y+64];if(canopyReplaceable(b)||b==PaleLog)b=uint16_t(block);
   };
   if(a.lamp)place(a.x,a.ground+1,a.z,HollowLampNorth+a.door);
-  if(a.heart){int y=a.ground+a.holeHeight-3;place(a.x,y+1,a.z,PaleLog);place(a.x,y-1,a.z,PaleLog);place(a.x,y,a.z,Heart);}
+  if(a.heart){int y=a.ground+a.holeHeight-3;
+   for(int up=1;up<=4;++up)place(a.x,y+up,a.z,PaleLog);
+   place(a.x,y-1,a.z,PaleLog);place(a.x,y,a.z,Heart);
+  }
   // Only supported faces receive lichen. Neighbour support is read from the
   // same immutable tree, including when the supporting log is another chunk.
   constexpr int dx[4]={0,1,0,-1},dz[4]={-1,0,1,0};

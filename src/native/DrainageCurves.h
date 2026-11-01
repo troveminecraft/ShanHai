@@ -57,12 +57,13 @@ inline std::vector<RiverCurvePoint> riverCurve(std::vector<RiverPoint> const&nod
  return result;
 }
 
+#include "RiverBranches.inc"
 struct RiverAnchor {double water=0,radius=0;RiverPoint downstream{};};
 template<class Point,class Sample,class GroundArray,class ParentArray,class FlowArray,class DistanceArray,class SinkArray>
 J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,GroundArray const&ground,
                  ParentArray const&parent,FlowArray const&flow,DistanceArray const&distance,
                  SinkArray const&sink,Point point,Sample sample,int seaLevel=31,int maxSurfaceY=319,bool meanders=false,
-                 bool confinedBanks=false,J const&lakes=J::array(),bool uplandWaterways=false,bool containedWaterways=false,std::set<int> const*fallSources=nullptr,bool headward=false){
+                 bool confinedBanks=false,J const&lakes=J::array(),bool uplandWaterways=false,bool containedWaterways=false,std::set<int> const*fallSources=nullptr,bool headward=false,bool branches=false){
  auto eligible=[](auto const&s){return s.stone<=.001&&s.volcanic<=0;};
  // Survey the complete raster corridor, including the one-block dry rim.
  // Three samples at spline vertices miss shallow hollows between vertices.
@@ -267,6 +268,7 @@ J curvedDrainage(int gx,int gz,uint32_t seed,std::vector<int> const&order,Ground
   }
  }
  J result={{"segments",segments},{"sources",accepted},{"routes",routes}};
+ if(branches)addRiverBranches(result,gx,gz,seed,groundAt,lakes);
  if(headward){result["waterfalls"]=std::move(waterfalls);result["fallCatchments"]=std::move(fallCatchments);}
  if(uplandWaterways)result["diagnostics"]={{"candidates",sources.size()},{"noOutlet",noOutlet},{"invalidGround",invalidGround},{"lowOutlet",lowOutlet},{"excessiveCut",excessiveCut},{"surveyColumns",corridor.size()}};
  return result;

@@ -46,6 +46,7 @@ struct CanopyForestRegression {
    lichen+=id>=RootLichenNorth&&id<=RootLichenDown;lamps+=id>=HollowLampNorth&&id<=HollowLampWest;hearts+=id==Heart;}
   assert(leaves>18000&&wood>10000&&lichen>100&&lamps==4&&hearts==1);
   assert(block(a,16,148,16)==Heart&&block(a,16,147,16)==PaleLog&&block(a,16,149,16)==PaleLog);
+  for(int y=149;y<=153;++y)assert(block(a,16,y,16)==PaleLog);
   assert(block(a,16,148,15)==0||block(a,17,148,16)==0);
   constexpr int dx[4]={0,1,0,-1},dz[4]={-1,0,1,0};
   for(int z=0;z<64;++z)for(int x=0;x<64;++x){int lo=10000,hi=-10000;

@@ -31,3 +31,12 @@ Existing numeric block and biome entries are frozen; new entries append. Old rec
 Recipe profiles isolate both block registries and seed caches. Native creature behavior and persistence have not yet been exhaustively checked on every supported build.
 
 `/locate biome` keeps native name parsing. In an active mountains&seas Overworld, it searches the current world's frozen recipe on a single cancellable background worker, without requesting chunks or borrowing a generation worker. Ordinary worlds and other dimensions retain the native command. The search samples up to 8,192 blocks away with a 45-second work deadline; a timeout is reported as incomplete, not as proof that the biome does not exist. Returned coordinates are checked against the actual generated biome; they are nearby matches, not an exhaustive nearest-block guarantee.
+
+
+## Canopy recipes
+
+New forest revision 3 uses `bedrock-26.20-forests-v2` or `bedrock-26.51-forests-v2`. Previous v1 profiles and saved revisions remain unchanged. Both v2 palettes include oriented jack-o’-lanterns, supported glow lichen and persistent canopy leaves. The 26.20 profile maps the 26.51-only poplar and shelf-mushroom slots to air without resolving unsupported native blocks.
+
+Dark and pale forests now share connected canopies supported by 40–50-block trees with trunk radii of 5–7 blocks. Arched hollows can contain a jack-o’-lantern (66% per hollow); pale hollows can also contain a naturally generated creaking heart (11%). Glow lichen grows on supported root faces. Cherry groves form coherent 160–480-block stands, each with a central tree about 70 blocks high and a trunk radius of 10–20 blocks. Gentle river reaches can split into surveyed side channels and rejoin downstream. Villages target six times the previous building count in connected street rows, retaining native building templates. Initial resident and animal counts remain at the original scale to avoid multiplying AI work. Unsuitable terrain and layouts exceeding the bounded village footprint are rejected.
+
+Large trees retain compact descriptors and write only the current chunk. River branches reuse existing owner plans; village streets use the existing candidate grid with deterministic separation for larger footprints; native chunk dependency requests are unchanged. Native creaking behavior, visual continuity and whole-game loading still require coverage on both game builds.

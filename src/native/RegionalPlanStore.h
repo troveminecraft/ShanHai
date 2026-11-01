@@ -17,7 +17,7 @@ inline std::string identity(J const&data){
  auto config=data.at("config");
  // These fields select native structures, never regional terrain. The structure
  // adapter changes them at startup; that must not duplicate drainage planning.
- config.erase("sharedRules");config.erase("villageSpacing");
+ config.erase("sharedRules");config.erase("villageSpacing");config.erase("orderedVillages");
  J key{{"algorithm",data.at("regionalGeneration").value("algorithm",std::string(Algorithm))},{"seed",data.at("seedManifest").at("terrainSeed")},
        {"config",config},{"template",data.at("seedManifest").at("templateSha256")}};
  if(data.contains("capabilityProfile"))key["capabilityProfile"]=data.at("capabilityProfile");
