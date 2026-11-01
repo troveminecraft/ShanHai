@@ -18,6 +18,7 @@ struct Giant {
 struct Structure {int x=0,z=0,type=-1;double e=0;};
 struct SmallTree {int x,z,h,type;double radius,ground;};
 class Engine {
+ friend struct ForestEcologyTest;
  friend struct LandscapeRedoTest;
  friend struct ElevationVariantsTest;
  friend struct IceSpireRegression;
@@ -41,7 +42,7 @@ class Engine {
    if(s.scarp>.05||s.coast>.45||s.stone>=.5||s.cliffLow>-32768)actual.rock=1;
    else if(s.rockCap==0)actual.rock=0;
    else field.surfaceRock(actual,x,z);
-   auto soil=[](int b){return b==3||b==4||b==32||b==33||b==80||b==85;};
+   auto soil=[](int b){return b==3||b==4||b==32||b==33||b==80||b==85||b==forest_palette::PaleMoss;};
    int block=field.material(actual,x,actual.height,z);
    return soil(block)||(block==7&&soil(field.material(actual,x,actual.height-1,z)));
   });
@@ -92,6 +93,7 @@ class Engine {
  #include "BirchCompanions.inc"
  #include "JungleEcology.inc"
  #include "WetDryEcology.inc"
+ #include "SpecialForests.inc"
  #include "ForestMushrooms.inc"
  #include "DesertEcology.inc"
  #include "UndergroundEcology.inc"
@@ -110,7 +112,7 @@ class Engine {
  #include "LandscapeDetails.inc"
  #include "FinalTerrainOres.inc"
  #include "VanillaOres.inc"
- std::vector<SmallTree> smallTrees(int x0,int z0,int size,std::vector<Structure>const&ss){std::vector<SmallTree>out;for(int z=int(std::floor((z0-16)/4.))*4;z<z0+size+16;z+=4)for(int x=int(std::floor((x0-16)/4.))*4;x<x0+size+16;x+=4){if(C.at("stoneForest").value("largeEnabled",true)&&std::hypot(x-32768-num(C.at("stoneForest"),"centerX"),z-32768-num(C.at("stoneForest"),"centerZ"))<12)continue;auto s=field.surface(x,z,false);if(s.treeD==0||s.kind||s.e<=.02||coniferHabitat(s)||broadleafHabitat(s)||birchHabitat(s)||jungleHabitat(s)||wetDryHabitat(s)||(s.treeK!=5&&!treeGroundAllowed(s,x,z)))continue;if(hash01(x,z,terrainSeed)>=float(s.treeD)*16*field.ecologyTreeWeight(s)*std::max(0.,.55+.9*forestNoise.fbm(x*9/65536.,z*9/65536.,2)))continue;bool skip=false;for(auto const&a:ss)if(std::abs(x-a.x)<45&&std::abs(z-a.z)<45){skip=true;break;}if(skip)continue;double slope=std::hypot(field.base(x+1,z).height-field.base(x-1,z).height,field.base(x,z+1).height-field.base(x,z-1).height)/2.;if(slope>num(C.at("slope"),"tree"))continue;for(auto const&a:giants(x,z,1))if(std::hypot(x-a->x,z-a->z)<=a->radius+5){skip=true;break;}if(skip)continue;double scale=float(.75+.55*hash01(x,z,terrainSeed^37));int t=s.treeK,h=std::max(2,roundJS(C.at("treeModels").at("trunkHeights")[t].get<double>()*scale));out.push_back({x,z,h,t,C.at("treeModels").at("canopyRadii")[t].get<double>()*scale,double(s.height)});}return out;}
+ std::vector<SmallTree> smallTrees(int x0,int z0,int size,std::vector<Structure>const&ss){std::vector<SmallTree>out;for(int z=int(std::floor((z0-16)/4.))*4;z<z0+size+16;z+=4)for(int x=int(std::floor((x0-16)/4.))*4;x<x0+size+16;x+=4){if(C.at("stoneForest").value("largeEnabled",true)&&std::hypot(x-32768-num(C.at("stoneForest"),"centerX"),z-32768-num(C.at("stoneForest"),"centerZ"))<12)continue;auto s=field.surface(x,z,false);if(s.treeD==0||forest_capabilities::biome(s.biome)||s.kind||s.e<=.02||coniferHabitat(s)||broadleafHabitat(s)||birchHabitat(s)||jungleHabitat(s)||wetDryHabitat(s)||(s.treeK!=5&&!treeGroundAllowed(s,x,z)))continue;if(hash01(x,z,terrainSeed)>=float(s.treeD)*16*field.ecologyTreeWeight(s)*std::max(0.,.55+.9*forestNoise.fbm(x*9/65536.,z*9/65536.,2)))continue;bool skip=false;for(auto const&a:ss)if(std::abs(x-a.x)<45&&std::abs(z-a.z)<45){skip=true;break;}if(skip)continue;double slope=std::hypot(field.base(x+1,z).height-field.base(x-1,z).height,field.base(x,z+1).height-field.base(x,z-1).height)/2.;if(slope>num(C.at("slope"),"tree"))continue;for(auto const&a:giants(x,z,1))if(std::hypot(x-a->x,z-a->z)<=a->radius+5){skip=true;break;}if(skip)continue;double scale=float(.75+.55*hash01(x,z,terrainSeed^37));int t=s.treeK,h=std::max(2,roundJS(C.at("treeModels").at("trunkHeights")[t].get<double>()*scale));out.push_back({x,z,h,t,C.at("treeModels").at("canopyRadii")[t].get<double>()*scale,double(s.height)});}return out;}
 public:
  explicit Engine(J const&data,std::vector<std::array<int,4>> reservations={},bool vegetationOnly=false,Field* sharedField=nullptr,Engine const* vegetationSource=nullptr,std::shared_ptr<JungleShapes> sharedJungles={}):nativeReservations(std::move(reservations)),C(data.at("config")),terrainSeed(C.at("seed").get<uint32_t>()),ownedField(sharedField?nullptr:std::make_unique<Field>(data)),field(sharedField?*sharedField:*ownedField),forestNoise(seedHash(terrainSeed,41)),understoryNoise(seedHash(terrainSeed,809)){
   jungleShapes=sharedJungles?std::move(sharedJungles):std::make_shared<JungleShapes>();
@@ -181,7 +183,7 @@ public:
  template<class Put,class Structures,class Trees> void naturalFeatures(int x0,int z0,Put&& put,Structures const& ss,Trees const& ts){
  // Natural small features use their own world anchors and bounded point count.
  int grid=int(num(C.at("natural"),"grid"));for(int gz=int(std::floor((z0-8)/double(grid)));gz<=int(std::floor((z0+24)/double(grid)));gz++)for(int gx=int(std::floor((x0-8)/double(grid)));gx<=int(std::floor((x0+24)/double(grid)));gx++){
- auto r=[&](int k){return hash01(gx,gz,terrainSeed^k);};int x=int(std::floor((gx+.2+r(502)*.6)*grid)),z=int(std::floor((gz+.2+r(503)*.6)*grid));if(C.at("stoneForest").value("largeEnabled",true)&&std::hypot(x-32768-num(C.at("stoneForest"),"centerX"),z-32768-num(C.at("stoneForest"),"centerZ"))<12)continue;auto s=field.surface(x,z,false);int h=s.height;if(s.mushroomZone||s.badlands||s.iceHabitat>=.10||s.desert>.15||coniferHabitat(s)||broadleafHabitat(s)||birchHabitat(s)||jungleHabitat(s)||wetDryHabitat(s)||r(501)>num(C.at("natural"),"chance")+s.giant*.25||s.stone>.5||s.kind||h<=33||h>Height-72)continue;bool skip=false;for(auto const&a:giants(x,z,1))if(std::hypot(x-a->x,z-a->z)<a->radius+5){skip=true;break;}for(auto const&a:ss)if(std::abs(x-a.x)<48&&std::abs(z-a.z)<48)skip=true;for(auto const&t:ts)if(std::hypot(x-t.x,z-t.z)<7)skip=true;if(skip||nativeReserved(x,z))continue;int kind=r(504)<.4?0:r(504)<.75?1:2;if(kind&&r(1513)>std::pow(1-s.barren,3))continue;
+ auto r=[&](int k){return hash01(gx,gz,terrainSeed^k);};int x=int(std::floor((gx+.2+r(502)*.6)*grid)),z=int(std::floor((gz+.2+r(503)*.6)*grid));if(C.at("stoneForest").value("largeEnabled",true)&&std::hypot(x-32768-num(C.at("stoneForest"),"centerX"),z-32768-num(C.at("stoneForest"),"centerZ"))<12)continue;auto s=field.surface(x,z,false);int h=s.height;if(s.mushroomZone||forest_capabilities::biome(s.biome)||s.badlands||s.iceHabitat>=.10||s.desert>.15||coniferHabitat(s)||broadleafHabitat(s)||birchHabitat(s)||jungleHabitat(s)||wetDryHabitat(s)||r(501)>num(C.at("natural"),"chance")+s.giant*.25||s.stone>.5||s.kind||h<=33||h>Height-72)continue;bool skip=false;for(auto const&a:giants(x,z,1))if(std::hypot(x-a->x,z-a->z)<a->radius+5){skip=true;break;}for(auto const&a:ss)if(std::abs(x-a.x)<48&&std::abs(z-a.z)<48)skip=true;for(auto const&t:ts)if(std::hypot(x-t.x,z-t.z)<7)skip=true;if(skip||nativeReserved(x,z))continue;int kind=r(504)<.4?0:r(504)<.75?1:2;if(kind&&r(1513)>std::pow(1-s.barren,3))continue;
  if(kind&&(s.biome==3||s.biome==4||s.biome==5||s.biome==11||s.biome==14||s.biome==15||s.biome==16))continue;
  if(!kind){double rx=1.3+r(505)*1.6,rz=1.1+r(506)*1.9,phase=r(509)*6.283185307;int lo=h,hi=h;
   for(int dz=-3;dz<=3;dz++)for(int dx=-3;dx<=3;dx++){if(dx*dx/(rx*rx)+dz*dz/(rz*rz)>1.4)continue;auto b=field.surface(x+dx,z+dz,false);if(b.water>b.height||b.lava>b.height){skip=true;break;}lo=std::min(lo,b.height);hi=std::max(hi,b.height);}
@@ -218,7 +220,7 @@ public:
   }
   naturalFeatures(x0,z0,put,ss,ts);
   coniferEcology(x0,z0,raw,surfaces,ss,ts);broadleafForest(x0,z0,raw,surfaces);birchForest(x0,z0,raw,surfaces);
-  jungleEcology(x0,z0,raw,surfaces);wetDryEcology(x0,z0,raw,surfaces);forestMushrooms(x0,z0,raw,surfaces);surfaceFlora(x0,z0,raw,surfaces,true);return raw;
+  jungleEcology(x0,z0,raw,surfaces);wetDryEcology(x0,z0,raw,surfaces);specialForests(x0,z0,raw,surfaces);forestMushrooms(x0,z0,raw,surfaces);surfaceFlora(x0,z0,raw,surfaces,true);return raw;
  }
  void caveWaterfalls(int x0,int z0,std::vector<uint16_t>&raw){
   if(!forestDesign)return;auto candidates=field.caveFalls((x0-32768)/16,(z0-32768)/16);
@@ -253,7 +255,7 @@ for(auto const&s:ss){if(field.surface(s.x,s.z,false).glacier>.15)continue;int x=
  {auto t=clock();broadleafForest(x0,z0,raw,surfaces);forestMs[1]=std::chrono::duration<double,std::milli>(clock()-t).count();}
  {auto t=clock();birchForest(x0,z0,raw,surfaces);forestMs[2]=std::chrono::duration<double,std::milli>(clock()-t).count();}
  {auto t=clock();jungleEcology(x0,z0,raw,surfaces);forestMs[3]=std::chrono::duration<double,std::milli>(clock()-t).count();}
- wetDryEcology(x0,z0,raw,surfaces);forestMushrooms(x0,z0,raw,surfaces);
+ wetDryEcology(x0,z0,raw,surfaces);specialForests(x0,z0,raw,surfaces);forestMushrooms(x0,z0,raw,surfaces);
  understory(x0,z0,raw,surfaces,ss,gs);
  oceanFeatures(x0,z0,raw,surfaces);
  sealedFluidCaves(x0,z0,raw);

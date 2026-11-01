@@ -17,7 +17,7 @@ KARMA_NOINLINE void variantSnowCover(int x0,int z0,std::vector<uint16_t>&raw,std
    // Only solid terrain and leaves can support snow. Ignore flowers/grass;
    // they remain in sheltered pockets instead of floating snow on top.
    bool support=b==2||b==3||b==4||b==5||b==6||b==7||b==9||b==11||b==13||b==15||b==17||b==66||b==80||b==20||b==23||b==33||b==42||b==48||b==85||b==143||b==144||b==168||
-                (b>=149&&b<=178);
+                (b>=149&&b<=178)||forest_palette::leaves(b)||b==forest_palette::PaleMoss;
    if(support&&col[y+65]==0)col[y+65]=146;
    if(support)break;
   }

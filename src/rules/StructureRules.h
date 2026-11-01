@@ -14,7 +14,7 @@ inline constexpr int VillageSampleRadius=32,VillageSampleStep=32,VillageMaxSlope
 inline constexpr int VillageReach=128,VillagePieceStep=3,VillagePieceMaxOffset=8;
 inline constexpr int VillageTreeMargin=12,VillageApronRadius=4,VillageApronMaxShift=1;
 inline constexpr int RoadRelaxationPasses=16;
-inline constexpr bool MansionHabitatAvailable=false; // No dark-forest biome yet.
+inline constexpr bool MansionHabitatAvailable=true; // Actual dark-forest identity, absent from old recipes.
 inline int villageStyle(int biome){
  switch(biome){case 5:return 0;case 6:return 1;case 7:case 8:return 2;case 11:return 3;case 12:return 4;default:return -1;}
 }
@@ -48,14 +48,14 @@ template<class S> bool extraAnchorAllowed(int type,S const&s,bool mansionHabitat
  if(extraMarine(type)){if(s.ocean<(type==5?.9:.7)||s.height>sea-(type==5?27:7)||s.height< -40||s.lake||s.river)return false;}
  else if(type==4){if(s.height<sea-6||s.height>sea+11||s.lake||s.river||(s.biome!=3&&s.biome!=4&&s.biome!=20&&s.coast<.01))return false;}
  else if(s.ocean>.1||s.height<40)return false;
- if(type==7&&(!mansionHabitatAvailable||s.biome!=9))return false;
+ if(type==7&&(!mansionHabitatAvailable||s.biome!=58))return false;
  if(type==10&&s.biome!=6&&s.biome!=9&&s.biome!=13)return false;
  if(type==8&&s.height<90)return false;
  if(type==0&&(villageStyle(s.biome)<0||s.water>=s.height||s.river||s.lake))return false;
  return true;
 }
 template<class S> bool extraFootprintAllowed(int type,S const&s){
- return !(type==7&&s.biome!=9)&&s.volcanic<=.01&&s.iceHabitat<=.01&&!s.lake&&!s.river&&
+ return !(type==7&&s.biome!=58)&&s.volcanic<=.01&&s.iceHabitat<=.01&&!s.lake&&!s.river&&
   (extraMarine(type)?s.ocean>=.5:type==4||s.water<s.height);
 }
 inline int extraMaxSlope(int type){return type==5?8:type==4?4:6;}

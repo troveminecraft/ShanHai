@@ -1,10 +1,10 @@
 struct ForestMushroom{int x,z,g,h,r;bool red;};
 Cache<uint64_t,ForestMushroom> mushroomCache{1024};
-bool mushroomHabitat(Surface const&s)const{return (s.mushroom||(s.biome==9||s.biome==10||s.biome==23))&&!coniferHabitat(s)&&s.H>=.45&&!s.kind&&!s.lake&&!s.river&&s.stone<.01&&s.barren<.01&&s.iceHabitat<.01;}
+bool mushroomHabitat(Surface const&s)const{return (s.mushroom||(s.biome==9||s.biome==10||s.biome==23||s.biome==forest_capabilities::Dark))&&!coniferHabitat(s)&&s.H>=.45&&!s.kind&&!s.lake&&!s.river&&s.stone<.01&&s.barren<.01&&s.iceHabitat<.01;}
 ForestMushroom mushroomSite(int gx,int gz){return mushroomCache.get(key2(gx,gz),[&]{
  auto r=[&](int k){return hash01(gx,gz,terrainSeed^(52100+k));};ForestMushroom a{gx*24+5+int(r(1)*14),gz*24+5+int(r(2)*14),0,0,0,r(3)<.5};
  auto s=field.surface(a.x,a.z,false);
- if(!glacierPlantKept(s,a.x,a.z)||!mushroomHabitat(s)||r(4)>(s.mushroom?.85:s.biome==10?.20:.11)||(!s.mushroom&&!treeGroundAllowed(s,a.x,a.z,false))||blocked(a.x,a.z,false))return a;
+ if(!glacierPlantKept(s,a.x,a.z)||!mushroomHabitat(s)||r(4)>(s.mushroom?.85:s.biome==10?.20:s.biome==forest_capabilities::Dark?.28:.11)||(!s.mushroom&&!treeGroundAllowed(s,a.x,a.z,false))||blocked(a.x,a.z,false))return a;
  a.r=a.red?2:3;int lo=s.height,hi=lo;
  for(int dz=-a.r;dz<=a.r;++dz)for(int dx=-a.r;dx<=a.r;++dx){auto b=field.surface(a.x+dx,a.z+dz,false);if(!mushroomHabitat(b)||(!b.mushroom&&!treeGroundAllowed(b,a.x+dx,a.z+dz,false))||nativeReserved(a.x+dx,a.z+dz))return ForestMushroom{};lo=std::min(lo,b.height);hi=std::max(hi,b.height);}
  if(hi-lo>1)return ForestMushroom{};a.g=s.height;a.h=(a.red?7:4)+int(r(5)*4);return a;
@@ -40,6 +40,7 @@ void forestMushrooms(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,
   }
   for(auto const&t:conifers(a.x,a.z,0))if(forestTreeKept(t.x,t.z)&&std::hypot(t.x-a.x,t.z-a.z)<a.r+2)collision=true;
   auto habitat=field.surface(a.x,a.z,false);
+  if(habitat.biome==forest_capabilities::Dark)for(auto const&t:specialForestModels(a.x,a.z,0))if(std::hypot(t->tree.x-a.x,t->tree.z-a.z)<a.r+t->tree.crown+4){collision=true;break;}
   if(habitat.biome==10)for(int gz=(a.z-12)/16;gz<=(a.z+12)/16;++gz)for(int gx=(a.x-12)/16;gx<=(a.x+12)/16;++gx){auto t=wetDrySite(gx,gz);if(wetDryAccepted(gx,gz,t)&&forestTreeKept(t.x,t.z)&&std::hypot(t.x-a.x,t.z-a.z)<a.r+8)collision=true;}
   if(habitat.biome==23){
    // Test the cached full crown, not only the trunk distance. Expand the

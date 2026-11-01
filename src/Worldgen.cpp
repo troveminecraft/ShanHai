@@ -9,6 +9,9 @@
 #include "NativeRuntime.h"
 #include "TerrainSession.h"
 #include "PaletteContract.h"
+#include "native/ForestPalette.h"
+#include "mc/world/level/block/actor/VanillaBlockActorFactory.h"
+#include "mc/world/level/block/actor/BlockActor.h"
 #include "FailureRecord.h"
 #include "ReleaseVersions.h"
 #include "HookTransaction.h"
@@ -450,6 +453,20 @@ void fill(LevelChunk& lc,Chunk const& c){
  for(int col=0;col<256;col++)column(c,col,[&](int y,int len,int b){
   // At most eight once-only vanilla queue entries per generated chunk.
   if(b==145&&lavaTicks<8){BlockPos p{bedrock_compat::position(lc).x*16+col%16,y+len-1-64,bedrock_compat::position(lc).z*16+col/16};lc.getTickQueue().addTickToLevelChunk(lc,p,*palette[b],40+lavaTicks*10,0);++lavaTicks;}
+
+  if(b==nativegen::forest_palette::Heart)for(int j=y;j<y+len;++j){
+   BlockPos p{bedrock_compat::position(lc).x*16+col%16,j-64,bedrock_compat::position(lc).z*16+col/16};
+   // Volume writes bypass the normal block-placement actor factory. Register
+   // the native actor in the chunk storage so its ticks and save/load belong
+   // to Bedrock, including the nighttime creaking lifecycle.
+#ifdef SHANHAI_MC_26_51
+   auto actor=VanillaBlockActorFactory::createBlockActor(p,palette[b]->getBlockType());
+#else
+   auto actor=VanillaBlockActorFactory::createBlockActor(BlockActorType::CreakingHeart,p,palette[b]->getBlockType());
+#endif
+   if(!actor)throw std::runtime_error("Native creaking-heart block actor creation failed");
+   lc._placeBlockEntity(std::move(actor));
+  }
 
   if(b!=49&&b!=50&&(b<56||b>60))return;
   for(int j=y;j<y+len;j++)lc.setExtraBlock(ChunkBlockPos{BlockPos{col%16,j-64,col/16},-64},*palette[8],nullptr);
