@@ -1,5 +1,6 @@
 #pragma once
 #include "TerrainKernel.h"
+#include "BiomeCatalog.h"
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -55,8 +56,8 @@ class BiomeSearchJob {
     std::jthread worker;
 public:
     BiomeSearchJob(terrain_kernel::J recipe,int x,int z,std::vector<int> ids,bool infinite,
-                   std::function<void()> configureThread={})
-      :worker([this,recipe=std::move(recipe),x,z,ids=std::move(ids),infinite,configureThread=std::move(configureThread)](std::stop_token stop){
+                   std::function<void()> configureThread={},bool catalogQuery=false)
+      :worker([this,recipe=std::move(recipe),x,z,ids=std::move(ids),infinite,configureThread=std::move(configureThread),catalogQuery](std::stop_token stop){
         try{
             if(configureThread)configureThread();
             // Private caches: a user search must not hold the generation pool,
@@ -66,7 +67,16 @@ public:
             int samples=0;
             result=searchBiomes(x,z,ids,[&](int X,int Z){
                 if(++samples%16==0)std::this_thread::sleep_for(std::chrono::milliseconds(2));
-                return field.surface(X+32768,Z+32768,false);
+                auto s=field.surface(X+32768,Z+32768,false);
+                if(catalogQuery){
+                    int found=-1;
+                    for(int id:ids)if(id>=0&&size_t(id)<biome_catalog::entries().size()
+                        &&biome_catalog::matches(biome_catalog::entries()[id],s,recipe.at("config").value("elevationRevision",0)>=1)){
+                        found=id;break;
+                    }
+                    s.biome=found;
+                }
+                return s;
             },[infinite](int X,int Z){
                 int cx=int(std::floor(X/16.)),cz=int(std::floor(Z/16.));
                 return infinite?terrain_bounds::gameContainsChunk(cx,cz):terrain_bounds::containsChunk(cx,cz);

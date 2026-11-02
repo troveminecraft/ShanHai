@@ -1,5 +1,9 @@
 ## 0.4.0 — in development
 
+Fixes the world-loading exit triggered when persistent forest leaves share a native block permutation with earlier palette entries. Frozen palette indices and existing terrain recipes remain unchanged.
+
+`/locate biome` now lists `peakarma:` identifiers for the saved mountains&seas recipe, including forests, glaciers, volcanoes, plateaus, basins and snow-covered variants. Windows suggestions include localized descriptions; query descriptions and results default to English and switch to Chinese for players using a Chinese game language. Ordinary worlds and structure locating retain the native command. Searches stay bounded and do not load chunks.
+
 Dark and pale forests now share connected canopies supported by 40–50-block trees with trunk radii of 5–7 blocks. Arched hollows can contain a jack-o’-lantern (66% per hollow); pale hollows can also contain a naturally generated creaking heart (11%). Glow lichen grows on supported root faces. Cherry groves form coherent 160–480-block stands, each with a central tree about 70 blocks high and a trunk radius of 10–20 blocks. Gentle river reaches can split into surveyed side channels and rejoin downstream. Villages target six times the previous building count in connected street rows, retaining native building templates. Initial resident and animal counts remain at the original scale to avoid multiplying AI work. Unsuitable terrain and layouts exceeding the bounded village footprint are rejected.
 
 New cliff lines follow surveyed hillside contours and broad erosion-like recesses, producing curved faces with bounded local computation.

@@ -11,9 +11,18 @@
 #include "BiomeSearch.h"
 #include "mc/server/commands/standard/LocateCommand.h"
 #include "mc/server/commands/standard/locate_command_util/LocateCommandUtil.h"
+#include "mc/server/commands/CommandParameterData.h"
+#include "mc/network/ConnectionRequest.h"
+#ifdef KARMA_CLIENT
+#include "mc/server/commands/AutoCompleteInformation.h"
+#include "mc/server/commands/AutoCompleteOption.h"
+#include "mc/locale/I18n.h"
+#include "mc/locale/Localization.h"
+#endif
 #include "mc/world/level/biome/Biome.h"
 #include "mc/platform/UUID.h"
 #include "PaletteContract.h"
+#include "PaletteAliases.h"
 #include "native/ForestPalette.h"
 #include "mc/world/level/block/actor/VanillaBlockActorFactory.h"
 #include "mc/world/level/block/actor/BlockActor.h"
@@ -369,7 +378,8 @@ void resolveRegistry(Dimension& dim){
     for(size_t i=71;i<palette.size();i++)if(*palette[i]==*block){
      auto const& previous=metadata.at("palette").at(i);
      bool previousWater=previous.is_object()&&previous.value("extraWater",false);
-     if(previousWater==entry.value("extraWater",false))throw std::runtime_error("Duplicate custom permutation "+entry.dump()+" actual="+block->toDebugString());
+     if(previousWater==entry.value("extraWater",false)&&!terrain_runtime::samePaletteRequest(previous,entry))
+      throw std::runtime_error("Distinct palette requests resolved to the same permutation "+entry.dump()+" actual="+block->toDebugString());
     }
     palette.push_back(&*block);continue;
    }

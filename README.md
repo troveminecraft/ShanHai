@@ -8,6 +8,8 @@ Dark and pale forests now share connected canopies supported by 40–50-block tr
 
 0.4.0 is in development; its previous release has been withdrawn.
 
+Fixes a world-loading exit caused by duplicate persistent-leaf palette entries. Saved terrain recipes remain compatible. In mountains&seas worlds, use names such as `/locate biome peakarma:roofed_forest` or `/locate biome peakarma:super_glacier`. Suggestions and results use the mod's biome catalog. Windows command suggestions include biome descriptions; descriptions and query messages use English by default and Chinese for a Chinese game language. Snow-covered variants are searched separately.
+
 Adds dark forests, pale gardens, cherry groves and mangrove swamps to new worlds on both supported game versions. Minecraft 1.26.51.01 also gains dappled forests with poplar foliage, fallen logs and shelf mushrooms. Forests follow the existing climate and terrain.
 
 Pale trees include native natural creaking hearts; mangrove roots preserve water in the secondary block layer. Woodland mansions now require an actual dark forest. `/karma` adds forest entries 141–144, plus 145 on 26.51; existing numbers and optional teleport modes remain unchanged.
