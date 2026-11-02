@@ -51,6 +51,18 @@ target("biome_search_runtime")
     add_files("biome_search_runtime.cpp")
 target_end()
 
+target("biome_search_benchmark")
+    set_kind("binary")
+    add_deps("terrain-kernel")
+    add_files("biome_search_benchmark.cpp")
+target_end()
+
+target("biome_search_contention")
+    set_kind("binary")
+    add_deps("terrain-kernel")
+    add_files("biome_search_contention.cpp")
+target_end()
+
 target("forest_ecology")
     set_kind("binary")
     add_packages("nlohmann_json")

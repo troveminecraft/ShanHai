@@ -19,5 +19,18 @@ int main(){
  assert(budget.interrupted&&budget.samples==10&&!budget.found);
  auto unavailable=searchBiomes(0,0,std::vector<int>{},sample,valid,[]{return false;});
  assert(!unavailable.found&&unavailable.samples==0);
+ seen.clear();calls=0;
+ auto narrow=searchBiomesAdaptive(-1,-1,std::vector{61},sample,valid,[]{return false;},{256,64,200});
+ assert(narrow.found&&(*narrow.found==std::array{-193,77,-1,61}));
+ std::set<std::pair<int,int>> adaptiveSeen;
+ auto remote=[&](int x,int z){assert(adaptiveSeen.emplace(x,z).second);terrain_kernel::Surface s;
+  s.biome=(x>=2000&&x<=3000&&z>=1500&&z<=2600)?61:9;s.height=120;return s;};
+ auto accelerated=searchBiomesAdaptive(0,0,std::vector{61},remote,[](int,int){return true;},[]{return false;});
+ assert(accelerated.found&&accelerated.samples<800);
+ auto distantNarrow=searchBiomesAdaptive(0,0,std::vector{61},[](int x,int z){terrain_kernel::Surface s;
+  s.biome=x==-832&&z==576?61:9;return s;},[](int,int){return true;},[]{return false;},{1024,64,2000});
+ assert(distantNarrow.found&&(*distantNarrow.found)[0]==-832&&(*distantNarrow.found)[2]==576);
+ auto limited=searchBiomesAdaptive(0,0,std::vector{61},[](int,int){return terrain_kernel::Surface{};},valid,[]{return false;},{256,64,10});
+ assert(limited.interrupted&&limited.samples==10);
  std::cout<<"biome search: exact recipe samples, water Y, negative bounds, cancellation and budgets passed\n";
 }

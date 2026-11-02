@@ -22,7 +22,9 @@ struct BiomeLocateRequest {
  std::unique_ptr<terrain_runtime::BiomeSearchJob> job;
 };
 std::unique_ptr<BiomeLocateRequest> biomeLocateRequest;
-void clearBiomeLocate(){biomeLocateRequest.reset();}
+std::shared_ptr<terrain_runtime::BiomeSearchState> biomeSearchState;
+std::weak_ptr<Session> biomeSearchOwner;
+void clearBiomeLocate(){biomeLocateRequest.reset();biomeSearchState.reset();biomeSearchOwner.reset();}
 
 LL_STATIC_HOOK(LocateBiomeSetup,ll::memory::HookPriority::Normal,&LocateCommand::setup,
  void,CommandRegistry& registry,Level const& level){
@@ -93,8 +95,9 @@ LL_TYPE_INSTANCE_HOOK(LocateModBiome,ll::memory::HookPriority::Normal,LocateComm
    request->player=static_cast<Player*>(entity)->getUuid();request->toPlayer=true;
   }
   auto pos=commandOrigin.getBlockPosition();
+  if(biomeSearchOwner.lock()!=session){biomeSearchState=std::make_shared<terrain_runtime::BiomeSearchState>();biomeSearchOwner=session;}
   request->job=std::make_unique<terrain_runtime::BiomeSearchJob>(session->nativeData,pos.x,pos.z,std::vector{id},generationMode.unbounded,
-      []{SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_BELOW_NORMAL);},true);
+      []{SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_BELOW_NORMAL);},true,biomeSearchState);
   biomeLocateRequest=std::move(request);
   output.success("{} — {}: {}",all[id].id(),all[id].title(zh),all[id].description(zh));
   output.success(message("mountains&seas: searching this world in the background; coordinates will follow.",
@@ -117,7 +120,8 @@ void tickBiomeLocate(Level& level){
                 :fmt::format("§e[mountains&seas] No matching biome in the sampled area within {} blocks.",r.radius);
  if(request.toPlayer)level.forEachPlayer([&](Player&player){if(player.getUuid()==request.player)player.sendMessage(message);return true;});
  else log().warn("Biome locate result: {}",message);
- clearBiomeLocate();
+ log().info("Biome locate {}: samples={}, radius={}, interrupted={}",request.catalogId,r.samples,r.radius,r.interrupted);
+ biomeLocateRequest.reset(); // Keep only this world's bounded search caches.
 }
 
 #ifdef KARMA_CLIENT
