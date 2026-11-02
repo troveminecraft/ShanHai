@@ -579,15 +579,20 @@ bool supportedSnowVariation(LevelChunk&lc,Chunk const&c,int col,int j,int expect
  bool wasSnow=expected>=146&&expected<=148;
  bool isSnow=actual.getTypeName()=="minecraft:snow_layer";
  if(j<1||!((wasSnow&&(isSnow||actual.getTypeName()=="minecraft:air"))||(expected==0&&isSnow)))return false;
- int biome=c.biomes[col];if(biome!=5&&biome!=19&&biome!=24)return false;
+ int biome=c.biomes[col];
+ // Elevated recipes map snowy parent biomes to 29..57. Native weather also
+ // changes snow resting on leaves; verify its support instead of treating a
+ // valid canopy snow update as terrain corruption.
+ if(biome!=5&&biome!=19&&biome!=24&&(biome<29||biome>=58))return false;
  int under=0;column(c,col,[&](int y,int len,int b){if(j-1>=y&&j-1<y+len)under=b;});
  bool terrain=(under>=1&&under<=7)||under==9||under==20||under==23||under==27||under==33||under==42
-     ||(under>=44&&under<=48)||under==80||under==85||(under>=94&&under<=99)||under==143||under==144;
+     ||(under>=44&&under<=48)||under==80||under==85||(under>=94&&under<=99)||under==143||under==144
+     ||palette[under]->getTypeName().ends_with("_leaves");
  if(!terrain)return false;
  auto const&support=lc.getBlock(ChunkBlockPos{BlockPos{col%16,j-65,col/16},-64});
  if(!(support==*palette[under]))return false;
  ++verificationSnowChanges;
- if(verificationSnowExamples.size()<8)verificationSnowExamples.push_back({{"x",bedrock_compat::position(lc).x*16+col%16},{"y",j-64},{"z",bedrock_compat::position(lc).z*16+col/16},{"expected",palette[expected]->toDebugString()},{"actual",actual.toDebugString()},{"support",support.toDebugString()}});
+ if(verificationSnowExamples.size()<8)verificationSnowExamples.push_back({{"x",bedrock_compat::position(lc).x*16+col%16},{"y",j-64},{"z",bedrock_compat::position(lc).z*16+col/16},{"expected",palette[expected]->mSerializationId->toSnbt()},{"actual",actual.mSerializationId->toSnbt()},{"support",support.mSerializationId->toSnbt()}});
  return true;
 }
 bool check(LevelChunk& lc){
