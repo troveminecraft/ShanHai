@@ -13,7 +13,8 @@ void connectedCliffRelief(Surface&s,double&height,int wx,int wz){
   double u=dx*a.nx+dz*a.nz-(curved?0.:1.3*std::sin(w/13+a.h));
   auto shape=cliff_transition::footprint(c.halfLength,c.front,a.drop);
   double offset=curved?cliff_transition::traceOffset(a.trace,w):0.;
-  auto part=curved?cliff_transition::curvedSample(shape,u,w,a.warp,offset):cliff_transition::sample(shape,u,w,a.warp);
+  auto part=parameters.cliffRevision>=5?cliff_transition::bankSample(shape,u,w,a.warp,offset):
+   curved?cliff_transition::curvedSample(shape,u,w,a.warp,offset):cliff_transition::sample(shape,u,w,a.warp);
   if(part.weight<=0)continue;
   displacement.add(part,a.nx,a.nz);
   u-=offset;

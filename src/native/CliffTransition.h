@@ -33,6 +33,15 @@ inline Sample curvedSample(Footprint const&f,double u,double w,double amplitude,
  result.displacement=amplitude*(2*smooth(-.45,.45,u-offset)-1)*result.weight;
  return result;
 }
+inline Sample bankSample(Footprint const&f,double u,double w,double amplitude,double offset){
+ // A voxel column belongs to one bank. Traversing the entire source hillside
+ // inside a sub-block face compresses any intervening ridge into a one-block
+ // spike, even when both banks are lower. Keep the curved face sharp; only
+ // the footprint fades the horizontal remap at the sides and ends.
+ if(std::abs(u)>=f.front||std::abs(w)>=f.end)return {};
+ double weight=(1-smooth(8.,f.front,std::abs(u)))*(1-smooth(f.core,f.end,std::abs(w)));
+ return {amplitude*(u>=offset?1.:-1.)*weight,weight};
+}
 struct Displacement {
  double x=0,z=0,weight=0;
  void add(Sample const&s,double nx,double nz){x+=nx*s.displacement;z+=nz*s.displacement;weight+=s.weight;}
