@@ -109,6 +109,16 @@ struct BiomeSearchState {
     std::mutex mutex;
     std::unique_ptr<terrain_kernel::Field> field;
 };
+inline bool biomeSearchCanUseHints(std::vector<int> const& ids,bool catalogQuery){
+    for(int id:ids){
+        auto entry=catalogQuery?&biome_catalog::entries().at(id):nullptr;
+        int biome=entry?entry->biome:id;
+        // Catalog snow entries retain their parent's numeric biome, so test
+        // the snow flag as well as legacy expanded palette indices.
+        if((entry&&entry->snow)||biome<0||biome==10||biome==18||biome==19||(biome>=29&&biome<58))return false;
+    }
+    return true;
+}
 
 class BiomeSearchJob {
     BiomeSearchResult result;
@@ -147,9 +157,7 @@ public:
                 return infinite?terrain_bounds::gameContainsChunk(cx,cz):terrain_bounds::containsChunk(cx,cz);
             };
             auto stopped=[&]{return stop.stop_requested()||std::chrono::steady_clock::now()>=deadline;};
-            bool hintable=true;
-            for(int id:ids){int biome=catalogQuery?biome_catalog::entries().at(id).biome:id;
-                if(biome<0||biome==10||biome==18||biome==19||biome>=29&&biome<58)hintable=false;}
+            bool hintable=biomeSearchCanUseHints(ids,catalogQuery);
             auto run=[&](bool hints){
                 auto hintDeadline=std::chrono::steady_clock::now()+std::chrono::seconds(10);
                 return searchBiomesAdaptive(x,z,ids,[&](int X,int Z){
