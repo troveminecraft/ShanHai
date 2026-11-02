@@ -9,7 +9,9 @@ bool arrangeVillage(StructureStart&start,VillagePlan&result,ChunkPos cp,uint see
   b.kind=p.mElement.type()==StructurePoolElementType::Single?worldgen_rules::StructurePieceKind::Template:worldgen_rules::StructurePieceKind::Other;
   source.pieces.push_back(std::move(b));
  }
- auto plan=worldgen_rules::orderVillage(source,[](int x,int z){return field->surface(x+32768,z+32768);});
+ auto sample=[](int x,int z){return field->surface(x+32768,z+32768);};
+ auto plan=input.at("config").value("orderedVillages",0)>=2
+    ?worldgen_rules::clusterVillage(source,sample):worldgen_rules::orderVillage(source,sample);
  result.diagnostics["ordered"]={{"baselineBuildings",plan.baseline},{"targetBuildings",plan.target},
   {"accepted",plan.accepted},{"reason",plan.rejection},{"surfaceQueries",plan.surfaceQueries}};
  if(!plan.accepted)return false;

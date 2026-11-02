@@ -27,6 +27,12 @@ target("terrain_connections")
     add_files("terrain_connections.cpp")
 target_end()
 
+target("natural_landforms")
+    set_kind("binary")
+    add_packages("nlohmann_json")
+    add_files("natural_landforms.cpp")
+target_end()
+
 target("canopy_forests")
     set_kind("binary")
     add_packages("nlohmann_json")

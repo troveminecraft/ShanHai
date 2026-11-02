@@ -33,12 +33,16 @@ class Field {
  friend struct WaterContainmentRegression;
  friend struct HeadwardWaterfallRegression;
  friend struct TerrainConnectionRegression;
+ friend struct NaturalLandformsRegression;
  // Only owners whose conservative influence bounds touch a sample are needed.
  bool localPlanningCulling=false;
  J const&data;J const&C;uint32_t terrainSeed;TerrainParameters const parameters{C};Density graph,caves;
  forest_capabilities::Profile const forestProfile=forest_capabilities::recipe(data);
  bool const basinMangroves=forest_capabilities::enabled(forestProfile)&&C.value("forestEcologyRevision",0)>=2;
  bool const canopyForests=forest_capabilities::enabled(forestProfile)&&C.value("forestEcologyRevision",0)>=3;
+ bool const naturalForests=canopyForests&&C.value("naturalForestRevision",0)>=1;
+ bool const weatheredMountains=C.value("mountainErosion",0)>=1;
+ bool const cliffTreesEnabled=C.value("cliffTrees",0)>=1;
  int seaLevelValue=C.value("seaLevel",31);
  int generatedMaxYExclusive=C.value("generatedMaxYExclusive",320);
  int mountainPeakY=C.value("mountainPeakY",0);
@@ -101,7 +105,16 @@ class Field {
  }
  result=applyRegional?badlandsHeight(x,z,result):result;
  result+=elevatedLandscape?24*smooth(0.,40.,result):0;
- return elevationVariants?elevation::raise(result):result;
+ result=elevationVariants?elevation::raise(result):result;
+ if(weatheredMountains&&result>180&&rel>3){
+  // Differential weathering provinces retain smooth rock domes. Shallow,
+  // coherent drainage grooves break up other hillsides; no voxel noise or
+  // per-column flow simulation is added to the generation path.
+  double province=smooth(-.12,.18,matNoise.at(x/1450.,z/1450.));
+  if(province>0){double groove=1-smooth(.025,.21,std::abs(secondary.at(x/97.,z/97.)));
+   result-=12*province*groove*smooth(180.,280.,result)*smooth(3.,12.,rel)*(1-smooth(.8,.98,pos));}
+ }
+ return result;
  }
  double uncliff(double x,double z){return shaped(x,z,vcont(x,z));}
  #include "HighCliffs.inc"
@@ -188,6 +201,8 @@ public:
  int seaLevel()const{return seaLevelValue;}
  bool forestEcologyEnabled()const{return forest_capabilities::enabled(forestProfile);}
  bool canopyForestsEnabled()const{return canopyForests;}
+ bool naturalForestsEnabled()const{return naturalForests;}
+ #include "CliffTrees.inc"
  auto centralCherryGrove(int x,int z){return cherryGroveAt(x,z);}
  auto centralCherrySite(int x,int z){return cherryGroveSite(int(std::floor(x/1024.)),int(std::floor(z/1024.)));}
  bool basinMangrovesEnabled()const{return basinMangroves;}

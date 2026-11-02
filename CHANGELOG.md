@@ -1,10 +1,12 @@
 ## 0.4.0 — in development
 
+New 26.51 worlds use fewer high cliffs, with occasional small trees rooted in the exposed faces. Shallow differential-weathering grooves vary mountain slopes while retaining smooth rock domes. Dark and pale forests have irregularly spaced trunks and asymmetric hollows open to natural ground; roots use bark-covered wood, and creaking hearts have continuous ground support. Large villages retain their building count and use compact irregular plots with connected roads. Biome locating first surveys lightweight candidates, verifies results against the saved terrain recipe, and reuses a bounded world-local query cache separate from chunk generation.
+
 Fixes the world-loading exit triggered when persistent forest leaves share a native block permutation with earlier palette entries. Frozen palette indices and existing terrain recipes remain unchanged.
 
 `/locate biome` now lists `peakarma:` identifiers for the saved mountains&seas recipe, including forests, glaciers, volcanoes, plateaus, basins and snow-covered variants. Windows suggestions include localized descriptions; query descriptions and results default to English and switch to Chinese for players using a Chinese game language. Ordinary worlds and structure locating retain the native command. Searches stay bounded and do not load chunks.
 
-Dark and pale forests now share connected canopies supported by 40–50-block trees with trunk radii of 5–7 blocks. Arched hollows can contain a jack-o’-lantern (66% per hollow); pale hollows can also contain a naturally generated creaking heart (11%). Glow lichen grows on supported root faces. Cherry groves form coherent 160–480-block stands, each with a central tree about 70 blocks high and a trunk radius of 10–20 blocks. Gentle river reaches can split into surveyed side channels and rejoin downstream. Villages target six times the previous building count in connected street rows, retaining native building templates. Initial resident and animal counts remain at the original scale to avoid multiplying AI work. Unsuitable terrain and layouts exceeding the bounded village footprint are rejected.
+Dark and pale forests now share connected canopies supported by 40–50-block trees with trunk radii of 5–7 blocks. Arched hollows can contain a jack-o’-lantern (66% per hollow); pale hollows can also contain a naturally generated creaking heart (11%). Glow lichen grows on supported root faces. Cherry groves form coherent 160–480-block stands, each with a central tree about 70 blocks high and a trunk radius of 10–20 blocks. Gentle river reaches can split into surveyed side channels and rejoin downstream. Villages target six times the previous building count on compact, irregular plots with connected roads, retaining native building templates. Initial resident and animal counts remain at the original scale to avoid multiplying AI work. Unsuitable terrain and layouts exceeding the bounded village footprint are rejected.
 
 New cliff lines follow surveyed hillside contours and broad erosion-like recesses, producing curved faces with bounded local computation.
 
@@ -22,7 +24,7 @@ New forest recipes place denser mangroves in warm, shallow-water inland basins w
 
 In mountains&seas worlds, `/locate biome` searches the world's frozen terrain recipe in the background. Ordinary worlds retain the native command. A bounded search reports incomplete work separately from an unavailable biome; it does not request or generate world chunks.
 
-New worlds use recipe **2.219** and a fixed game capability profile. Existing worlds retain their saved recipe and terrain, including 2.217. A world using 26.51-only forest content cannot open on 26.20. Sea level remains Y100 and the building range remains Y-64..511. The update also fixes world-to-world biome table reuse and seed preparation under non-ASCII paths.
+New 26.51 worlds use recipe **2.220** and a fixed game capability profile. Existing worlds retain their saved recipe and terrain, including 2.217. A world using 26.51-only forest content cannot open on 26.20. Sea level remains Y100 and the building range remains Y-64..511. The update also fixes world-to-world biome table reuse and seed preparation under non-ASCII paths.
 
 Dense terrain, large view distances and native structure processing can still cause loading delays. Nighttime creaking behavior and new forest save/reload behavior need further compatibility coverage across the supported game builds.
 

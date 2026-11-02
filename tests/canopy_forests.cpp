@@ -12,17 +12,17 @@ struct CanopyForestRegression {
  static J recipe(J data){data.erase("regionalGeneration");data["version"]="karma-terrain-2.219.0-native-agent-a";
   data["config"]["forestEcologyRevision"]=3;data["capabilityProfile"]=forest_capabilities::CommonCanopy;return data;
  }
- static Chunks draw(J const&data,bool reverse,bool cherry){
+ static Chunks draw(J const&data,bool reverse,bool cherry,bool sloped=false){
   Engine e(data);std::array<Surface,256> surfaces;surfaces.fill(ground(forest_capabilities::Pale));
   if(cherry){Field::CherryGrove a{true,512,512,140,15,180.,150.,.7};e.field.cherryGroves.get(key2(0,0),[&]{return a;});}
   else {
    e.field.skinCache=Cache<uint64_t,Surface>(16384);
-   for(int z=-8;z<72;++z)for(int x=-8;x<72;++x)e.field.skinCache.get(key2(x,z),[&]{return surfaces[0];});
+   for(int z=-8;z<72;++z)for(int x=-8;x<72;++x)e.field.skinCache.get(key2(x,z),[&]{auto s=surfaces[0];if(sloped)s.height=136+int(std::floor((x%32)/4.));return s;});
    for(int z=-3;z<=4;++z)for(int x=-3;x<=4;++x){
     e.canopyGroundNodes.get(key2(x,z),[]{return 140;});
     e.canopyTrees.get(key2(x,z),[&]{Engine::CanopyTree a;
      if(x>=0&&x<2&&z>=0&&z<2){a.x=x*32+16;a.z=z*32+16;a.ground=140;a.height=45;a.radius=6;
-      a.biome=forest_capabilities::Pale;a.door=x+z*2;a.hollow=true;a.holeHeight=11;a.lamp=true;a.heart=x==0&&z==0;a.phase=.3;}
+      a.biome=forest_capabilities::Pale;a.door=x+z*2;a.doorAngle=a.door*1.570796327+.18;a.hollow=true;a.holeHeight=11;a.lamp=true;a.heart=x==0&&z==0;a.phase=.3;}
      return a;
     });
    }
@@ -30,10 +30,31 @@ struct CanopyForestRegression {
   std::vector<std::pair<int,int>> points;int begin=cherry?432:0,end=cherry?592:48;
   for(int z=begin;z<=end;z+=16)for(int x=begin;x<=end;x+=16)points.emplace_back(x,z);
   if(reverse)std::reverse(points.begin(),points.end());Chunks out;
-  for(auto [x,z]:points){std::vector<uint16_t> raw(256*e.Height);for(int i=0;i<256;++i)raw[i*e.Height+204]=4;
+  for(auto [x,z]:points){std::vector<uint16_t> raw(256*e.Height);for(int i=0;i<256;++i){surfaces[i].height=sloped?136+int(std::floor(((x+i%16)%32)/4.)):140;raw[i*e.Height+surfaces[i].height+64]=4;}
    if(cherry)e.centralCherryTree(x,z,raw,surfaces);else e.joinedCanopyForest(x,z,raw,surfaces);
    out.emplace(std::pair{x,z},std::move(raw));
   }return out;
+ }
+ static J naturalGeometry(J data){
+  data["config"]["naturalForestRevision"]=1;using namespace forest_palette;
+  auto a=draw(data,false,false,true),b=draw(data,true,false,true);assert(a==b);
+  int bark=0,lamps=0,hearts=0,clearFloor=0;
+  for(auto const&[key,raw]:a)for(int id:raw){bark+=id==PaleWood;lamps+=id>=HollowLampNorth&&id<=HollowLampWest;hearts+=id==Heart;}
+  assert(bark>1000&&lamps==4&&hearts==1);
+  assert(block(a,16,143,16)==Heart);
+  for(int y=141;y<143;++y)assert(block(a,16,y,16)==PaleLog);
+  assert(block(a,16,144,16)==PaleLog);
+  for(int z=0;z<64;++z)for(int x=0;x<64;++x){int floor=136+(x%32)/4;assert(block(a,x,floor,z)==4);
+   if(x>=18&&x<=23&&z>=15&&z<=17&&block(a,x,floor+1,z)==0)++clearFloor;}
+  assert(clearFloor>=8);
+  // Geometry stays asymmetric without changing the shared roof or creating
+  // floating horizontal rings at the old, tree-centre floor height.
+  Engine e(data);Engine::CanopyTree t;t.x=16;t.z=16;t.ground=140;t.height=45;t.radius=6;t.phase=.3;t.hollow=true;t.holeHeight=11;t.doorAngle=.18;
+  int asymmetry=0;
+  for(int y=137;y<151;++y)for(int x=13;x<25;++x)for(int dz=1;dz<=5;++dz)
+   asymmetry+=e.canopyHollow(t,x,y,16+dz)!=e.canopyHollow(t,x,y,16-dz);
+  assert(asymmetry>30);
+  return {{"barkBlocks",bark},{"lamps",lamps},{"groundedHearts",hearts},{"naturalFloorColumns",clearFloor},{"asymmetricHollowSamples",asymmetry},{"orderIndependentChunks",a.size()},{"passed",true}};
  }
  static int block(Chunks const&chunks,int x,int y,int z){int X=int(std::floor(x/16.))*16,Z=int(std::floor(z/16.))*16;
   auto i=chunks.find({X,Z});if(i==chunks.end())return 0;int height=int(i->second.size()/256);
@@ -83,6 +104,6 @@ struct CanopyForestRegression {
 };}
 int main(int argc,char**argv){try{
  if(argc!=4)return 2;nativegen::J data;std::ifstream(argv[1])>>data;data=nativegen::CanopyForestRegression::recipe(std::move(data));
- auto start=std::chrono::steady_clock::now();auto result=std::string(argv[3])=="sites"?nativegen::CanopyForestRegression::sites(data):nativegen::CanopyForestRegression::geometry(data);
+ auto start=std::chrono::steady_clock::now();auto mode=std::string(argv[3]);auto result=mode=="sites"?nativegen::CanopyForestRegression::sites(data):mode=="natural"?nativegen::CanopyForestRegression::naturalGeometry(data):nativegen::CanopyForestRegression::geometry(data);
  result["seconds"]=std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();std::ofstream(argv[2])<<result.dump(2);std::cout<<result<<std::endl;
  }catch(std::exception const&e){std::cerr<<e.what()<<std::endl;return 1;}}

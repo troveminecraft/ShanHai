@@ -30,7 +30,7 @@
 #include "rules/ExtraExecution.h"
 #include "rules/VillageFit.h"
 #include "rules/StructurePlan.h"
-#include "rules/OrderedVillage.h"
+#include "rules/ClusteredVillage.h"
 #include "rules/ScatteredExecution.h"
 #include "rules/CityPlan.h"
 #include "rules/CityEnvironment.h"

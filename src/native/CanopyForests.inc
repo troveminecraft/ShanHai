@@ -3,6 +3,7 @@
 struct CanopyTree {
  int x=0,z=0,ground=0,height=0,radius=0,biome=0,door=0,holeHeight=0;
  double phase=0;bool hollow=false,lamp=false,heart=false;
+ double doorAngle=0;
 };
 Cache<uint64_t,CanopyTree> canopyTrees{2048};
 Cache<uint64_t,int> canopyGroundNodes{4096};
@@ -18,6 +19,18 @@ CanopyTree canopyTree(int gx,int gz){return canopyTrees.get(key2(gx,gz),[&]{
  CanopyTree a;if(!field.canopyForestsEnabled())return a;
  auto r=[&](int salt){return hash01(gx,gz,terrainSeed^(89200+salt));};
  a.x=gx*CanopyGrid+10+int(r(1)*12);a.z=gz*CanopyGrid+10+int(r(2)*12);
+ if(field.naturalForestsEnabled()){
+  auto point=[&](int X,int Z){return std::pair{X*CanopyGrid+int(hash01(X,Z,terrainSeed^89201)*32),
+                                           Z*CanopyGrid+int(hash01(X,Z,terrainSeed^89202)*32)};};
+  auto [x,z]=point(gx,gz);a.x=x;a.z=z;
+  // Full-cell jitter with a deterministic exclusion distance removes rows
+  // without overlapping trunks or depending on chunk traversal order.
+  for(int Z=gz-1;Z<=gz+1;++Z)for(int X=gx-1;X<=gx+1;++X){
+   if(X==gx&&Z==gz)continue;auto [nx,nz]=point(X,Z);
+   if((nx-x)*(nx-x)+(nz-z)*(nz-z)<20*20&&
+      std::tuple{hash01(X,Z,terrainSeed^89211),X,Z}<std::tuple{r(11),gx,gz})return CanopyTree{};
+  }
+ }
  auto s=field.surface(a.x,a.z,false);
  if((s.biome!=forest_capabilities::Dark&&s.biome!=forest_capabilities::Pale)||!specialForestHabitat(s)
     ||!treeGroundAllowed(s,a.x,a.z,false)||!glacierPlantKept(s,a.x,a.z)||blocked(a.x,a.z,false)
@@ -32,6 +45,7 @@ CanopyTree canopyTree(int gx,int gz){return canopyTrees.get(key2(gx,gz),[&]{
  }
  if(high-low>9)return CanopyTree{};
  a.phase=r(5)*6.283185307;a.door=int(r(6)*4);a.holeHeight=9+int(r(7)*4);
+ a.doorAngle=r(6)*6.283185307;
  a.hollow=r(8)<.35;a.lamp=a.hollow&&r(9)<.66;
  a.heart=a.hollow&&a.biome==forest_capabilities::Pale&&r(10)<.11;
  return a;
@@ -43,7 +57,30 @@ std::vector<CanopyTree> localCanopyTrees(int x0,int z0,int size){
   auto a=canopyTree(x,z);if(a.height&&!nativeReserved(a.x,a.z))out.push_back(a);
  }return out;
 }
+struct CanopyColumn {double distance,roots,forward,side;};
+CanopyColumn naturalCanopyColumn(CanopyTree const&a,int x,int z)const{
+ double dx=x-a.x,dz=z-a.z,angle=std::atan2(dz,dx),c=std::cos(a.doorAngle),s=std::sin(a.doorAngle);
+ double lobes=4+int(a.phase*10)%3;
+ double roots=std::pow(std::max(0.,std::cos(angle*lobes+a.phase+.25*std::sin(angle*3))),3);
+ double distortion=1+.07*std::sin(angle*3+a.phase)+.04*std::cos(angle*5-a.phase);
+ return {std::hypot(dx,dz)/distortion,roots,dx*c+dz*s,-dx*s+dz*c};
+}
+bool naturalCanopyHollow(CanopyTree const&a,CanopyColumn const&p,int y)const{
+ double dy=y-a.ground;if(!a.hollow||dy>=a.holeHeight)return false;
+ double t=std::max(0.,(dy-1)/double(a.holeHeight-1));
+ double width=a.radius*(.51+.05*std::sin(a.phase))*std::sqrt(std::max(0.,1-t*t));
+ double bend=.55*std::sin(dy*.37+a.phase)+.25*std::sin(p.forward*.65+a.phase);
+ double rim=.25*std::sin(dy*1.1+p.forward*.7+a.phase);
+ return p.forward>-a.radius*.55+.45*std::sin(dy*.4+a.phase)&&std::abs(p.side-bend)<width+rim;
+}
+bool naturalCanopyWood(CanopyTree const&a,CanopyColumn const&p,int y)const{
+ double dy=y-a.ground;if(dy<=-9||dy>a.height-5)return false;
+ double radius=a.radius*(1-.32*smooth(6.,a.height-6.,dy));
+ radius+=(1-smooth(0.,8.,dy))*a.radius*.4*p.roots;
+ return p.distance<=radius&&!naturalCanopyHollow(a,p,y);
+}
 bool canopyHollow(CanopyTree const&a,int x,int y,int z)const{
+ if(field.naturalForestsEnabled())return naturalCanopyHollow(a,naturalCanopyColumn(a,x,z),y);
  if(!a.hollow||y<=a.ground||y>=a.ground+a.holeHeight)return false;
  constexpr int dx[4]={0,1,0,-1},dz[4]={-1,0,1,0};
  double forward=(x-a.x)*dx[a.door]+(z-a.z)*dz[a.door];
@@ -52,6 +89,7 @@ bool canopyHollow(CanopyTree const&a,int x,int y,int z)const{
  return forward>-a.radius*.52&&std::abs(side)<width;
 }
 bool canopyWood(CanopyTree const&a,int x,int y,int z)const{
+ if(field.naturalForestsEnabled())return naturalCanopyWood(a,naturalCanopyColumn(a,x,z),y);
  double dy=y-a.ground;if(dy<=-9||dy>a.height-5)return false;
  double dx=x-a.x,dz=z-a.z,angle=std::atan2(dz,dx);
  double radius=a.radius*(1-.32*smooth(6.,a.height-6.,dy));
@@ -99,12 +137,14 @@ void joinedCanopyForest(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surfa
   }
  }
  for(auto const&a:trees){bool pale=a.biome==forest_capabilities::Pale;int log=pale?PaleLog:DarkLog,wood=pale?PaleWood:DarkWood;
-  int radius=int(std::ceil(a.radius*1.5));
+  bool natural=field.naturalForestsEnabled();int radius=int(std::ceil(a.radius*(natural?1.6:1.5)));
   for(int z=std::max(z0,a.z-radius);z<=std::min(z0+15,a.z+radius);++z)
   for(int x=std::max(x0,a.x-radius);x<=std::min(x0+15,a.x+radius);++x){if(nativeReserved(x,z))continue;int i=(z-z0)*16+x-x0;
    auto const&s=surfaces[i];auto col=raw.data()+i*Height;
+   auto column=natural?naturalCanopyColumn(a,x,z):CanopyColumn{};
    for(int y=std::max({s.height,s.water,s.lava})+1;y<=a.ground+a.height-5;++y)
-    if(canopyWood(a,x,y,z)&&canopyReplaceable(col[y+64]))col[y+64]=uint16_t(log);
+    if((natural?naturalCanopyWood(a,column,y):canopyWood(a,x,y,z))&&canopyReplaceable(col[y+64]))
+     col[y+64]=uint16_t(natural&&y<=a.ground+8?wood:log);
   }
   for(int k=0;k<5;++k){double angle=a.phase+k*1.256637061,reach=15.+(k%2)*3.;
    double x=a.x+std::cos(angle)*reach,z=a.z+std::sin(angle)*reach;
@@ -112,10 +152,23 @@ void joinedCanopyForest(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surfa
   }
   auto place=[&](int x,int y,int z,int block){if(x<x0||x>=x0+16||z<z0||z>=z0+16||nativeReserved(x,z))return;
    int i=(z-z0)*16+x-x0;if(y<=surfaces[i].height||y<=surfaces[i].water||y>Height-65)return;
-   auto&b=raw[i*Height+y+64];if(canopyReplaceable(b)||b==PaleLog)b=uint16_t(block);
+   auto&b=raw[i*Height+y+64];if(canopyReplaceable(b)||b==PaleLog||(natural&&b==PaleWood))b=uint16_t(block);
   };
-  if(a.lamp)place(a.x,a.ground+1,a.z,HollowLampNorth+a.door);
-  if(a.heart){int y=a.ground+a.holeHeight-3;
+  if(a.lamp){
+   int x=a.x,z=a.z,y=a.ground+1;
+   if(natural){x+=roundJS(std::cos(a.doorAngle)*a.radius*.48);z+=roundJS(std::sin(a.doorAngle)*a.radius*.48);
+    if(x>=x0&&x<x0+16&&z>=z0&&z<z0+16)y=surfaces[(z-z0)*16+x-x0].height+1;}
+   place(x,y,z,HollowLampNorth+a.door);
+  }
+  if(a.heart){int y=a.ground+(natural?3:a.holeHeight-3);
+   if(natural){
+    // Grounded living wood, with vertical pale logs immediately above and
+    // below the heart as required by the native activation rule.
+    int floor=a.ground;
+    if(a.x>=x0&&a.x<x0+16&&a.z>=z0&&a.z<z0+16)floor=surfaces[(a.z-z0)*16+a.x-x0].height;
+    for(int yy=floor+1;yy<y;++yy)place(a.x,yy,a.z,PaleLog);
+    for(int yy=y+1;yy<=a.ground+a.holeHeight+1;++yy)place(a.x,yy,a.z,PaleLog);
+   }
    for(int up=1;up<=4;++up)place(a.x,y+up,a.z,PaleLog);
    place(a.x,y-1,a.z,PaleLog);place(a.x,y,a.z,Heart);
   }
@@ -158,5 +211,23 @@ void centralCherryTree(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surfac
  for(int k=0;k<7;++k){double angle=a.phase+k*.897597901,reach=crown*(.60+.07*(k%3));
   canopyLimb(x0,z0,raw,surfaces,a.x,a.ground+31+(k%3)*4,a.z,
    a.x+std::cos(angle)*reach,a.ground+55+(k%2)*3,a.z+std::sin(angle)*reach,4.5,2.,CherryWood);
+ }
+}
+
+void cliffSideTrees(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>const&surfaces){
+ using namespace forest_palette;
+ for(auto const&a:field.cliffTreeSites(x0,z0,16)){
+  if(nativeReserved(a.x,a.z))continue;
+  double ex=a.x-a.nx*a.length,ez=a.z-a.nz*a.length,ey=a.y+3;
+  for(int z=std::max(z0,int(std::floor(ez-3)));z<=std::min(z0+15,int(std::ceil(ez+3)));++z)
+  for(int x=std::max(x0,int(std::floor(ex-3)));x<=std::min(x0+15,int(std::ceil(ex+3)));++x){
+   if(nativeReserved(x,z))continue;int i=(z-z0)*16+x-x0;auto const&s=surfaces[i];
+   for(int y=std::max({int(ey)-2,s.height+1,s.water+1,s.lava+1});y<=std::min(int(ey)+2,Height-65);++y){
+    double d=(x-ex)*(x-ex)+(z-ez)*(z-ez)+(y-ey)*(y-ey)*1.8;
+    auto&b=raw[i*Height+y+64];if(d<=8&&canopyReplaceable(b))b=CanopyDarkLeaves;
+   }
+  }
+  canopyLimb(x0,z0,raw,surfaces,a.x,a.y,a.z,ex,ey,ez,.85,.55,DarkWood);
+  canopyLimb(x0,z0,raw,surfaces,ex,ey-1,ez,ex,ey+1,ez,.65,.55,DarkWood);
  }
 }

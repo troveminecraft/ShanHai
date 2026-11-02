@@ -1,5 +1,5 @@
 #undef NDEBUG
-#include "rules/OrderedVillage.h"
+#include "rules/ClusteredVillage.h"
 #include <cassert>
 #include <iostream>
 #include <chrono>
@@ -11,10 +11,12 @@ VillageBlueprint village(int houses){VillageBlueprint b{{0,0},35,12,{}};
   p.cells.push_back({{3,1,1},{"minecraft:acacia_door"}});p.cells.push_back({{3,2,3},{"minecraft:structure_block"},{},"minecraft:villager_v2"});b.pieces.push_back(std::move(p));
  }return b;}
 int main(){auto start=std::chrono::steady_clock::now();
- for(int count:{8,24,49,80})for(int slope:{0,1}){auto b=village(count);auto sample=[&](int x,int){auto s=Surface{};s.height+=slope*int(std::floor(x/32.));return s;};
-  auto ordered=orderVillage(b,sample);if(!ordered.accepted)std::cerr<<count<<" slope="<<slope<<" reason="<<ordered.rejection<<std::endl;
+ for(bool clustered:{false,true})for(int count:{8,24,49,80})for(int slope:{0,1}){auto b=village(count);auto sample=[&](int x,int){auto s=Surface{};s.height+=slope*int(std::floor(x/32.));return s;};
+  auto ordered=clustered?clusterVillage(b,sample):orderVillage(b,sample);if(!ordered.accepted)std::cerr<<count<<" slope="<<slope<<" reason="<<ordered.rejection<<std::endl;
   assert(ordered.accepted&&ordered.target==count*6&&ordered.lots.size()==size_t(count*6));
-  auto again=orderVillage(b,sample);assert(ordered.roads==again.roads&&ordered.lots.size()==again.lots.size());
+  auto again=clustered?clusterVillage(b,sample):orderVillage(b,sample);assert(ordered.roads==again.roads&&ordered.lots.size()==again.lots.size());
+  if(clustered){std::set<int> rows,columns;for(auto const&lot:ordered.lots){rows.insert(lot.box.min.z);columns.insert(lot.box.min.x);}
+   assert(rows.size()>ordered.lots.size()/5&&columns.size()>ordered.lots.size()/5);}
   VillageBlueprint next{b.anchor,b.seed,b.biome,{}};next.plannedRoads=ordered.roads;next.reach=OrderedVillageReach;
   for(auto const&lot:ordered.lots){auto p=b.pieces[lot.prototype];p.origin.x+=lot.delta.x;p.origin.y+=lot.delta.y;p.origin.z+=lot.delta.z;p.box=lot.box;p.populate=lot.populate;
    for(auto const&q:next.pieces)assert(!p.box.intersectsXZ(q.box,2));next.pieces.push_back(std::move(p));}
@@ -28,7 +30,7 @@ int main(){auto start=std::chrono::steady_clock::now();
     assert(std::abs(plan.ground.fitted.at(xz)-plan.ground.fitted.at(q))<=1);
   }
   for(auto const&[owner,ops]:plan.placements)for(auto const&o:ops){auto box=next.pieces[o.index].box.moved(plan.verticalMoves[o.index]);assert(box.intersectsXZ({{owner.first*16,-64,owner.second*16},{owner.first*16+15,511,owner.second*16+15}}));}
-  std::cout<<"houses="<<count<<" -> "<<ordered.target<<" slope="<<slope<<" roadColumns="<<ordered.roads.size()<<" survey="<<ordered.surfaceQueries<<std::endl;
+  std::cout<<"clustered="<<clustered<<" houses="<<count<<" -> "<<ordered.target<<" slope="<<slope<<" roadColumns="<<ordered.roads.size()<<" survey="<<ordered.surfaceQueries<<std::endl;
  }
  for(int kind=0;kind<3;++kind){auto bad=orderVillage(village(8),[&](int x,int){auto s=Surface{};if(kind==0)s.water=145;if(kind==1)s.biome=13;if(kind==2)s.height=x<0?120:180;return s;});assert(!bad.accepted);}
  auto candidate=[](int x,int z){return ChunkPosition{x*16+4,z*16+4};};

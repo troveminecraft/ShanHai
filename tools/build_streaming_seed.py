@@ -19,14 +19,15 @@ def finish_recipe(data,target_game=None):
     data["config"]["mountainSnowline"]=1
     data["config"]["mountainEcology"]=1
     data["config"]["regionalPlateaus"]=1
-    data["config"].update(landscapeRevision=3,volcanoRevision=5,surfaceMoss=2,villageSpacing=16,lakeBasinsVersion=1,orderedVillages=1)
+    data["config"].update(landscapeRevision=3,volcanoRevision=5,surfaceMoss=2,villageSpacing=16,lakeBasinsVersion=1,orderedVillages=2)
+    data["config"].update(naturalForestRevision=1,mountainErosion=1,cliffTrees=1)
     data["config"]["cave"].update(raisedCaveHeight=1,highMountainUnderground=1,uplandNetworks=1)
     data["config"]["smallPoolsVersion"]=3
     data["config"]["tallIceSpires"]=True
     data["config"]["glacierEcologyRevision"]=1
     data["config"].update(glacierAltitudeRevision=1,glacierHaloBlocks=512,uplandWaterways=1)
     data["config"].update(waterContainment=2,riverBranches=1,cliffRevision=4,waterfallSources=2,waterfallRevision=1,glacierBodyRevision=1)
-    data["config"]["cliffs"].update(grid=256,chance=.52,minHeight=175,maxHeight=410,minSlope=.8,maxShift=160,front=256,halfLength=64)
+    data["config"]["cliffs"].update(grid=256,chance=.24,minHeight=175,maxHeight=410,minSlope=.8,maxShift=160,front=256,halfLength=64)
     data['regionalGeneration']=dict(algorithm='regional-drainage-v3',coreBlocks=2048,haloBlocks=512,
                                     samplePitch=64,worldBounds=None,boundsMode='infinite',persistentPlans=True)
     data['rivers']=dict(algorithm='regional-drainage-v3',cutBanks=10,naturalBankSlope=1,sectionProfiles=1,
