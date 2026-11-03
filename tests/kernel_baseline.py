@@ -59,7 +59,7 @@ def main():
     for x, z in coords:
         cold = (args.output / f"cold-{x}-{z}.bin").read_bytes()
         warm = (args.output / f"warm-{x}-{z}.bin").read_bytes()
-        if cold != warm or cold[:4] != b"KW2\0":
+        if cold != warm or cold[:4] not in (b"KW2\0", b"KW3\0"):
             raise RuntimeError(f"Warm output differs or invalid header at {x},{z}")
         hashes.append({"cx": x, "cz": z, "bytes": len(cold), "sha256": sha(cold)})
     n = len(coords)

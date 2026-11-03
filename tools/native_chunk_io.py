@@ -8,7 +8,7 @@ def run(exe,source,requests):
 
 def decode(path,palette=43,biomes=20,height=384):
     if type(height) is not int or height not in (384,576):raise ValueError('Unsupported water-check chunk height')
-    b=path.read_bytes();wide=b[:4]==b'KW2\0';offset=4 if wide else 0;pos=256+offset;cols=[]
+    b=path.read_bytes();wide=b[:4] in (b'KW2\0',b'KW3\0');offset=4 if wide else 0;pos=256+offset;cols=[]
     if len(b)<pos or max(b[offset:offset+256])>=biomes:raise ValueError('Invalid chunk biome palette')
     for _ in range(256):
         if pos+2>len(b):raise ValueError('Truncated chunk column')
@@ -20,5 +20,8 @@ def decode(path,palette=43,biomes=20,height=384):
             col.extend([block]*length)
         if len(col)!=height:raise ValueError('Chunk height differs from expected recipe')
         cols.append(col)
-    if pos!=len(b):raise ValueError('Trailing chunk data')
+    if wide:
+        from snow_layers import read
+        read(b,pos,height,cols,palette)
+    elif pos!=len(b):raise ValueError('Trailing chunk data')
     return np.array(cols,dtype=np.uint16).reshape(16,16,height)

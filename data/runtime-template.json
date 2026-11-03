@@ -929,7 +929,7 @@
   "backend": "native-cpp",
   "previewStatus": "legacy-reference-only",
   "cpuTarget": "x86_64-avx2",
-  "chunkCodec": "KW2-u16",
+  "chunkCodec": "KW2-u16/KW3-snow",
   "vanillaBlocksOnly": true,
   "blockPacksRequired": false,
   "spawnPolicy": "natural dry ground; 9x9 solid support and passable headroom; no stone-forest binding"

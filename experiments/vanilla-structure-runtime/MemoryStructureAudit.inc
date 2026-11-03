@@ -96,16 +96,28 @@ int auditVolumeHeight(Dimension&dimension){
  return terrain_runtime::BuildHeight::nativeVolumeHeight(range.mMin,range.mMax,field->generationHeight());
 }
 void auditFillChunk(LevelChunk&c,std::vector<uint8_t>const&bytes,std::vector<Block const*>const&palette,VegetationPair*vegetation){
- if(bytes.size()<260||bytes[0]!=75||bytes[1]!=87||bytes[2]!=50)throw std::runtime_error("Audit terrain encoding mismatch");
+ if(bytes.size()<260||bytes[0]!=75||bytes[1]!=87||(bytes[2]!=50&&bytes[2]!=51)||bytes[3]!=0)throw std::runtime_error("Audit terrain encoding mismatch");
  int height=auditVolumeHeight(bedrock_compat::dimension(c)),generatedHeight=field->generationHeight();
- std::vector<Block const*> data(16*16*height,palette[0]);bedrock_compat::Volume volume({data.data(),data.data()+data.size()},16,height,16,*palette[0],-64);size_t offset=260;
+ std::vector<Block const*> data(16*16*height,palette[0]);bedrock_compat::Volume volume({data.data(),data.data()+data.size()},16,height,16,*palette[0],-64);size_t offset=260;std::array<size_t,256> columnOffsets{};
  auto word=[&](){if(offset+2>bytes.size())throw std::runtime_error("Audit terrain truncated");unsigned v=bytes[offset]|(bytes[offset+1]<<8);offset+=2;return v;};
- for(int col=0;col<256;++col){unsigned count=word(),y=0;for(unsigned i=0;i<count;++i){unsigned n=word(),id=word();if(n==0||y+n>unsigned(generatedHeight)||id>=palette.size())throw std::runtime_error("Audit terrain run invalid");for(unsigned k=0;k<n;++k)data[bedrock_compat::volumeIndex(volume,BlockPos{col%16,int(y+k),col/16})]=palette[id];y+=n;}if(y!=unsigned(generatedHeight))throw std::runtime_error("Audit terrain column incomplete");}
- if(offset!=bytes.size())throw std::runtime_error("Audit terrain trailing bytes");
+ for(int col=0;col<256;++col){columnOffsets[col]=offset;unsigned count=word(),y=0;for(unsigned i=0;i<count;++i){unsigned n=word(),id=word();if(n==0||y+n>unsigned(generatedHeight)||id>=palette.size())throw std::runtime_error("Audit terrain run invalid");for(unsigned k=0;k<n;++k)data[bedrock_compat::volumeIndex(volume,BlockPos{col%16,int(y+k),col/16})]=palette[id];y+=n;}if(y!=unsigned(generatedHeight))throw std::runtime_error("Audit terrain column incomplete");}
+ auto plants=terrain_snow::read(bytes,offset,generatedHeight,palette.size(),[&](int col,int at){
+  size_t p=columnOffsets[col];unsigned count=bytes[p]|(unsigned(bytes[p+1])<<8),y=0;p+=2;
+  for(unsigned i=0;i<count;++i,p+=4){unsigned n=bytes[p]|(unsigned(bytes[p+1])<<8),b=bytes[p+2]|(unsigned(bytes[p+3])<<8);if(unsigned(at)<y+n)return int(b);y+=n;}return 0;
+ });
+ Block const* snow=nullptr;if(!plants.empty()){
+  auto covered=palette.at(146)->setState(VanillaStates::CoveredBit(),true);
+  if(!covered||covered->getState<bool>(VanillaStates::CoveredBit())!=true)throw std::runtime_error("Covered snow state unavailable");snow=&*covered;
+  for(auto p:plants)data[bedrock_compat::volumeIndex(volume,BlockPos{p.column%16,p.y,p.column/16})]=snow;
+ }
  if(vegetation)filterVegetationVolume(volume,bedrock_compat::position(c),*vegetation);
  J metadata;std::ifstream((terrainFolder()/"terrain.json"))>>metadata;std::vector<Biome const*> biomes;for(std::string name:metadata["biomeNames"]){auto b=bedrock_compat::dimension(c).getBiomeRegistry().lookupByName("minecraft:"+name);if(!b)throw std::runtime_error("Audit biome missing");biomes.push_back(b);}
  ChunkVolume::VolumeOf<Biome> biomeVolume;biomeVolume.mNumSubChunks=height/16;std::vector<Biome const*> sub(4096);for(int x=0;x<16;++x)for(int z=0;z<16;++z)for(int y=0;y<16;++y)sub[(x<<8)|(z<<4)|y]=biomes.at(bytes[4+z*16+x]);biomeVolume.mSubChunkVectors.assign(height/16,sub);bedrock_compat::setBiomes(c,biomeVolume);
  c.setBlockVolume(volume,0);c.setPreWorldGenHeightMap(volume.computeHeightMap());c.recomputeHeightMap(true);
+ // A vegetation reservation may clear the snow cell; do not restore a
+ // secondary plant into that cleared construction space.
+ for(auto p:plants)if(data[bedrock_compat::volumeIndex(volume,BlockPos{p.column%16,p.y,p.column/16})]==snow)
+  c.setExtraBlock(ChunkBlockPos{BlockPos{p.column%16,int(p.y)-64,p.column/16},-64},*palette[p.block],nullptr);
  // Match the production secondary-water layer without scheduling real ticks.
  offset=260;for(int col=0;col<256;++col){unsigned count=word(),y=0;for(unsigned i=0;i<count;++i){unsigned n=word(),id=word();if(id==49||id==50||(id>=56&&id<=60))for(unsigned k=0;k<n;++k)c.setExtraBlock(ChunkBlockPos{BlockPos{col%16,int(y+k)-64,col/16},-64},*palette[8],nullptr);y+=n;}}
 }

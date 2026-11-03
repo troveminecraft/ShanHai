@@ -5,6 +5,8 @@
 #include "NativeReservations.h"
 #include "../WorldBounds.h"
 #include "../rules/HighMountainUnderground.h"
+#include "../rules/GlacierCliffSkin.h"
+#include "../SnowLayers.h"
 #include <chrono>
 #include <unordered_set>
 namespace nativegen {
@@ -26,6 +28,7 @@ class Engine {
  friend struct ElevationVariantsTest;
  friend struct IceSpireRegression;
  friend struct GlacierEcologyRegression;
+ friend struct IceSnowRegression;
  friend struct UplandTerrainRegression;
  friend struct EngineBoundaryTest; // Offline regression exercises the production passes.
  NativeReservations nativeReservations;
@@ -109,7 +112,9 @@ class Engine {
  #include "IceFractures.inc"
  #include "ClosedIceRifts.inc"
  #include "IceSpires.inc"
+ std::vector<terrain_snow::Plant> snowPlants;
  #include "VariantSnowCover.inc"
+ #include "GlacierCliffSkin.inc"
  #include "SmallIceSpikes.inc"
  #include "IceFeatures.inc"
  #include "LavaFlows.inc"
@@ -239,7 +244,7 @@ public:
    if(x>1&&x<14&&z>1&&z<14)for(int dz=-1;dz<=1;++dz)for(int dx=-1;dx<=1;++dx){auto c=raw.data()+((z+dz)*16+x+dx)*Height;if(c[bottom+64]==0&&solid(c[bottom-1+64])&&solid(c[bottom-2+64]))c[bottom-1+64]=8;}
   }
  }
- std::vector<uint8_t> chunk(int cx,int cz){if(!(field.unbounded()?terrain_bounds::gameContainsChunk(cx,cz):terrain_bounds::containsChunk(cx,cz)))throw std::out_of_range("Native chunk bounds");surfaceMs=columnMs=featureMs=0;forestMs.fill(0);columnNoise=0;closedRiftColumns.fill({});if(landscapeDetails&&field.streamed()){detailVolcanoes.clear();for(auto const&v:field.inspectLocalVolcanoes(cx*16,cz*16))detailVolcanoes.push_back({v.at("x"),v.at("z"),v.at("crater"),v.at("outer")});}auto clock=[](){return std::chrono::steady_clock::now();};auto chunkBegin=clock();int x0=32768+cx*16,z0=32768+cz*16;std::array<Surface,256> surfaces;std::vector<uint16_t>raw(256*Height);std::vector<uint8_t>out{75,87,50,0};out.reserve(16384);for(int z=0;z<16;z++)for(int x=0;x<16;x++){auto began=clock();auto s=field.surface(x0+x,z0+z);surfaces[z*16+x]=s;surfaceMs+=std::chrono::duration<double,std::milli>(clock()-began).count();began=clock();auto beforeNoise=noiseSamples;out.push_back(uint8_t(field.elevationVariantsEnabled()&&s.snowCover>.70&&s.biome<29?29+s.biome:s.biome));int top=std::max({s.height+s.drip,s.water,s.lava});auto col=raw.data()+(z*16+x)*Height;std::fill(col,col+4,1);field.materialColumn(s,x0+x,z0+z,top,col);columnNoise+=noiseSamples-beforeNoise;columnMs+=std::chrono::duration<double,std::milli>(clock()-began).count();}
+ std::vector<uint8_t> chunk(int cx,int cz){if(!(field.unbounded()?terrain_bounds::gameContainsChunk(cx,cz):terrain_bounds::containsChunk(cx,cz)))throw std::out_of_range("Native chunk bounds");surfaceMs=columnMs=featureMs=0;forestMs.fill(0);columnNoise=0;snowPlants.clear();closedRiftColumns.fill({});if(landscapeDetails&&field.streamed()){detailVolcanoes.clear();for(auto const&v:field.inspectLocalVolcanoes(cx*16,cz*16))detailVolcanoes.push_back({v.at("x"),v.at("z"),v.at("crater"),v.at("outer")});}auto clock=[](){return std::chrono::steady_clock::now();};auto chunkBegin=clock();int x0=32768+cx*16,z0=32768+cz*16;std::array<Surface,256> surfaces;std::vector<uint16_t>raw(256*Height);std::vector<uint8_t>out{75,87,50,0};out.reserve(16384);for(int z=0;z<16;z++)for(int x=0;x<16;x++){auto began=clock();auto s=field.surface(x0+x,z0+z);surfaces[z*16+x]=s;surfaceMs+=std::chrono::duration<double,std::milli>(clock()-began).count();began=clock();auto beforeNoise=noiseSamples;out.push_back(uint8_t(field.elevationVariantsEnabled()&&s.snowCover>.70&&s.biome<29?29+s.biome:s.biome));int top=std::max({s.height+s.drip,s.water,s.lava});auto col=raw.data()+(z*16+x)*Height;std::fill(col,col+4,1);field.materialColumn(s,x0+x,z0+z,top,col);columnNoise+=noiseSamples-beforeNoise;columnMs+=std::chrono::duration<double,std::milli>(clock()-began).count();}
  // Build the glacier landform before plants. Cave decoration still runs at
  // its old post-underground stage, so cave habitats keep their existing order.
  if(glacierEcologyEnabled){bool icy=false;for(auto const&s:surfaces)icy|=s.glacier>.18;
@@ -280,8 +285,9 @@ for(auto const&s:ss){if(field.surface(s.x,s.z,false).glacier>.15)continue;int x=
  lavaFlows(x0,z0,raw,surfaces);
  variantSnowCover(x0,z0,raw,surfaces);
  if(finalTerrainOres){cleanupSnowSupports(raw,surfaces);if(oreProfilesEnabled&&undergroundEcologyEnabled){if(vanillaOres)vanillaOreProfiles(x0,z0,raw,surfaces);else oreProfiles(x0,z0,raw,surfaces,oreRockField,oreHabitat);}}
+ glacierCliffSkin(x0,z0,raw,surfaces);
  featureMs=std::chrono::duration<double,std::milli>(clock()-chunkBegin).count()-surfaceMs-columnMs;
- for(int col=0;col<256;col++){size_t start=out.size();out.push_back(0);out.push_back(0);int count=0;auto a=raw.data()+col*Height;for(int y=0;y<Height;){int end=y+1;while(end<Height&&a[end]==a[y])end++;int n=end-y;out.push_back(uint8_t(n));out.push_back(uint8_t(n>>8));out.push_back(uint8_t(a[y]));out.push_back(uint8_t(a[y]>>8));y=end;count++;}out[start]=uint8_t(count);out[start+1]=uint8_t(count>>8);}return out;
+ for(int col=0;col<256;col++){size_t start=out.size();out.push_back(0);out.push_back(0);int count=0;auto a=raw.data()+col*Height;for(int y=0;y<Height;){int end=y+1;while(end<Height&&a[end]==a[y])end++;int n=end-y;out.push_back(uint8_t(n));out.push_back(uint8_t(n>>8));out.push_back(uint8_t(a[y]));out.push_back(uint8_t(a[y]>>8));y=end;count++;}out[start]=uint8_t(count);out[start+1]=uint8_t(count>>8);}terrain_snow::append(out,snowPlants);return out;
  }
 };
 }

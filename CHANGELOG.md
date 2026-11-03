@@ -1,5 +1,9 @@
 ## 0.4.0 — in development
 
+Super-glacier cliff faces now carry a thin ice skin. Grass and ferns can share a cell with thin snow using Bedrock's native secondary block layer. New terrain uses recipe **2.222**; existing worlds retain their saved terrain recipe.
+
+Derived terrain caches use lossless compression and a 512 MiB background-managed budget per world recipe. Existing uncompressed caches remain readable. These disposable caches are separate from saved blocks, player data and structures. Detailed loading diagnostics retain the three most recent recognized sessions. World size still grows as new regions are explored.
+
 Fixes narrow spikes along curved cliff rims by joining the two banks directly, preserving cliff height, contour and end transitions. Existing worlds retain their saved cliff recipe.
 
 New 26.51 worlds use fewer high cliffs, with occasional small trees rooted in the exposed faces. Shallow differential-weathering grooves vary mountain slopes while retaining smooth rock domes. Dark and pale forests have irregularly spaced trunks and asymmetric hollows open to natural ground; roots use bark-covered wood, and creaking hearts have continuous ground support. Large villages retain their building count and use compact irregular plots with connected roads. Biome locating first surveys lightweight candidates, verifies results against the saved terrain recipe, and reuses a bounded world-local query cache separate from chunk generation.
@@ -26,7 +30,7 @@ New forest recipes place denser mangroves in warm, shallow-water inland basins w
 
 In mountains&seas worlds, `/locate biome` searches the world's frozen terrain recipe in the background. Ordinary worlds retain the native command. A bounded search reports incomplete work separately from an unavailable biome; it does not request or generate world chunks.
 
-New 26.51 worlds use recipe **2.221** and a fixed game capability profile. Existing worlds retain their saved recipe and terrain, including 2.217. A world using 26.51-only forest content cannot open on 26.20. Sea level remains Y100 and the building range remains Y-64..511. The update also fixes world-to-world biome table reuse and seed preparation under non-ASCII paths.
+New 26.51 worlds use recipe **2.222** and a fixed game capability profile. Existing worlds retain their saved recipe and terrain, including 2.217. A world using 26.51-only forest content cannot open on 26.20. Sea level remains Y100 and the building range remains Y-64..511. The update also fixes world-to-world biome table reuse and seed preparation under non-ASCII paths.
 
 Dense terrain, large view distances and native structure processing can still cause loading delays. Nighttime creaking behavior and new forest save/reload behavior need further compatibility coverage across the supported game builds.
 

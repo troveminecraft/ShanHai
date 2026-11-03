@@ -36,4 +36,16 @@ class SpawnColumnsTests(unittest.TestCase):
         self.assertEqual(len(columns(self.path)[0]),384)
         self.assertEqual(decode(self.path).shape,(16,16,384))
 
+    def test_sparse_snow_layers(self):
+        # All columns have supported snow plus the upper half of tall grass.
+        column=struct.pack('<H',4)+struct.pack('<HHHHHHHH',100,2,1,146,1,39,474,0)
+        primary=b'KW3\0'+bytes(256)+column*256
+        valid=primary+struct.pack('<HBHH',1,255,100,38)
+        for parser in (columns,lambda p,h:decode(p,height=h,palette=256)):
+            self.path.write_bytes(valid);parser(self.path,576)
+            for suffix in (b'',struct.pack('<HBHH',1,255,0,38),struct.pack('<HBHH',1,255,100,40),
+                           struct.pack('<HBHHBHH',2,255,100,38,255,100,38)):
+                self.path.write_bytes(primary+suffix)
+                with self.subTest(suffix=suffix),self.assertRaises(ValueError):parser(self.path,576)
+
 if __name__=='__main__':unittest.main()

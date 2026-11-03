@@ -59,7 +59,7 @@ def query(exe,source,requests):
 def columns(path,height=384):
  if type(height) is not int or height not in (384,576):raise ValueError('Unsupported spawn chunk height')
  b=path.read_bytes()
- if len(b)<260 or b[:4]!=b'KW2\0':raise ValueError('Invalid spawn chunk header')
+ if len(b)<260 or b[:4] not in (b'KW2\0',b'KW3\0'):raise ValueError('Invalid spawn chunk header')
  pos=260;out=[]
  for _ in range(256):
   if pos+2>len(b):raise ValueError('Truncated spawn chunk column')
@@ -71,7 +71,8 @@ def columns(path,height=384):
    col.extend([block]*length)
   if len(col)!=height:raise ValueError('Spawn chunk height differs from native recipe')
   out.append(col)
- if pos!=len(b):raise ValueError('Trailing spawn chunk data')
+ from snow_layers import read
+ read(b,pos,height,out)
  return out
 def select(source,exe,output=None):
  # One engine keeps regional plans and generated spawn chunks warm across

@@ -143,6 +143,7 @@ bool validChunk(int x,int z){return generationMode.contains(x,z);}
 
 std::atomic<DWORD> mainThread=0;
 std::vector<Block const*> palette;
+Block const* coveredSnow=nullptr;
 std::vector<Biome const*> biomes;
 std::unique_ptr<std::once_flag> registryOnce=std::make_unique<std::once_flag>();
 Json metadata,activation;
@@ -353,7 +354,7 @@ std::shared_ptr<Chunk const> getChunk(int x,int z){
 }
 void resolveRegistry(Dimension& dim){
  std::call_once(*registryOnce,[&]{
-  palette.clear();biomes.clear();
+  palette.clear();biomes.clear();coveredSnow=nullptr;
   if(metadata.at("palette").size()>65536)throw std::runtime_error("Palette exceeds uint16");
   for(auto const& entry:metadata.at("palette")){
    if(entry.is_object()){
@@ -420,6 +421,10 @@ void resolveRegistry(Dimension& dim){
     if(!b||b->getState<bool>(VanillaStates::PersistentBit())!=true)throw std::runtime_error("Missing persistent leaves state");}
    if(!b)throw std::runtime_error("Unknown block "+id);palette.push_back(&*b);
   }
+  if(worldSession->nativeData.at("config").value("snowPlantLayers",0)>=1){
+   auto block=palette.at(146)->setState(VanillaStates::CoveredBit(),true);
+   if(!block||block->getState<bool>(VanillaStates::CoveredBit())!=true)throw std::runtime_error("Missing snow-covered plant state");coveredSnow=&*block;
+  }
   for(std::string name:metadata.at("biomeNames")){auto b=dim.getBiomeRegistry().lookupByName(name);if(!b)b=dim.getBiomeRegistry().lookupByName("minecraft:"+name);if(!b)throw std::runtime_error("Unknown biome "+name);biomes.push_back(b);}
   log().info("Resolved {} blocks and {} biomes",palette.size(),biomes.size());
  });
@@ -463,7 +468,16 @@ void fill(LevelChunk& lc,Chunk const& c){
 #else
  lc.setBiomeFromVolume(biomeVolume);
 #endif
+ for(auto const&p:c.snowPlants){
+  if(!coveredSnow)throw std::runtime_error("Unexpected snow layers in frozen recipe");
+#ifdef SHANHAI_MC_26_51
+  blocks[((p.column%16)*16+p.column/16)*volume.mHeight+p.y]=coveredSnow;
+#else
+  blocks[volume.indexNoBoundsCheck(BlockPos{p.column%16,p.y,p.column/16})]=coveredSnow;
+#endif
+ }
  lc.setBlockVolume(volume,0);
+ for(auto const&p:c.snowPlants)lc.setExtraBlock(ChunkBlockPos{BlockPos{p.column%16,int(p.y)-64,p.column/16},-64},*palette[p.block],nullptr);
  // Aquatic plants replace the primary water block but retain source water in
  // Bedrock's secondary layer. Write directly during generation, without ticks.
  int lavaTicks=0;

@@ -25,6 +25,7 @@ class Field {
  friend struct ForestEcologyTest;
  friend struct CanopyForestRegression;
  friend struct GlacierEcologyRegression;
+ friend struct IceSnowRegression;
  friend struct CompletedBiomesTest;
  friend struct TerrainRevisionTest;
  friend struct ElevationVariantsTest;
