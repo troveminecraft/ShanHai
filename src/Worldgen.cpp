@@ -321,7 +321,7 @@ std::shared_ptr<Chunk const> getChunk(int x,int z){
  auto file=worldSession->cachePath/(std::to_string(key)+".bin");
  {
   terrain_runtime::LoadingSpan cacheRead(terrain_runtime::loadingRecorder,"terrain.cache_read",x,z);terrain_runtime::Timer reading(worldSession->cacheReadLatency);auto result=terrain_runtime::readChunk(file,metadata.at("palette").size(),metadata.at("biomeNames").size(),buildHeight.generatedHeight());
-  if(result.state==terrain_cache::ReadState::Valid){memoryPut(key,result.value);++worldSession->cacheDiskHits;return result.value;}
+  if(result.state==terrain_cache::ReadState::Valid){memoryPut(key,result.value);worldSession->cacheWriter.touch(file);++worldSession->cacheDiskHits;return result.value;}
   else if(result.state==terrain_cache::ReadState::Invalid)++worldSession->cacheInvalid;
  }
  auto began=Clock::now();std::vector<uint8_t>bytes;
@@ -564,7 +564,8 @@ void writeReport(){
  report["stageObservation"]={{"pollEveryTicks",10},{"oldestPendingMs",oldestPendingMs},{"detached",observedDetached},{"coalesced",observedCoalesced},{"dropped",observationDrops.load()},{"networkSendMeasured",false},{"note","State residence is sampled wall time; skipped states have no sample, not zero CPU time"}};
  report["stageObservation"]["states"]=Json::array();for(int i=0;i<14;i++)report["stageObservation"]["states"].push_back({{"name",loadStateName(i)},{"pending",pendingByState[i]},{"residence",latencyJson(worldSession->stageLatency[i])}});
  report["nativeMemoryResidentChunks"]=worldSession->memoryCache.size();
- report["cacheWriter"]={{"queued",worldSession->cacheWriter.pending()},{"limit",terrain_cache::CacheWriter::QueueLimit},{"coalesced",worldSession->cacheWriter.coalesced.load()}};
+ report["cacheWriter"]={{"queued",worldSession->cacheWriter.pending()},{"limit",terrain_cache::CacheWriter::QueueLimit},{"coalesced",worldSession->cacheWriter.coalesced.load()},
+  {"diskBytes",worldSession->cacheWriter.diskBytes.load()},{"diskLimitBytes",terrain_cache::DiskCacheBudget::DefaultLimit},{"evicted",worldSession->cacheWriter.evicted.load()},{"compression","XPRESS_HUFF"}};
 
  report["native"]={{"regionBlocks",16},{"memoryChunkLimit",MemoryChunks},{"memoryEvictions",worldSession->memoryCache.evictions.load()},{"busy",worldSession->busyCalculators.load()},{"waiting",worldSession->waitingCalculators.load()},{"queueMs",worldSession->queueMicros.load()/1000.},{"computeMs",worldSession->computeMicros.load()/1000.},{"maxComputeMs",worldSession->maxComputeMicros.load()/1000.},{"fillMs",worldSession->fillMicros.load()/1000.},{"maxFillMs",worldSession->maxFillMicros.load()/1000.},{"cacheWrites",worldSession->cacheWriter.completed.load()},{"cacheWriteDrops",worldSession->cacheWriter.dropped.load()},{"cacheWriteFailures",worldSession->cacheWriter.failures.load()}};
  report["verificationSnowChanges"]={{"supportedVariations",verificationSnowChanges},{"examples",verificationSnowExamples}};

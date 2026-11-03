@@ -62,7 +62,7 @@ template<unsigned Workers, size_t MemoryChunks> struct TerrainSession {
         for (unsigned i=0; i<activeWorkers; ++i)
             starts[i] = std::async(std::launch::async,[this,i]{runtimes[i].start(nativeData,kernelContext);});
         for (unsigned i=0;i<activeWorkers;++i) starts[i].get();
-        cacheWriter.start();
+        cacheWriter.start(cachePath);
         tasks.open();
     }
     void close() {

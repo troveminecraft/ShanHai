@@ -22,5 +22,9 @@ int main(int argc,char**argv){
  }assert(closed&&completed&&segments<=4);
  recorder.start(root/"sessions",{{"world","second"}});recorder.stop();
  int sessions=0;for(auto const&e:std::filesystem::directory_iterator(root/"sessions"))if(e.is_directory())++sessions;assert(sessions==2);
+ auto foreign=root/"sessions/foreign";std::filesystem::create_directory(foreign);std::ofstream(foreign/"keep.txt")<<"not a recorder session";
+ for(int i=0;i<4;++i){recorder.start(root/"sessions",{{"world","retention"}});recorder.stop();}
+ sessions=0;for(auto const&e:std::filesystem::directory_iterator(root/"sessions"))if(e.is_directory()&&e.path()!=foreign)++sessions;
+ assert(sessions==3&&std::filesystem::exists(foreign/"keep.txt"));
  std::cout<<"PASS independent heartbeat, blocking-task evidence, overflow accounting, shutdown flush, separate world sessions\n";
 }

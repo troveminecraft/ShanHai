@@ -10,6 +10,7 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+#include "DiagnosticRetention.h"
 #ifdef _WIN32
 #include <Windows.h>
 #include <Psapi.h>
@@ -40,6 +41,7 @@ class LoadingFlightRecorder {
     static nlohmann::json row(Event const&e,uint64_t now){return {{"id",e.id},{"parent",e.parent},{"thread",e.thread},{"phase",e.phase},{"chunk",{e.x,e.z}},{"startUs",e.start},{"endUs",e.end},{"durationUs",(e.end?e.end:now)-e.start}};}
     void run()noexcept{
         try{
+            try{retainDiagnosticSessions(directory.parent_path(),directory);}catch(...){++ioFailures;}
             size_t bytes=0,segment=0;uint64_t lastStatus=0;
             std::ofstream file;
             auto open=[&]{file.close();file.open(directory/("events-"+std::to_string(segment%4)+".jsonl"),std::ios::trunc);bytes=0;};open();
@@ -73,6 +75,7 @@ public:
         directory=root/(std::to_string(wallMs())+"-"+std::to_string(threadId())+"-"+std::to_string(++sessions));std::filesystem::create_directories(directory);
         metadata=std::move(info);metadata["schema"]=1;metadata["startWallUnixMs"]=wallMs();metadata["heartbeatMs"]=500;metadata["segments"]=4;metadata["segmentLimitBytes"]=limit;
         metadata["scope"]="native task spans and copied main-thread status; no background native object access";
+        metadata["retainedSessions"]=3;
         std::ofstream(directory/"session.json")<<metadata.dump(2);enabled=true;
         try{worker=std::thread([this]{run();});}catch(...){enabled=false;throw;}
     }
