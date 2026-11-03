@@ -104,6 +104,8 @@ void coniferEcology(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,2
    return false;
   };
   int kind=int(r(1924)*3);bool ok=true;
+  if(kind==0&&C.value("groundFeatureRevision",0)>=1&&(s.biome==5||s.parentBiome==5||
+    (s.snowCover>.70&&(s.biome==7||s.biome==8)))&&r(1941)>.18)continue;
   if(kind==0){
    int axis=r(1925)<.5?0:1,len=4+int(r(1926)*5),lo=1000,hi=-1000;
    for(int i=0;i<len;i++){int X=x+(axis==0?i:0),Z=z+(axis==1?i:0);auto b=field.surface(X,Z,false);

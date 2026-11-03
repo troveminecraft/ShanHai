@@ -91,6 +91,14 @@ int main(int argc,char**argv){try{
  check(structureReservationRemoves(10,0,"minecraft:oak_log"),"tree reservation regressed");
  check(structurePlantReservation({{-20,60,-30},{-10,70,-20}})==std::optional<std::array<int,4>>{{32736,32726,32770,32760}},"upstream vegetation halo changed");
  check(!structurePlantReservation({{1,0,1},{0,0,0}}),"empty feature bounds clear vegetation");
+ {
+  StructureBox outer{{-5552,120,16},{-5457,170,111}},frame{{-5510,134,62},{-5502,146,72}};
+  auto area=structurePlantReservation(portalPlantFootprint(outer,frame),2);
+  check(area&&(*area)[0]==-5512+32768&&(*area)[2]==-5500+32768,"portal uses its execution envelope as a clearing");
+  check((*area)[1]>32+32768&&(*area)[3]<100+32768,"portal clearing reaches the adjacent forest");
+  check(portalPlantFootprint(outer,{{0,0,0},{0,0,0}}).min.x==outer.min.x,"invalid portal frame accepted");
+ }
+
  J result={{"passed",true},{"selectors",selectors},{"counts",{{"wells",wells},{"fossils",fossils},{"potential",potential}}},{"origins",origins},{"negativeOwnerClipping",true},{"immutableHabitatAdmission",true},{"boundedNaturalDungeonProbes",true},{"nativeFeatureExecutionVerified",false},{"gameplayTestPerformed",false}};
  std::ofstream out(argv[1]);out<<result.dump(2)<<'\n';if(!out)throw std::runtime_error("cannot write report");std::cout<<"Shared small-feature policy passed; native execution remains adapter work\n";return 0;
  }catch(std::exception const&e){std::cerr<<e.what()<<'\n';return 1;}}

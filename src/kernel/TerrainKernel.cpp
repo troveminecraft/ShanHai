@@ -42,7 +42,9 @@ struct Field::Impl {
         value = std::make_unique<nativegen::Field>(recipe);
     }
 };
-Field::Field(J data, ContextPtr context) : impl(std::make_shared<Impl>(std::move(data), std::move(context))) {}
+Field::Field(J data, ContextPtr context, bool queryHintsOnly) : impl(std::make_shared<Impl>(std::move(data), std::move(context))) {
+    if(queryHintsOnly)impl->value->enableQueryHints();
+}
 Field::Field(std::shared_ptr<Impl> shared) : impl(std::move(shared)) {}
 Field::~Field() = default;
 struct Generator::Impl {
@@ -77,6 +79,8 @@ int Field::generationHeight() const { nativegen::regional::StoreScope scope(impl
 bool Field::streamed() const { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->streamed(); }
 bool Field::unbounded() const { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->unbounded(); }
 Surface Field::bootstrapSurface(int x, int z)  { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->bootstrapSurface(x, z); }
+int Field::biomeSearchGrid(int biome) const {return impl->value->biomeSearchGrid(biome);}
+std::vector<std::array<int,2>> Field::biomeSearchAnchors(int biome,int gx,int gz){nativegen::regional::StoreScope scope(impl->context->impl->store);return impl->value->biomeSearchAnchors(biome,gx,gz);}
 Surface Field::surface(int x, int z, bool slope)  { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->surface(x, z, slope); }
 Surface Field::base(int x, int z)  { nativegen::regional::StoreScope scope(impl->context->impl->store); return impl->value->base(x, z); }
 void Field::prepareRegions(int x,int z) { nativegen::regional::StoreScope scope(impl->context->impl->store); impl->value->prepareRegions(x,z); }

@@ -1,4 +1,5 @@
 #pragma once
+#include "../rules/BranchingCherry.h"
 #include "Field.h"
 #include "OreCluster.h"
 #include "JungleShapeCache.h"
@@ -101,6 +102,7 @@ class Engine {
  #include "WetDryEcology.inc"
  #include "SpecialForests.inc"
  #include "CanopyForests.inc"
+ #include "LargeBoulders.inc"
  #include "ForestMushrooms.inc"
  #include "DesertEcology.inc"
  #include "UndergroundEcology.inc"
@@ -227,7 +229,7 @@ public:
     for(int y=r.lo;y<r.lo+r.n;++y)put(a->x+r.x,y,a->z+r.z,ids[r.color]);
    }}
   }
-  naturalFeatures(x0,z0,put,ss,ts);
+  naturalFeatures(x0,z0,put,ss,ts);largeBoulderFeatures(x0,z0,raw,surfaces);
   coniferEcology(x0,z0,raw,surfaces,ss,ts);broadleafForest(x0,z0,raw,surfaces);birchForest(x0,z0,raw,surfaces);
   jungleEcology(x0,z0,raw,surfaces);wetDryEcology(x0,z0,raw,surfaces);specialForests(x0,z0,raw,surfaces);cliffSideTrees(x0,z0,raw,surfaces);forestMushrooms(x0,z0,raw,surfaces);surfaceFlora(x0,z0,raw,surfaces,true);return raw;
  }
@@ -258,7 +260,7 @@ public:
 for(auto const&s:ss){if(field.surface(s.x,s.z,false).glacier>.15)continue;int x=s.x,z=s.z,g=field.base(x,z).height;if(s.type==0){int gx=int(std::floor(x/num(C.at("structure"),"grid"))),gz=int(std::floor(z/num(C.at("structure"),"grid"))),count=5+int(hash01(gx,gz,terrainSeed^131)*4);for(int i=0;i<count;i++){double a=double(i)/count*6.283185307179586;house(x+roundJS(std::cos(a)*24),z+roundJS(std::sin(a)*24),9,11,6);}}else if(s.type==1){house(x,z,23,23,9,2,3);box(x,z,g,11,15,3,15,3);box(x,z,g,14,7,3,7,2);}else if(s.type==2){house(x,z,19,21,8,4,5);box(x,z,g,10,13,3,15,4);}else if(s.type==3)house(x,z,9,9,4,6,6);else if(s.type==4){house(x,z,9,25,5,7,7);box(x,z,g,10,1,16,1,7);}else house(x,z,9,11,5,7,8);}
  for(auto&a:gs)if(forestTreeKept(a->x,a->z))model(*a);
  for(bool leaves:{true,false})for(auto const&a:gs)for(auto const&r:a->runs){if(!forestTreeKept(a->x,a->z))continue;if((r.color==14)!=leaves)continue;int x=a->x+r.x-x0,z=a->z+r.z-z0;if(x<0||x>=16||z<0||z>=16)continue;auto col=raw.data()+(z*16+x)*Height;auto const&s=surfaces[z*16+x];if(s.river==0)std::fill(col+r.lo+64,col+r.lo+r.n+64,uint8_t(boxIds[r.color]));else for(int y=r.lo;y<r.lo+r.n;++y)if(y<=s.height||y>s.water)col[y+64]=uint8_t(boxIds[r.color]);}
- naturalFeatures(x0,z0,put,ss,ts);
+ naturalFeatures(x0,z0,put,ss,ts);largeBoulderFeatures(x0,z0,raw,surfaces);
  plainsEcology(x0,z0,raw,surfaces,ss);
  {auto t=clock();coniferEcology(x0,z0,raw,surfaces,ss,ts);forestMs[0]=std::chrono::duration<double,std::milli>(clock()-t).count();}
  {auto t=clock();broadleafForest(x0,z0,raw,surfaces);forestMs[1]=std::chrono::duration<double,std::milli>(clock()-t).count();}

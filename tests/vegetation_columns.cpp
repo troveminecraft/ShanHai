@@ -17,6 +17,10 @@ int main(){
  for(int z=-12;z<=12;++z)for(int x=-12;x<=12;++x)rectangles.push_back({x*23-5,z*19-7,x*23+8,z*19+4});
  nativegen::NativeReservations index(rectangles);
  for(int z=-280;z<=280;++z)for(int x=-320;x<=320;++x){bool expected=false;for(auto const&r:rectangles)expected|=x>=r[0]&&x<=r[2]&&z>=r[1]&&z<=r[3];assert(index.contains(x,z)==expected);}
+ for(int z=-280;z<=280;z+=13)for(int x=-320;x<=320;x+=17)for(int radius:{0,2,10,35}){
+  bool expected=false;for(auto const&r:rectangles)expected|=r[2]>=x-radius&&r[0]<=x+radius&&r[3]>=z-radius&&r[1]<=z+radius;
+  assert(index.intersects(x,z,radius)==expected);
+ }
  rectangles.push_back({-30000000,-30000000,30000000,30000000});nativegen::NativeReservations large(rectangles);assert(large.contains(-30000000,30000000)&&!large.contains(30000001,0));
  for(int height:{384,576}){
   std::vector<uint16_t>before(256*height,2),after=before;

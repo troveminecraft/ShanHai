@@ -6,9 +6,9 @@
 int main(){
  using namespace terrain_runtime;
  assert(biomeSearchCanUseHints({biome_catalog::find("peakarma:forest")},true));
- assert(!biomeSearchCanUseHints({biome_catalog::find("peakarma:snowy_forest")},true));
+ assert(biomeSearchCanUseHints({biome_catalog::find("peakarma:snowy_forest")},true));
  assert(!biomeSearchCanUseHints({biome_catalog::find("peakarma:river")},true));
- assert(!biomeSearchCanUseHints({biome_catalog::find("peakarma:super_glacier")},true));
+ assert(biomeSearchCanUseHints({biome_catalog::find("peakarma:super_glacier")},true));
  std::set<std::pair<int,int>> seen;int calls=0;
  auto sample=[&](int x,int z){++calls;assert(seen.emplace(x,z).second);terrain_kernel::Surface s;
   s.biome=(x==-193&&z==-1)?61:9;s.height=72;s.water=s.biome==61?76:-32768;return s;};

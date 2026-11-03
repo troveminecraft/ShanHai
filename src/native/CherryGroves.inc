@@ -10,18 +10,23 @@ bool cherryGround(Surface const&s)const{
   &&s.giant<.01&&s.riftWeight<.05&&s.glacier<.05&&s.iceHabitat<.08&&t>=.36&&t<=.72&&s.H>=.38&&s.H<=.82;
 }
 CherryGrove cherryGroveSite(int gx,int gz){return cherryGroves.get(key2(gx,gz),[&]{
- CherryGrove a;if(!canopyForests||hash01(gx,gz,terrainSeed^88901)>.64)return a;
+ CherryGrove a;if(!canopyForests||hash01(gx,gz,terrainSeed^88901)>(branchingCherries?.90:.64))return a;
  auto random=[&](int salt){return hash01(gx,gz,terrainSeed^salt);};
  a.x=roundJS((gx+.38+.24*random(88903))*1024);a.z=roundJS((gz+.38+.24*random(88905))*1024);
  a.rx=88+132*random(88907);a.rz=a.rx*(.82+.16*random(88909));a.phase=random(88911)*6.283185307;
  a.trunkRadius=10+int(random(88913)*11);
  auto sample=[&](int x,int z){return streamingRegions?naturalSamplingField().compute(x,z,false):compute(x,z,false);};
  auto center=sample(a.x,a.z);if(!cherryGround(center)||center.height<seaLevelValue+35||center.height>310)return CherryGrove{};
+ if(branchingCherries){
+  bool upland=center.height>=200&&center.height<=300;
+  if(!upland&&random(88901)>.24)return CherryGrove{};
+  a.rx=upland?180+60*random(88907):88+48*random(88907);a.rz=a.rx*(.90+.10*random(88909));
+ }
  int low=center.height,high=center.height;
  for(int z=-32;z<=32;z+=16)for(int x=-32;x<=32;x+=16){auto s=sample(a.x+x,a.z+z);
   if(!cherryGround(s))return CherryGrove{};low=std::min(low,s.height);high=std::max(high,s.height);
  }
- if(high-low>16)return CherryGrove{};
+ if(high-low>(branchingCherries?24:16))return CherryGrove{};
  // Qualify the complete stand, so a climate threshold cannot leave a tiny
  // isolated cherry patch. Final rivers may pass around the reserved centre.
  for(int z=-int(a.rz*1.08);z<=a.rz*1.08;z+=32)for(int x=-int(a.rx*1.08);x<=a.rx*1.08;x+=32){

@@ -37,11 +37,14 @@ class Field {
  friend struct NaturalLandformsRegression;
  // Only owners whose conservative influence bounds touch a sample are needed.
  bool localPlanningCulling=false;
+ bool queryHintsOnly=false;
  J const&data;J const&C;uint32_t terrainSeed;TerrainParameters const parameters{C};Density graph,caves;
  forest_capabilities::Profile const forestProfile=forest_capabilities::recipe(data);
  bool const basinMangroves=forest_capabilities::enabled(forestProfile)&&C.value("forestEcologyRevision",0)>=2;
  bool const canopyForests=forest_capabilities::enabled(forestProfile)&&C.value("forestEcologyRevision",0)>=3;
  bool const naturalForests=canopyForests&&C.value("naturalForestRevision",0)>=1;
+ bool const broadBasins=C.value("basinRevision",0)>=3;
+ bool const branchingCherries=canopyForests&&C.value("cherryRevision",0)>=2;
  bool const weatheredMountains=C.value("mountainErosion",0)>=1;
  bool const cliffTreesEnabled=C.value("cliffTrees",0)>=1;
  int seaLevelValue=C.value("seaLevel",31);
@@ -189,6 +192,9 @@ class Field {
  double temperatureNoise=temp(x,0,z);s.T=(1-s.stone)*clamp(.62+temperatureNoise*.45-std::max(0.,s.raw-85)*.003,0,1)+s.stone*.67;s.H=(1-s.stone)*clamp(.52+humidity(x,0,z)*.45,.05,.95)+s.stone*.72;s.water=s.closedBasin?s.basinWater:s.height<seaLevelValue?seaLevelValue:-32768;s.kind=!s.closedBasin&&s.height<seaLevelValue?(s.ridge<.1?1:3):0;if(s.basinWater>s.height){s.lake=1;}waterSurface(s,wx,wz);s.preRiverHeight=s.height;if(drainage){riverRelief(s,wx,wz);junctionBed(s,wx,wz);}finalTerrainClimate(s,wx,wz,temperatureNoise,er);desertClimate(s,wx,wz);return s;
  }
 public:
+ // Only an isolated command-search Field may enable this before sampling.
+ // It produces candidates; every reported result is rechecked by a full Field.
+ void enableQueryHints(){queryHintsOnly=true;}
  bool highMountainUndergroundEnabled()const{return generatedMaxYExclusive==512&&C.at("cave").value("highMountainUnderground",0)==1;}
  bool mountainEcologyActive(Surface const&s)const{
   return raisedEcology&&raisedSnowline&&regionalEnabled&&mountainPeakY>240&&s.height>96&&s.stone==0&&s.volcanic==0;
@@ -202,6 +208,7 @@ public:
  int seaLevel()const{return seaLevelValue;}
  bool forestEcologyEnabled()const{return forest_capabilities::enabled(forestProfile);}
  bool canopyForestsEnabled()const{return canopyForests;}
+ #include "BiomeSearchAnchors.inc"
  bool naturalForestsEnabled()const{return naturalForests;}
  #include "CliffTrees.inc"
  auto centralCherryGrove(int x,int z){return cherryGroveAt(x,z);}
@@ -210,8 +217,8 @@ public:
  bool mangroveBasinArea(int x,int z,int size){
   if(!basinMangroves)return false;
   double x0=x-32768.,z0=z-32768.,x1=x0+size,z1=z0+size;
-  for(int gz=int(std::floor(z0/basinGrid()));gz<=int(std::floor(z1/basinGrid()));++gz)
-  for(int gx=int(std::floor(x0/basinGrid()));gx<=int(std::floor(x1/basinGrid()));++gx){
+  for(int gz=int(std::floor(z0/basinGrid()))-int(broadBasins);gz<=int(std::floor(z1/basinGrid()))+int(broadBasins);++gz)
+  for(int gx=int(std::floor(x0/basinGrid()))-int(broadBasins);gx<=int(std::floor(x1/basinGrid()))+int(broadBasins);++gx){
    auto b=basinSite(gx,gz);
    // q<.72 with <=.27 boundary warp fits inside this conservative box.
    if(b.valid&&b.mangrove&&x1>=b.x-b.rx&&x0<=b.x+b.rx&&z1>=b.z-b.rz&&z0<=b.z+b.rz)return true;
@@ -222,9 +229,10 @@ public:
   if(!basinMangrovesEnabled())return false;
   double wx=x-32768.,wz=z-32768.;
   int gx=int(std::floor(wx/basinGrid())),gz=int(std::floor(wz/basinGrid()));
-  auto b=basinSite(gx,gz);
-  if(!b.valid||!b.mangrove||basinRadius(b,wx,wz)>=.72)return false;
-  return mangroveBasinHabitats.get(key2(gx,gz),[&]{
+  for(int Z=gz-int(broadBasins);Z<=gz+int(broadBasins);++Z)for(int X=gx-int(broadBasins);X<=gx+int(broadBasins);++X){
+  auto b=basinSite(X,Z);
+  if(!b.valid||!b.mangrove||basinRadius(b,wx,wz)>=.72)continue;
+  if(mangroveBasinHabitats.get(key2(X,Z),[&]{
    // Qualify the complete stand, not individual columns. The glacier collar
    // can suppress all vegetation in an otherwise warm low basin. Reject that
    // site instead of exposing a treeless "mangrove" or a tiny surviving strip.
@@ -237,7 +245,8 @@ public:
     for(int z=iz-1;z<=iz+1;++z)for(int x=ix-1;x<=ix+1;++x)if(!clear(iceRegion(x,z)))return false;
    }else for(auto const&r:iceAtlas)if(!clear(r))return false;
    return true;
-  });
+  }))return true;
+  }return false;
  }
  bool dappledForestEnabled()const{return forest_capabilities::dappled(forestProfile);}
  int generationHeight()const{return generatedMaxYExclusive+64;}

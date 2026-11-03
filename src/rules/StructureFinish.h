@@ -2,9 +2,16 @@
 #include "StructurePlan.h"
 namespace worldgen_rules {
 inline bool structureGroundPlant(std::string_view name){return name=="minecraft:poppy"||name=="minecraft:dandelion"||name=="minecraft:blue_orchid"||name=="minecraft:allium"||name=="minecraft:azure_bluet"||name.ends_with("_tulip")||name=="minecraft:oxeye_daisy"||name=="minecraft:cornflower"||name=="minecraft:lily_of_the_valley"||name=="minecraft:sunflower"||name=="minecraft:lilac"||name=="minecraft:rose_bush"||name=="minecraft:peony"||name=="minecraft:snow_layer"||name=="minecraft:short_grass"||name=="minecraft:tall_grass"||name=="minecraft:fern"||name=="minecraft:large_fern"||name=="minecraft:deadbush";}
-inline std::optional<std::array<int,4>> structurePlantReservation(StructureBox const&b){
+inline std::optional<std::array<int,4>> structurePlantReservation(StructureBox const&b,int margin=12){
  if(b.max.x<b.min.x||b.max.z<b.min.z)return {};
- return std::array<int,4>{b.min.x+32756,b.min.z+32756,b.max.x+32780,b.max.z+32780};
+ return std::array<int,4>{b.min.x+32768-margin,b.min.z+32768-margin,b.max.x+32768+margin,b.max.z+32768+margin};
+}
+// Ruined portals reserve a wide native execution envelope for netherrack
+// scatter. That envelope is not the portal's occupied frame footprint.
+inline StructureBox portalPlantFootprint(StructureBox const& envelope,StructureBox const& frame){
+ if(!frame.valid()||!envelope.valid()||frame.min.x<envelope.min.x||frame.max.x>envelope.max.x
+    ||frame.min.z<envelope.min.z||frame.max.z>envelope.max.z)return envelope;
+ return frame;
 }
 // Preserve upstream X/Z/Y order: upper plants observe lower-block removals.
 template<class Name,class Survives,class Clear>

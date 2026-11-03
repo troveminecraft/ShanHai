@@ -54,7 +54,11 @@ std::vector<CanopyTree> localCanopyTrees(int x0,int z0,int size){
  std::vector<CanopyTree> out;if(!field.canopyForestsEnabled())return out;
  for(int z=int(std::floor((z0-CanopyReach)/32.));z<=int(std::floor((z0+size+CanopyReach)/32.));++z)
  for(int x=int(std::floor((x0-CanopyReach)/32.));x<=int(std::floor((x0+size+CanopyReach)/32.));++x){
-  auto a=canopyTree(x,z);if(a.height&&!nativeReserved(a.x,a.z))out.push_back(a);
+  auto a=canopyTree(x,z);
+  // Structure reservations are a placement fix, including frozen recipes.
+  // With no reservation, the original generated tree remains byte-identical.
+  bool reserved=nativeReservations.intersects(a.x,a.z,int(std::ceil(a.radius*1.5)));
+  if(a.height&&!reserved)out.push_back(a);
  }return out;
 }
 struct CanopyColumn {double distance,roots,forward,side;};
@@ -187,9 +191,15 @@ void joinedCanopyForest(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surfa
   }
  }
 }
+#include "BranchingCherry.inc"
 void centralCherryTree(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>const&surfaces){
  if(!field.canopyForestsEnabled())return;using namespace forest_palette;
  auto a=field.centralCherrySite(x0+8,z0+8);if(!a.valid||nativeReserved(a.x,a.z))return;
+ if(nativeReservations.intersects(a.x,a.z,int(std::ceil(a.trunkRadius*1.8))))return;
+ if(C.value("cherryRevision",0)>=2){
+  if(x0>a.x+80||x0+15<a.x-80||z0>a.z+80||z0+15<a.z-80)return;
+  branchingCherryTree(x0,z0,raw,surfaces,a.x,a.z,a.ground,a.trunkRadius,a.phase);return;
+ }
  double crown=50.+a.trunkRadius*1.3;
  if(x0>a.x+crown*1.12||x0+15<a.x-crown*1.12||z0>a.z+crown*1.12||z0+15<a.z-crown*1.12)return;
  // Broad irregular crown, fluted buttress roots and substantial rising limbs.

@@ -452,6 +452,15 @@ AutoBlueprint &autoBlueprint(Dimension &dim, ChunkPos candidate, uint seed) {
 struct VegetationPair {
     std::unique_ptr<terrain_kernel::Generator> normal, reserved;
 };
+std::optional<std::array<int,4>> piecePlantReservation(StructurePiece& piece){
+    auto bounds=sharedBox(*piece.mBoundingBox);
+    if(piece.getType()==StructurePieceType::RuinedPortal){
+        auto& portal=static_cast<RuinedPortalPiece&>(piece);
+        bounds=worldgen_rules::portalPlantFootprint(bounds,sharedBox(*portal.mStructureBounds));
+        return worldgen_rules::structurePlantReservation(bounds,2);
+    }
+    return worldgen_rules::structurePlantReservation(bounds);
+}
 std::map<std::pair<int, int>, VegetationPair> vegetationPairs;
 bool plantRepairPreview = false;
 J *plantRepairChanges = nullptr;

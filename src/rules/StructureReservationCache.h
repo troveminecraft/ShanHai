@@ -31,7 +31,7 @@ public:
         }
         return true;
     }
-    bool get(std::vector<Key> const& keys,int x,int z,std::vector<Areas>& groups) {
+    bool get(std::vector<Key> const& keys,int x,int z,std::vector<Areas>& groups,int reach=28) {
         std::lock_guard lock(mutex);
         for(auto const& key:keys) if(!entries.contains(key)) return false;
         groups.clear();
@@ -39,7 +39,7 @@ public:
             auto const& e=entries.at(key);
             if(!e.bounds || e.areas.empty()) continue;
             auto b=*e.bounds;
-            if(b[2]+28<x*16 || b[0]-28>x*16+15 || b[3]+28<z*16 || b[1]-28>z*16+15) continue;
+            if(b[2]+reach<x*16 || b[0]-reach>x*16+15 || b[3]+reach<z*16 || b[1]-reach>z*16+15) continue;
             groups.push_back(e.areas);
         }
         return true;

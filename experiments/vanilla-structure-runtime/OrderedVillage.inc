@@ -9,7 +9,9 @@ bool arrangeVillage(StructureStart&start,VillagePlan&result,ChunkPos cp,uint see
   b.kind=p.mElement.type()==StructurePoolElementType::Single?worldgen_rules::StructurePieceKind::Template:worldgen_rules::StructurePieceKind::Other;
   source.pieces.push_back(std::move(b));
  }
- auto sample=[](int x,int z){return field->surface(x+32768,z+32768);};
+ // Lot and road fitting uses height, biome and water. The extra four-neighbour
+ // rock-slope evaluation is unused, and used to run under the planning lock.
+ auto sample=[](int x,int z){return field->surface(x+32768,z+32768,false);};
  auto plan=input.at("config").value("orderedVillages",0)>=2
     ?worldgen_rules::clusterVillage(source,sample):worldgen_rules::orderVillage(source,sample);
  result.diagnostics["ordered"]={{"baselineBuildings",plan.baseline},{"targetBuildings",plan.target},

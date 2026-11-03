@@ -15,6 +15,15 @@ int main(){
   require(actual.size()==expected.size());for(size_t i=0;i<actual.size();++i)require(actual[i].first==expected[i].first&&actual[i].second.x==expected[i].second.x&&actual[i].second.z==expected[i].second.z);candidates+=actual.size();
  }
  StructureBox owner{{-32,-64,16},{-17,319,31}};
+ // Pure vegetation discovery must reach a giant crown beyond the native
+ // portal radius, without changing marine/underground candidate ranges.
+ auto portal=candidateForCell(0,0,7,extraSpec(1)->spacing,extraSpec(1)->separation,extraSpec(1)->salt);
+ ChunkPosition crown{portal.x+10,portal.z};bool foundPortal=false;
+ forNearbyExtraCandidate(crown,7,[](int){return true;},[&](auto const&s,auto c){
+  if(s.type==1&&c.x==portal.x&&c.z==portal.z)foundPortal=true;
+  if(!extraSurface(s.type))require(std::abs(c.x-crown.x)<=s.radius&&std::abs(c.z-crown.z)<=s.radius);
+ },7);
+ require(foundPortal);
  std::array<StructureBox,4>pieces{{{{-30,10,17},{-28,12,19}},{{80,10,80},{90,15,90}},{{0,0,0},{-1,-1,-1}},{{-18,10,30},{-10,12,35}}}};
  for(int type:{0,4,5,6,9}){
   std::vector<size_t>visited;

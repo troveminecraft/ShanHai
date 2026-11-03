@@ -11,13 +11,14 @@ namespace worldgen_rules {
 // complete influence radius. Modern trial chambers reach beyond vanilla's
 // fixed eight-chunk preparation window.
 template<class Include, class Visit>
-void forNearbyExtraCandidate(ChunkPosition owner,uint32_t seed,Include include,Visit visit){
+void forNearbyExtraCandidate(ChunkPosition owner,uint32_t seed,Include include,Visit visit,int surfacePadding=0){
  for(auto const&s:ExtraSpecs){
   if(!include(s.type))continue;
-  for(int z=spacingCell(owner.z-s.radius,s.spacing);z<=spacingCell(owner.z+s.radius,s.spacing);++z)
-   for(int x=spacingCell(owner.x-s.radius,s.spacing);x<=spacingCell(owner.x+s.radius,s.spacing);++x){
+  int radius=s.radius+(extraSurface(s.type)?surfacePadding:0);
+  for(int z=spacingCell(owner.z-radius,s.spacing);z<=spacingCell(owner.z+radius,s.spacing);++z)
+   for(int x=spacingCell(owner.x-radius,s.spacing);x<=spacingCell(owner.x+radius,s.spacing);++x){
     auto c=candidateForCell(x,z,seed,s.spacing,s.separation,s.salt);
-    if(std::abs(int64_t(c.x)-owner.x)<=s.radius&&std::abs(int64_t(c.z)-owner.z)<=s.radius)visit(s,c);
+    if(std::abs(int64_t(c.x)-owner.x)<=radius&&std::abs(int64_t(c.z)-owner.z)<=radius)visit(s,c);
    }
  }
 }

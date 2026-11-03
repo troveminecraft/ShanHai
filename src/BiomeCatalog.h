@@ -66,7 +66,7 @@ inline std::vector<Entry> const& entries() {
             {"super_glacier","Super Glacier","超级冰川","Extensive ice-covered terrain with large ice spires.","大片覆冰地形与大型冰刺。",-2},
             {"volcano","Volcano","火山","Volcanic slopes, craters and underground magma.","火山山坡、火山口与地下岩浆。",-3},
             {"rolling_plateau","Plateau","高原","Broad, gently rolling uplands.","宽阔、缓起伏的高海拔地区。",-4},
-            {"inland_basin","Inland Basin","内陆盆地","Enclosed inland lowlands between Y60 and Y100.","海拔 Y60 至 Y100 的封闭内陆低地。",-5}
+            {"inland_basin","Inland Basin","内陆盆地","Broad inland depressions with low floors, rolling hills and valleys.","宽阔的封闭内陆洼地，低地中保留丘陵起伏与河谷。",-5}
         })out.push_back(std::move(e));
         return out;
     }();
@@ -85,11 +85,11 @@ inline bool available(Entry const&e,size_t paletteSize,bool elevation) {
 }
 inline bool matches(Entry const&e,nativegen::Surface const&s,bool elevation) {
     switch(e.biome) {
-    case -1:return s.glacier>.5&&s.superGlacier<.1;
+    case -1:return s.glacier>.18&&s.superGlacier<.5;
     case -2:return s.superGlacier>.5;
     case -3:return s.volcanic>.5;
     case -4:return s.upland>.55&&s.height>=150&&s.water<s.height&&s.volcanic<.1;
-    case -5:return s.closedBasin&&s.basinWeight>.8&&s.height>=60&&s.height<=100;
+    case -5:return s.closedBasin&&s.basinWeight>.65&&s.height>=60;
     }
     bool snow=elevation&&s.snowCover>.70&&s.biome<29;
     if(e.snow!=snow)return false;

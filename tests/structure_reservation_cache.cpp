@@ -12,6 +12,9 @@ int main(){
     assert(cache.allAbsent(keys));assert(cache.get(keys,0,0,groups)&&groups.empty());
     Cache::Entry structure{std::array{-48,80,-17,111},{{32720,32848,32751,32879}}};
     cache.put(keys[0],structure);
+    assert(cache.get(keys,5,5,groups)&&groups.empty());
+    assert(cache.get(keys,5,5,groups,128)&&groups.size()==1);
+    assert(cache.get(keys,8,5,groups,128)&&groups.empty());
     assert(!cache.allAbsent(keys));
     for(int z=-3;z<13;++z)for(int x=-10;x<7;++x){
         assert(cache.get(keys,x,z,groups));

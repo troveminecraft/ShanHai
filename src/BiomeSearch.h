@@ -10,6 +10,7 @@
 #include <stop_token>
 #include <thread>
 #include <unordered_set>
+#include <unordered_map>
 #include <mutex>
 
 namespace terrain_runtime {
@@ -107,7 +108,8 @@ BiomeSearchResult searchBiomesAdaptive(int x,int z,std::vector<int> const& ids,
 // searches; teardown joins that worker before releasing this state.
 struct BiomeSearchState {
     std::mutex mutex;
-    std::unique_ptr<terrain_kernel::Field> field;
+    std::unique_ptr<terrain_kernel::Field> field,hints;
+    std::unordered_map<int,std::array<int,4>> lastHits;
 };
 inline bool biomeSearchCanUseHints(std::vector<int> const& ids,bool catalogQuery){
     for(int id:ids){
@@ -115,7 +117,7 @@ inline bool biomeSearchCanUseHints(std::vector<int> const& ids,bool catalogQuery
         int biome=entry?entry->biome:id;
         // Catalog snow entries retain their parent's numeric biome, so test
         // the snow flag as well as legacy expanded palette indices.
-        if((entry&&entry->snow)||biome<0||biome==10||biome==18||biome==19||(biome>=29&&biome<58))return false;
+        if(biome==10||biome==18||biome==19||biome==47||biome==48)return false;
     }
     return true;
 }
@@ -138,6 +140,7 @@ public:
             std::unique_lock stateLock(state->mutex);
             if(stop.stop_requested()){result.interrupted=true;ready.store(true,std::memory_order_release);return;}
             if(!state->field)state->field=std::make_unique<terrain_kernel::Field>(recipe,std::make_shared<terrain_kernel::Context>());
+            if(!state->hints)state->hints=std::make_unique<terrain_kernel::Field>(recipe,std::make_shared<terrain_kernel::Context>(),true);
             auto& field=*state->field;
             auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(45);
             int samples=0;
@@ -157,6 +160,44 @@ public:
                 return infinite?terrain_bounds::gameContainsChunk(cx,cz):terrain_bounds::containsChunk(cx,cz);
             };
             auto stopped=[&]{return stop.stop_requested()||std::chrono::steady_clock::now()>=deadline;};
+            auto anchorGrid=[&](int id){return field.biomeSearchGrid(catalogQuery?biome_catalog::entries().at(id).biome:id);};
+            bool anchorsOnly=recipe.contains("regionalGeneration")&&std::all_of(ids.begin(),ids.end(),[&](int id){return anchorGrid(id)>0;});
+            int searchRadius=anchorsOnly?16384:8192;
+            auto exact=[&](int X,int Z){return classify(field.surface(X+32768,Z+32768,false));};
+            auto hit=[&](int X,int Z){
+                if(stopped()||!valid(X,Z)||std::max(std::abs(X-x),std::abs(Z-z))>searchRadius)return false;
+                ++samples;auto s=exact(X,Z);
+                if(std::find(ids.begin(),ids.end(),s.biome)==ids.end())return false;
+                result.found=std::array{X,std::max(s.height,s.water)+1,Z,s.biome};
+                result.radius=std::max(std::abs(X-x),std::abs(Z-z));return true;
+            };
+            // Preserve an immediate exact answer at the player and reuse a
+            // verified prior result. Never return an approximate habitat hint.
+            bool found=hit(x,z);
+            if(!found)for(int id:ids){auto i=state->lastHits.find((catalogQuery?1000:0)+id);
+                if(i!=state->lastHits.end()&&hit(i->second[0],i->second[2])){found=true;break;}}
+            // Small rare habitats have authoritative region anchors. Sampling
+            // an 8,192-square grid first was both slower and liable to miss them.
+            if(!found)for(int id:ids){
+                int biome=catalogQuery?biome_catalog::entries().at(id).biome:id;
+                int grid=field.biomeSearchGrid(biome);if(!grid)continue;
+                int offset=biome==60?32768:0;
+                int gx=int(std::floor((x+offset)/double(grid))),gz=int(std::floor((z+offset)/double(grid)));
+                int reach=int(std::ceil(double(searchRadius)/grid))+1;
+                for(int ring=0;ring<=reach&&!found&&!stopped();++ring)
+                for(int dz=-ring;dz<=ring&&!found&&!stopped();++dz)
+                for(int dx=-ring;dx<=ring&&!found&&!stopped();++dx){
+                    if(std::max(std::abs(dx),std::abs(dz))!=ring)continue;
+                    auto points=state->hints->biomeSearchAnchors(biome,gx+dx,gz+dz);
+                    std::sort(points.begin(),points.end(),[&](auto a,auto b){
+                        auto d=[&](auto p){return int64_t(p[0]-x)*(p[0]-x)+int64_t(p[1]-z)*(p[1]-z);};return d(a)<d(b);});
+                    for(auto p:points){if(stopped())break;
+                        auto hint=classify(state->hints->surface(p[0]+32768,p[1]+32768,false));
+                        if(std::find(ids.begin(),ids.end(),hint.biome)!=ids.end()&&hit(p[0],p[1])){found=true;break;}}
+                    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                }
+                if(found)break;
+            }
             bool hintable=biomeSearchCanUseHints(ids,catalogQuery);
             auto run=[&](bool hints){
                 auto hintDeadline=std::chrono::steady_clock::now()+std::chrono::seconds(10);
@@ -164,16 +205,22 @@ public:
                     if(++samples%16==0)std::this_thread::sleep_for(std::chrono::milliseconds(2));
                     // A cheap natural surface only orders the search. Regional
                     // waterways can override it; never report this hint as a hit.
-                    if(hints){auto hint=classify(field.bootstrapSurface(X+32768,Z+32768));
+                    if(hints){auto hint=classify(state->hints->surface(X+32768,Z+32768,false));
                         if(std::find(ids.begin(),ids.end(),hint.biome)==ids.end()){hint.biome=-999;return hint;}}
-                    return classify(field.surface(X+32768,Z+32768,false));
+                    return exact(X,Z);
                 },valid,[&]{return stopped()||(hints&&std::chrono::steady_clock::now()>=hintDeadline);},
                 BiomeSearchLimits{8192,64,hints?12000:70000});
             };
-            result=run(hintable);
-            if(hintable&&!result.found&&!stopped()){
-                int previous=result.samples;result=run(false);result.samples+=previous;
+            // Region-owned habitats cannot appear between rejected sites.
+            // Do not spend another 45 seconds traversing a dense grid after
+            // their authoritative candidates were exhausted.
+            if(!found&&!anchorsOnly){result=run(hintable);
+                if(hintable&&!result.found&&!stopped())result=run(false);
             }
+            if(!found&&anchorsOnly)result.radius=searchRadius;
+            result.samples=samples;
+            if(result.found)state->lastHits[(catalogQuery?1000:0)+(*result.found)[3]]=*result.found;
+            else if(stopped())result.interrupted=true;
         }catch(std::exception const&e){result.error=e.what();}
         ready.store(true,std::memory_order_release);
     }){}

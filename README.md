@@ -1,38 +1,40 @@
 # mountains&seas · 山&海
 
-Super-glacier cliff faces now carry a thin ice skin. Grass and ferns can share a cell with thin snow using Bedrock's native secondary block layer. New terrain uses recipe **2.222**; existing worlds retain their saved terrain recipe.
-
-Derived terrain caches use lossless compression and a 512 MiB background-managed budget per world recipe. Existing uncompressed caches remain readable. These disposable caches are separate from saved blocks, player data and structures. Detailed loading diagnostics retain the three most recent recognized sessions. World size still grows as new regions are explored.
-
-Fixes narrow spikes along curved cliff rims by joining the two banks directly, preserving cliff height, contour and end transitions. Existing worlds retain their saved cliff recipe.
-
-New 26.51 worlds use fewer high cliffs, with occasional small trees rooted in the exposed faces. Shallow differential-weathering grooves vary mountain slopes while retaining smooth rock domes. Dark and pale forests have irregularly spaced trunks and asymmetric hollows open to natural ground; roots use bark-covered wood, and creaking hearts have continuous ground support. Large villages retain their building count and use compact irregular plots with connected roads. Biome locating first surveys lightweight candidates, verifies results against the saved terrain recipe, and reuses a bounded world-local query cache separate from chunk generation.
+A terrain and structure generation mod for Minecraft Bedrock on Windows. Author: **peakarma**. Version **0.4.0 is in development**; the previous 0.4.0 release has been withdrawn.
 
 English · [简体中文](README.zh-CN.md)
 
-Windows LL **0.4.0**, BDS terrain **1.0.63**, structures **1.0.78**, kernel **2.222**. Android is archived.
+Sea level is **Y100**, with building space at **Y-64..511**. Mountains, broad inland basins, plateaus, rivers, lakes, waterfalls, volcanoes and super-glaciers share a seed-based terrain recipe. Basins retain internal hills and valleys rather than defining a single ecological biome.
 
-Dark and pale forests now share connected canopies supported by 40–50-block trees with trunk radii of 5–7 blocks. Arched hollows can contain a jack-o’-lantern (66% per hollow); pale hollows can also contain a naturally generated creaking heart (11%). Glow lichen grows on supported root faces. Cherry groves form coherent 160–480-block stands, each with a central tree about 70 blocks high and a trunk radius of 10–20 blocks. Gentle river reaches can split into surveyed side channels and rejoin downstream. Villages target six times the previous building count on compact, irregular plots with connected roads, retaining native building templates. Initial resident and animal counts remain at the original scale to avoid multiplying AI work. Unsuitable terrain and layouts exceeding the bounded village footprint are rejected.
+The current Windows 26.51 revision uses kernel **2.223**. It adds wider basins, branching central cherry trees with separated leaf clusters, taller small cherry trees, larger boulders and fewer fallen logs on snowy plains. Cherry groves favour Y200–300 for their largest stands. Ruined portals use their occupied footprint for vegetation clearance; intersecting giant-tree roots exclude the whole tree.
 
-0.4.0 is in development; its previous release has been withdrawn.
+Dark and pale forests have connected canopies, 40–50-block trees with 5–7-block trunk radii, irregular spacing and natural-ground hollows. A hollow has a 66% chance of a jack-o’-lantern; pale hollows have an 11% chance of a natural creaking heart. Roots use bark-covered wood with supported glow lichen. Warm inland basins support dense mangroves rooted in shallow water. Windows 26.51 also supports native dappled-forest foliage and shelf mushrooms.
 
-Fixes a world-loading exit caused by duplicate persistent-leaf palette entries. Saved terrain recipes remain compatible. In mountains&seas worlds, use names such as `/locate biome peakarma:roofed_forest` or `/locate biome peakarma:super_glacier`. Suggestions and results use the mod's biome catalog. Windows command suggestions include biome descriptions; descriptions and query messages use English by default and Chinese for a Chinese game language. Snow-covered variants are searched separately.
+Villages target six times the earlier building count on compact, irregular plots with connected roads. Native building templates and the original initial resident/animal scale are retained. Terrain and bounded-footprint checks can reject unsuitable sites. Super-glacier cliffs carry a thin ice skin; grass and ferns can share a native block cell with thin snow.
 
-Adds dark forests, pale gardens, cherry groves and mangrove swamps to new worlds on both supported game versions. Minecraft 1.26.51.01 also gains dappled forests with poplar foliage, fallen logs and shelf mushrooms. Forests follow the existing climate and terrain.
+## Biome search
 
-Pale trees include native natural creaking hearts; mangrove roots preserve water in the secondary block layer. Woodland mansions now require an actual dark forest. `/karma` adds forest entries 141–144, plus 145 on 26.51; existing numbers and optional teleport modes remain unchanged.
+In a mountains&seas world, `/locate biome peakarma:roofed_forest` searches the saved mod recipe. Suggestions and results include descriptions, in English by default and Chinese for a Chinese game language. Ordinary worlds retain the native command.
 
-New mangrove recipes use denser stands in warm inland basins, with submerged roots and a continuous span of at least 160 blocks. `/locate biome` uses the world's saved mountains&seas recipe and runs its search in the background; ordinary worlds retain vanilla behavior.
+Glaciers, volcanoes, cherry groves, mangroves and inland basins use regional candidates up to 16,384 blocks away. Other searches use an 8,192-block radius. Results are verified against the full recipe; queries run on a separate cancellable background worker, without requesting world chunks. Results are nearby matches, not an exhaustive nearest-block guarantee. A 45-second work limit can produce an incomplete result.
 
-New 26.51 worlds use recipe **2.222** and a fixed game capability profile. Existing worlds retain their saved recipe and terrain, including 2.217. A world using 26.51-only forest content cannot open on 26.20. Sea level remains Y100 and the building range remains Y-64..511. The update also fixes world-to-world biome table reuse and seed preparation under non-ASCII paths.
+## Compatibility
 
-Dense terrain, large view distances and native structure processing can still cause loading delays. Nighttime creaking behavior and new forest save/reload behavior need further compatibility coverage across the supported game builds.
+| Minecraft for Windows | LeviLamina client | Retained package | Kernel revision |
+|---|---|---|---|
+| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.4.0.zip` | 2.223 |
+| 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.4.0.zip` | 2.219 |
 
-| Minecraft for Windows | LeviLamina client | Package |
-|---|---|---|
-| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.4.0.zip` |
-| 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.4.0.zip` |
+These packages are different development revisions. The latest 26.51 changes are not included in the retained 26.20 package. BDS supports **1.26.20.5 / LeviLamina 26.20.7** through its separate packages; this 26.51 revision does not update BDS. Android is archived. Other game/loader builds are unsupported.
 
-BDS requires **1.26.20.5 / LeviLamina 26.20.7**. No 26.51 BDS package is included. Save and stop before updating plugins; retain existing worlds and height packs.
+Save and fully exit Minecraft before importing the matching ZIP into LeviLauncher. Enable **mountains&seas** and create a normal world. ZIP packages include their Python and Node.js runtime. Keep the previous mod folder outside `mods` as a rollback copy; do not enable duplicate copies.
+
+Existing worlds keep their saved terrain recipe and generated blocks. New generation features require a new world recipe; updating the DLL does not redraw an old world. Worlds containing 26.51-only forest content cannot open on 26.20. Removing the mod does not guarantee compatible future terrain.
+
+## Storage and known limits
+
+Derived terrain caches use lossless compression with a background-managed 512 MiB budget per world recipe. They are separate from saved blocks, structures and player data. Loading diagnostics retain three recognized sessions. Exploring new regions still grows the saved world.
+
+Some terrain sections may remain invisible while higher foliage sections are visible until the player approaches. This remains under investigation; generation timings alone do not establish a rendering fix. Dense terrain, distant exploration and native structure processing can still cause delays. See [known issues](docs/KNOWN_ISSUES.md), [loading diagnostics](docs/LOADING_DIAGNOSTICS.md), [forest compatibility](docs/FOREST_COMPATIBILITY.md) and [building from source](docs/DEVELOPMENT.md).
 
 Original code uses [MIT](LICENSE); third-party components retain their [licenses](THIRD_PARTY_NOTICES.md).

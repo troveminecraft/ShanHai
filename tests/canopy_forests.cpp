@@ -12,8 +12,8 @@ struct CanopyForestRegression {
  static J recipe(J data){data.erase("regionalGeneration");data["version"]="karma-terrain-2.219.0-native-agent-a";
   data["config"]["forestEcologyRevision"]=3;data["capabilityProfile"]=forest_capabilities::CommonCanopy;return data;
  }
- static Chunks draw(J const&data,bool reverse,bool cherry,bool sloped=false){
-  Engine e(data);std::array<Surface,256> surfaces;surfaces.fill(ground(forest_capabilities::Pale));
+ static Chunks draw(J const&data,bool reverse,bool cherry,bool sloped=false,std::vector<std::array<int,4>> reservations={}){
+  Engine e(data,reservations);std::array<Surface,256> surfaces;surfaces.fill(ground(forest_capabilities::Pale));
   if(cherry){Field::CherryGrove a{true,512,512,140,15,180.,150.,.7};e.field.cherryGroves.get(key2(0,0),[&]{return a;});}
   else {
    e.field.skinCache=Cache<uint64_t,Surface>(16384);
@@ -87,6 +87,42 @@ struct CanopyForestRegression {
   return {{"canopyLeaves",leaves},{"trunkAndBranchBlocks",wood},{"supportedLichen",lichen},{"lamps",lamps},{"hearts",hearts},
    {"cherryLeaves",cherryLeaves},{"cherryWood",cherryWood},{"cherryHeight",top-140},{"orderIndependentChunks",a.size()+c.size()},{"passed",true}};
  }
+ static J branching(J data,std::string const&path){
+  data["config"]["cherryRevision"]=2;using namespace forest_palette;
+  auto a=draw(data,false,true),b=draw(data,true,true);assert(a==b);
+  int leaves=0,wood=0,columns=0,top=0;std::set<std::array<int,3>> timber;
+  std::ofstream binary(path+".voxels",std::ios::binary);
+  for(int z=432;z<=607;++z)for(int x=432;x<=607;++x){bool covered=false;
+   for(int y=141;y<=220;++y){uint16_t id=block(a,x,y,z);binary.write((char*)&id,2);
+    leaves+=id==CanopyCherryLeaves;covered|=id==CanopyCherryLeaves;
+    if(id==CherryLog||id==CherryWood){++wood;timber.insert({x,y,z});}if(id)top=std::max(top,y);
+   }columns+=covered;
+  }
+  // A detached ornamented crown must not pass a height-only assertion.
+  std::vector<std::array<int,3>> queue;
+  for(auto p:timber)if(p[1]==141)queue.push_back(p);
+  for(auto p:queue)timber.erase(p);
+  for(size_t i=0;i<queue.size();++i){auto p=queue[i];for(auto d:std::array<std::array<int,3>,6>{{{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}}}){
+   auto q=std::array{p[0]+d[0],p[1]+d[1],p[2]+d[2]};if(timber.erase(q))queue.push_back(q);}}
+  assert(timber.empty());assert(top>=207&&top<=218&&wood>10000);
+  assert(leaves>15000&&leaves<100000&&columns<8000);
+  return {{"leaves",leaves},{"wood",wood},{"height",top-140},{"leafColumns",columns},{"allWoodGroundConnected",true},{"chunksReordered",a.size()},{"passed",true}};
+ }
+ static J reservations(J data){
+  data["config"]["forestReservationRevision"]=1;data["config"]["naturalForestRevision"]=1;
+  // The building touches a root but misses its anchor. The complete tree
+  // must be omitted in every neighbouring chunk, not sliced by the box.
+  auto full=draw(data,false,false),filtered=draw(data,false,false,false,{{24,14,26,18}});
+  auto reverse=draw(data,true,false,false,{{24,14,26,18}});assert(filtered==reverse);
+  using namespace forest_palette;int removed=0,kept=0;
+  for(int z=0;z<64;++z)for(int x=0;x<64;++x)for(int y=141;y<184;++y){
+   int a=block(full,x,y,z),b=block(filtered,x,y,z);
+   if(a==PaleWood||a==PaleLog){if(x<32&&z<32){assert(b!=PaleWood&&b!=PaleLog);++removed;}
+    else if(b==a)++kept;}
+  }
+  assert(removed>1000&&kept>3000);
+  return {{"removedWholeTreeWood",removed},{"neighbourWoodRetained",kept},{"chunksReordered",filtered.size()},{"passed",true}};
+ }
  static J sites(J const&data){
   Engine e(data);J groves=J::array(),trees=J::array();int dark=0,pale=0,hollows=0,lamps=0,hearts=0;
   for(int gz=512;gz<1536;gz+=7)for(int gx=512;gx<1536;gx+=7){auto a=e.canopyTree(gx,gz);if(!a.height)continue;
@@ -104,6 +140,6 @@ struct CanopyForestRegression {
 };}
 int main(int argc,char**argv){try{
  if(argc!=4)return 2;nativegen::J data;std::ifstream(argv[1])>>data;data=nativegen::CanopyForestRegression::recipe(std::move(data));
- auto start=std::chrono::steady_clock::now();auto mode=std::string(argv[3]);auto result=mode=="sites"?nativegen::CanopyForestRegression::sites(data):mode=="natural"?nativegen::CanopyForestRegression::naturalGeometry(data):nativegen::CanopyForestRegression::geometry(data);
+ auto start=std::chrono::steady_clock::now();auto mode=std::string(argv[3]);auto result=mode=="reservations"?nativegen::CanopyForestRegression::reservations(data):mode=="branching"?nativegen::CanopyForestRegression::branching(data,argv[2]):mode=="sites"?nativegen::CanopyForestRegression::sites(data):mode=="natural"?nativegen::CanopyForestRegression::naturalGeometry(data):nativegen::CanopyForestRegression::geometry(data);
  result["seconds"]=std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();std::ofstream(argv[2])<<result.dump(2);std::cout<<result<<std::endl;
  }catch(std::exception const&e){std::cerr<<e.what()<<std::endl;return 1;}}

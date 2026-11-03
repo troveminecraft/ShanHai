@@ -5,6 +5,7 @@
 #ifdef KARMA_CLIENT
 #include "WindowsWorldHost.h"
 #include "mc/client/renderer/chunks/RenderChunkBuilder.h"
+#include "mc/client/renderer/chunks/RenderChunkGeometry.h"
 #endif
 #include "NativeRuntime.h"
 #include "TerrainSession.h"
@@ -560,6 +561,7 @@ Json workReport(){
   r["slowTasks"].push_back({{"task",names[s.stage]},{"chunk",{s.x,s.z}},{"ms",s.us/1000.}});}
  r["scope"]="function wall time; includes internal lock/dependency wait; not GPU publication";
  r["clientMeshBuild"]["scope"]="active client Overworld RenderChunkBuilder; separate ClientLevel; excludes GPU upload and visibility";
+ r["clientMeshBuild"]["sections"]=worldSession->meshSections.snapshot();
  if(worldSession->kernelContext)r["regionalPlans"]=worldSession->kernelContext->statistics();
  return r;
 }

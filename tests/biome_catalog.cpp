@@ -33,9 +33,13 @@ int main(){
  assert(!matches(get("peakarma:glacier"),s,true));
  s.superGlacier=0;
  assert(matches(get("peakarma:glacier"),s,true));
+ s.glacier=s.superGlacier=.35;
+ assert(matches(get("peakarma:glacier"),s,true));
+ assert(!matches(get("peakarma:super_glacier"),s,true));
  s.closedBasin=true;s.basinWeight=.9;s.height=80;
  assert(matches(get("peakarma:inland_basin"),s,true));
- s.height=150;assert(!matches(get("peakarma:inland_basin"),s,true));
+ s.height=150;assert(matches(get("peakarma:inland_basin"),s,true));
+ s.basinWeight=0;assert(!matches(get("peakarma:inland_basin"),s,true));
  s.volcanic=.7;assert(matches(get("peakarma:volcano"),s,true));
  std::cout<<ids.size()<<" unique namespaced biomes/landforms; locale, host capabilities, snow and landform matching passed\n";
 }

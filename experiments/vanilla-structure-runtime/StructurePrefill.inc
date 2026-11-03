@@ -55,7 +55,7 @@ void clearPrefillWorkers() {
 ReservationAreas pieceReservations(StructureStart const &start) {
     ReservationAreas areas;
     for (auto const &piece : *start.pieces)
-        if (auto area = worldgen_rules::structurePlantReservation(sharedBox(*piece->mBoundingBox)))
+        if (auto area = piecePlantReservation(*piece))
             areas.push_back(*area);
     return areas;
 }
@@ -133,20 +133,26 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
     if (structureStageFailed)
         throw std::runtime_error("Structure generation paused after an earlier error");
     uint seed = bedrock_compat::seed(bedrock_compat::level(dim).getLevelData()).to32BitRandomSeed();
+    // A root-intersecting giant tree can extend well beyond a native piece.
+    // Discover the same reservation at its distant crown chunks as its trunk.
+    // This widens pure prefill discovery only, not native placement/dependency
+    // requests. Old non-canopy worlds retain their original 28-block halo.
+    int plantReach=input.at("config").value("forestEcologyRevision",0)>=3?128:28;
+    int padding=(plantReach-28+15)/16,villageRadius=villageChunkReach()+padding;
     std::vector<ChunkPos> vc, sc;
-    for (int z = villageCell(cp.z - villageChunkReach()); z <= villageCell(cp.z + villageChunkReach()); ++z)
-        for (int x = villageCell(cp.x - villageChunkReach()); x <= villageCell(cp.x + villageChunkReach()); ++x) {
+    for (int z = villageCell(cp.z - villageRadius); z <= villageCell(cp.z + villageRadius); ++z)
+        for (int x = villageCell(cp.x - villageRadius); x <= villageCell(cp.x + villageRadius); ++x) {
             auto c = villageCandidate(x, z, seed);
-            if (std::abs(c.x - cp.x) <= villageChunkReach() && std::abs(c.z - cp.z) <= villageChunkReach())
+            if (std::abs(c.x - cp.x) <= villageRadius && std::abs(c.z - cp.z) <= villageRadius)
                 vc.push_back(c);
         }
-    for (int z = structureCell(cp.z - 3); z <= structureCell(cp.z + 2); ++z)
-        for (int x = structureCell(cp.x - 3); x <= structureCell(cp.x + 2); ++x) {
+    for (int z = structureCell(cp.z - 3-padding); z <= structureCell(cp.z + 2+padding); ++z)
+        for (int x = structureCell(cp.x - 3-padding); x <= structureCell(cp.x + 2+padding); ++x) {
             auto c = nativeCandidateForCell(x, z, seed);
-            if (c.x <= cp.x + 2 && c.x + 3 >= cp.x && c.z <= cp.z + 2 && c.z + 3 >= cp.z)
+            if (c.x <= cp.x + 2+padding && c.x + 3+padding >= cp.x && c.z <= cp.z + 2+padding && c.z + 3+padding >= cp.z)
                 sc.push_back(c);
         }
-    auto ec = nearbyExtra(cp, seed);
+    auto ec = nearbyExtra(cp, seed,padding);
     std::erase_if(ec, [](auto const &e) { return !extraSurface(e.first); });
     if (vc.empty() && sc.empty() && ec.empty()) {
         origin(volume, yOffset);
@@ -160,7 +166,7 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
         for(auto c:sc)keys.push_back({-1,c.x,c.z});
         for(auto [type,c]:ec)keys.push_back({type,c.x,c.z});
         if (!storedChunk(dim,cp)) {
-            if(reservationCache.get(keys,cp.x,cp.z,groups)) ++prefillSnapshotHits;
+            if(reservationCache.get(keys,cp.x,cp.z,groups,plantReach)) ++prefillSnapshotHits;
             else {
                 ++prefillSnapshotMisses;
                 std::vector<ChunkPos> warming=vc;warming.insert(warming.end(),sc.begin(),sc.end());
@@ -179,7 +185,7 @@ LL_TYPE_INSTANCE_HOOK(StructurePrefill, ll::memory::HookPriority::Normal, LevelC
                             if(start->getStructureName()!="minecraft:desert_pyramid")
                                 e.areas={{b.min.x+32756,b.min.z+32756,b.max.x+32780,b.max.z+32780}};
                         }else e.areas=pieceReservations(*start);
-                        if(!(b.max.x+28<cp.x*16||b.min.x-28>cp.x*16+15||b.max.z+28<cp.z*16||b.min.z-28>cp.z*16+15)&&!e.areas.empty())
+                        if(!(b.max.x+plantReach<cp.x*16||b.min.x-plantReach>cp.x*16+15||b.max.z+plantReach<cp.z*16||b.min.z-plantReach>cp.z*16+15)&&!e.areas.empty())
                             groups.push_back(e.areas);
                     }
                     reservationCache.put(key,std::move(e));

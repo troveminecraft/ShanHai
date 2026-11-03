@@ -74,6 +74,7 @@ ForestTree specialTreeCandidate(int gx,int gz,bool denseMangrove=false){return (
  a.ground=*std::max_element(a.feet.begin(),a.feet.end());
  a.exceptional=r(4)<.045&&hi-lo<=2&&s.height<270&&s.H>.62;
  a.height=(a.biome==forest_capabilities::Cherry?8:12)+int(r(5)*(a.biome==forest_capabilities::Cherry?6:10))+(a.exceptional?8:0);
+ if(a.biome==forest_capabilities::Cherry&&C.value("cherryRevision",0)>=2)a.height+=7+int(r(12)*4);
  a.height=std::min(a.height,Height-68-a.ground);
  if(a.height<(a.biome==forest_capabilities::Cherry?8:10))return ForestTree{};
  a.crown=3.5+r(6)*1.7+(a.exceptional?1.2:0);a.angle=r(7)*6.283185307;
@@ -148,13 +149,14 @@ std::shared_ptr<ForestModel> specialTreeModel(int gx,int gz,bool denseMangrove=f
   return out;
  }
  int top=a.ground+a.height-3;
- crown(a.x+.5,top+1,a.z+.5,a.crown,cherry?1.8:2.5);
+ bool branchedCherry=cherry&&C.value("cherryRevision",0)>=2;
+ crown(a.x+.5,top+1,a.z+.5,a.crown*(branchedCherry?.72:1),branchedCherry?3.:cherry?1.8:2.5);
  for(int k=0;k<(cherry?3:4);++k){
   double angle=a.angle+k*(cherry?2.094395102:1.570796327);
   double reach=3.+hash01(a.x+k,a.z,terrainSeed^88251)*3.;
   OakPoint start{a.x,top-3-int(k%2),a.z};
-  OakPoint end{a.x+roundJS(std::cos(angle)*reach),top-1+int(k%2),a.z+roundJS(std::sin(angle)*reach)};
-  crown(end.x,end.y+1,end.z,a.crown*(cherry?.95:.78),cherry?1.65:2.1);limb(start,end);
+  OakPoint end{a.x+roundJS(std::cos(angle)*reach),top-1+int(k%2)-(branchedCherry?k*2:0),a.z+roundJS(std::sin(angle)*reach)};
+  crown(end.x,end.y+1,end.z,a.crown*(branchedCherry?.68:cherry?.95:.78),branchedCherry?2.6:cherry?1.65:2.1);limb(start,end);
  }
  for(int z=0;z<a.width;++z)for(int x=0;x<a.width;++x)
   for(int y=mangrove?a.stemBottom:a.feet[z*2+x]+1;y<=top;++y)add(a.x+x,y,a.z+z,log,1);

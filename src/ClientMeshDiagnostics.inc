@@ -12,8 +12,12 @@ LL_TYPE_INSTANCE_HOOK(ClientMeshTiming,ll::memory::HookPriority::Normal,RenderCh
  if(!observing||!active||!dimension||static_cast<int>(dimension->getDimensionId())!=0){
   origin(geometry,lightingType,forExport,capabilities,models);return;
  }
+ auto position=*geometry.mPosition;
+ owner->meshSections.record(position.x,position.y,position.z,false,0);
  auto start=Clock::now();origin(geometry,lightingType,forExport,capabilities,models);
  // Builder duration only; GPU upload/queue visibility is not measured here.
- owner->nativeWorkLatency[4].observe(std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-start).count());
+ auto us=std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-start).count();
+ owner->nativeWorkLatency[4].observe(us);
+ owner->meshSections.record(position.x,position.y,position.z,true,unsigned(geometry.mFlags->to_ulong()),us);
 }
 #endif

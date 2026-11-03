@@ -7,6 +7,7 @@
 #include "WorkerPool.h"
 #include "WorldTasks.h"
 #include "ChunkPipelineTrace.h"
+#include "MeshSectionTrace.h"
 #include <future>
 
 namespace terrain_runtime {
@@ -32,6 +33,7 @@ template<unsigned Workers, size_t MemoryChunks> struct TerrainSession {
     Latency queueLatency,computeLatency,fillLatency,cacheReadLatency,requestLatency,gateLatency,readyLatency,tickGapLatency;
     std::array<Latency,14> stageLatency;
     ChunkPipelineTrace pipelineTrace;
+    MeshSectionTrace meshSections;
     std::atomic_uint64_t streamActiveMicros=0;
     // Actual function durations, distinct from coarse polling of state residence.
     std::array<Latency,5> nativeWorkLatency;

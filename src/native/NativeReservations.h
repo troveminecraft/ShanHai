@@ -30,5 +30,12 @@ public:
   auto i=bins.find(key(cell(x),cell(z)));if(i==bins.end())return false;
   for(auto id:i->second)if(hit(areas[id]))return true;return false;
  }
+ bool intersects(int x,int z,int radius)const{
+  auto hit=[&](auto const&r){return r[2]>=x-radius&&r[0]<=x+radius&&r[3]>=z-radius&&r[1]<=z+radius;};
+  if(!indexed){for(auto const&r:areas)if(hit(r))return true;return false;}
+  for(int Z=cell(z-radius);Z<=cell(z+radius);++Z)for(int X=cell(x-radius);X<=cell(x+radius);++X){
+   auto i=bins.find(key(X,Z));if(i!=bins.end())for(auto id:i->second)if(hit(areas[id]))return true;
+  }return false;
+ }
 };
 }

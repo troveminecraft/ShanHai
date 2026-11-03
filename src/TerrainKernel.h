@@ -38,7 +38,7 @@ class Field {
     friend class Generator;
     explicit Field(std::shared_ptr<Impl> shared);
 public:
-    explicit Field(J recipe, ContextPtr context = {});
+    explicit Field(J recipe, ContextPtr context = {}, bool queryHintsOnly = false);
     ~Field();
     Field(Field const&) = delete;
     Field& operator=(Field const&) = delete;
@@ -48,6 +48,8 @@ public:
     bool streamed() const;
     bool unbounded() const;
     Surface bootstrapSurface(int x, int z);
+    int biomeSearchGrid(int biome) const;
+    std::vector<std::array<int,2>> biomeSearchAnchors(int biome,int gx,int gz);
     Surface surface(int x, int z, bool slope = true);
     Surface base(int x, int z);
     // Populate immutable regional decisions using a worker-owned Field. Call

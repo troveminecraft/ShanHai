@@ -1,6 +1,6 @@
 # Loading and crash diagnostics
 
-Version 0.3.5 records each Windows local-world session in a separate `mods/mountains&seas/diagnostics/sessions/` directory. The session header includes the mod version, game line, seed, world path, process ID, and start time. No player world is opened automatically and no diagnostics are uploaded.
+Version 0.4.0 records each Windows local-world session in a separate `mods/mountains&seas/diagnostics/sessions/` directory. The session header includes the mod version, game line, seed, world path, process ID, and start time. No player world is opened automatically and no diagnostics are uploaded.
 
 A background writer records a heartbeat every 500 ms, including active task spans, recently completed spans, OS thread IDs, parent span IDs, chunk coordinates, memory use, page faults, and process CPU time. It reads copied diagnostic data only; it never accesses Minecraft world objects. The main thread contributes a status snapshot once per second during the first three minutes, then once per five seconds. `statusAgeUs` shows when that snapshot stops advancing. Four rotating event files retain up to roughly 64 MiB per session. Capacity drops and write failures are counted; this is a bounded flight recorder, not an exhaustive trace of every native operation.
 
@@ -11,3 +11,12 @@ After reproducing an issue, exit Minecraft if it still responds and run `collect
 The 26.51 monster-room crash fixed in 0.3.5 was an uninitialized feature transaction pointer after the native constructor disappeared from the SDK. Loading stalls remain under investigation. Diagnostic timestamps and task durations are evidence for that investigation, not a promise that all stalls are resolved.
 
 Since 0.3.7, `pipeline.scheduler` identifies the completion-oriented bounded-age policy. `clientMeshBuild` times active client Overworld builders without requiring the renderer ClientLevel to equal the integrated server Level. It still excludes GPU upload and visibility. A long main-thread snapshot gap can also occur while the game is paused or unfocused; correlate it with the player’s actions and background task progress before attributing it to a loading stall.
+
+
+## Section-level observations
+
+`nativeWork.clientMeshBuild.sections` records the existing builder hook by chunk and vertical section. Bit 0 represents Y-64..-49, through bit 35 at Y496..511. `seenMask` means a builder was entered; `builderReturnedMask` means it returned; native built/can-render flags are sampled on return, before GPU publication. They are not proof that the section was visible on screen.
+
+The collector uses 512 fixed slots, emits the 64 most recent columns and counts skipped observations under contention. It does not request chunks, resend terrain or retry rendering. The three most recent recognized diagnostic sessions are retained.
+
+Compare structure lock hold/wait times with terrain calculation and per-height mesh observations. A lock stall can delay many neighbouring chunks, but does not prove why an already built lower section remains invisible. Paused or unfocused intervals must be separated from active work. Previously reported end-to-end gameplay checks and new regression measurements describe different revisions.

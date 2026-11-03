@@ -910,11 +910,11 @@ ExtraPlan &extraPlan(Dimension &d, int type, ChunkPos cp) {
     record.mCachedStructures->emplace(cp, std::move(start));
     return r;
 }
-std::vector<std::pair<int, ChunkPos>> nearbyExtra(ChunkPos cp, uint seed) {
+std::vector<std::pair<int, ChunkPos>> nearbyExtra(ChunkPos cp, uint seed,int plantPadding=0) {
     std::vector<std::pair<int, ChunkPos>> out;
     worldgen_rules::forNearbyExtraCandidate(
         {cp.x, cp.z}, seed, [](int) { return true; },
-        [&](auto const &s, auto c) { out.push_back({s.type, {c.x, c.z}}); });
+        [&](auto const &s, auto c) { out.push_back({s.type, {c.x, c.z}}); },plantPadding);
     return out;
 }
 std::vector<BoundingBox> const &cityNeighbours(Dimension &d, StructureStart const &start, uint seed) {
@@ -948,8 +948,7 @@ VegetationPair &extraVegetationPair(ExtraPlan const &p) {
             std::make_unique<terrain_kernel::Generator>(input, std::vector<std::array<int, 4>>{}, true, field.get());
         std::vector<std::array<int, 4>> occupied;
         for (auto const &piece : *p.start->pieces) {
-            auto bb = *piece->mBoundingBox;
-            if (auto area = worldgen_rules::structurePlantReservation(sharedBox(bb)))
+            if (auto area = piecePlantReservation(*piece))
                 occupied.push_back(*area);
         }
         pair.reserved = std::make_unique<terrain_kernel::Generator>(input, occupied, true, field.get());

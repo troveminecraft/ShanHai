@@ -8,7 +8,7 @@ std::unique_ptr<Field> samplingField;
 std::set<uint64_t> preparedRegions,preparedIce;
 std::unordered_map<int,std::vector<LakeSpan>> streamingLakeRows;
 Field& naturalSamplingField(){
- if(!samplingField){samplingData=std::make_unique<J>(data);samplingData->erase("regionalGeneration");samplingField=std::make_unique<Field>(*samplingData);}
+ if(!samplingField){samplingData=std::make_unique<J>(data);samplingData->erase("regionalGeneration");samplingField=std::make_unique<Field>(*samplingData);if(broadBasins)samplingField->streamingIdentity=streamingIdentity;}
  return *samplingField;
 }
 Surface regionalClimateSample(int x,int z){
@@ -110,6 +110,7 @@ std::shared_ptr<J const> regionalWaterPlan(int a,int b){
  });
 }
 void ensureStreamingRegions(int wx,int wz){
+ if(queryHintsOnly)return;
  if(!streamingRegions)return;
  int gx=int(std::floor((wx-32768)/double(regional::Core))),gz=int(std::floor((wz-32768)/double(regional::Core)));bool changed=false;
  if(unboundedRegions&&preparedRegions.size()>64&&!preparedRegions.contains(key2(gx,gz))){

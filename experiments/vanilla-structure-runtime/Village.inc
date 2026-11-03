@@ -158,7 +158,7 @@ bool buildSharedVillage(StructureStart &start, VillagePlan &result, ChunkPos cp,
         for(size_t i=0;i<blueprint.pieces.size();++i)blueprint.pieces[i].populate=result.populationPieces[i];
     }
     auto plan = worldgen_rules::planVillageLayout(
-        blueprint, [](int x, int z) { return field->surface(x + 32768, z + 32768); },
+        blueprint, [](int x, int z) { return field->surface(x + 32768, z + 32768, false); },
         [](int x, int z, uint32_t seed) { return nativegen::hash01(x, z, seed); }, field->generationHeight()-65);
     if (!plan.accepted) {
         result.diagnostics["layoutRejection"]=plan.rejection;
@@ -248,7 +248,7 @@ VillagePlan &villagePlan(Dimension &d, ChunkPos cp, uint seed) {
     auto fit = [](auto const &s) {
         return worldgen_rules::villageSurfaceAllowed(s, worldgen_rules::villageStyle(s.biome));
     };
-    auto center = field->surface(wx + 32768, wz + 32768);
+    auto center = field->surface(wx + 32768, wz + 32768, false);
     if (!fit(center))
         return result;
     int lo = INT_MAX, hi = -64;
@@ -257,7 +257,7 @@ VillagePlan &villagePlan(Dimension &d, ChunkPos cp, uint seed) {
     // below before registration, including roads and houses.
     for (int z = -32; z <= 32; z += 32)
         for (int x = -32; x <= 32; x += 32) {
-            auto s = field->surface(wx + x + 32768, wz + z + 32768);
+            auto s = field->surface(wx + x + 32768, wz + z + 32768, false);
             if (!fit(s) || villageStyle(s.biome) != villageStyle(center.biome))
                 return result;
             lo = std::min(lo, s.height);
@@ -266,7 +266,7 @@ VillagePlan &villagePlan(Dimension &d, ChunkPos cp, uint seed) {
                 return result;
         }
     bool ordered=input.at("config").value("orderedVillages",0)>=1;
-    if(ordered&&!worldgen_rules::villageTownOwner({cp.x,cp.z},seed,villageSpacing(),[&](int x,int z){auto c=villageCandidate(x,z,seed);return worldgen_rules::ChunkPosition{c.x,c.z};},[](int x,int z){return field->surface(x+32768,z+32768);})){result.diagnostics["layoutRejection"]="neighbouring-town";return result;}
+    if(ordered&&!worldgen_rules::villageTownOwner({cp.x,cp.z},seed,villageSpacing(),[&](int x,int z){auto c=villageCandidate(x,z,seed);return worldgen_rules::ChunkPosition{c.x,c.z};},[](int x,int z){return field->surface(x+32768,z+32768, false);})){result.diagnostics["layoutRejection"]="neighbouring-town";return result;}
     auto biome = d.getBiomeRegistry().lookupByName(villageBiome(center.biome));
     if (!biome)
         return result;
@@ -371,7 +371,7 @@ void villageTerrain(BlockSource &blocks, ChunkPos cp, VillagePlan const &plan) {
         throw std::runtime_error("Missing village ground material");
     for (int z = cp.z * 16; z < cp.z * 16 + 16; ++z)
         for (int x = cp.x * 16; x < cp.x * 16 + 16; ++x) {
-            auto s = field->surface(x + 32768, z + 32768);
+            auto s = field->surface(x + 32768, z + 32768, false);
             int target = villageGround(plan, x, z, s.height);
             worldgen_rules::writeStructureGroundColumn(x, z, s.height, target, s.biome, [&](auto p, auto b) {
                 auto block = b.name == "minecraft:air"           ? air
@@ -411,7 +411,7 @@ unsigned placeVillage(BlockSource &blocks, ChunkPos cp, VillagePlan &plan, uint 
         for (auto const &[xz, c] : plan.oasis) {
             if (chunk(xz.first) != cp.x || chunk(xz.second) != cp.z)
                 continue;
-            int h = field->surface(xz.first + 32768, xz.second + 32768).height;
+            int h = field->surface(xz.first + 32768, xz.second + 32768, false).height;
             for (int y = c.floor - 1; y <= std::min(field->generationHeight()-65, h + 2); ++y) {
                 auto block = y < c.floor    ? soil
                              : y == c.floor ? (c.green ? grass : sand)
@@ -433,7 +433,7 @@ unsigned placeVillage(BlockSource &blocks, ChunkPos cp, VillagePlan &plan, uint 
         for (int x = 0; x < 16; ++x) {
             int wx = cp.x * 16 + x, wz = cp.z * 16 + z;
             (*heights)[z * 16 + x] =
-                short(villageGround(plan, wx, wz, field->surface(wx + 32768, wz + 32768).height) + 1);
+                short(villageGround(plan, wx, wz, field->surface(wx + 32768, wz + 32768, false).height) + 1);
         }
     chunkPtr->setPreWorldGenHeightMap(std::move(heights));
     BoundingBox clip{{cp.x * 16, -64, cp.z * 16}, {cp.x * 16 + 15, (field->generationHeight()-65), cp.z * 16 + 15}};
@@ -593,7 +593,7 @@ void repairStructurePlants(Dimension &d, int x, int z, bool village, bool apply)
                         auto q = bedrock_compat::transform(*i.mPos, Mirror::None, p.mRotation);
                         int xx = q.x + p.mPosition->x, zz = q.z + p.mPosition->z;
                         int ground =
-                            villageGround(*vp, xx, zz, field->surface(xx + 32768, zz + 32768).height);
+                            villageGround(*vp, xx, zz, field->surface(xx + 32768, zz + 32768, false).height);
                         keep.insert({xx, ground + q.y, zz});
                     }
                 }
