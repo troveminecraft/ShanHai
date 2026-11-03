@@ -1,6 +1,6 @@
 # 山&海 · mountains&seas
 
-Minecraft 基岩版 Windows 地形与结构生成模组。作者：**peakarma**。版本 **0.4.0**。[下载](https://github.com/troveminecraft/ShanHai/releases/tag/0.4.0)。
+Minecraft 基岩版 Windows 地形与结构生成模组。作者：**peakarma**。版本 **0.4.0**。[下载](https://github.com/troveminecraft/ShanHai/releases/tag/v0.4.0)。
 
 [English](README.md) · 简体中文
 
