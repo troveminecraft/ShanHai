@@ -41,9 +41,9 @@ jobs:
         shell: pwsh
         run: |
           $out = Join-Path $env:RUNNER_TEMP 'shan-hai-build'
-          ./build.ps1 -OutputDirectory $out
+          ./build.ps1 -OutputDirectory $out -GameLine 26.51
           $version = (Get-Content -Raw ports/windows-client/manifest.json | ConvertFrom-Json).version
-          $name = "ShanHai-Windows-$version"
+          $name = "mountains-and-seas-$version-Windows-MC1.26.51.01"
           $package = Join-Path $out "$name.zip"
           if (!(Test-Path -LiteralPath $package -PathType Leaf)) { throw "Missing package: $package" }
           if ((Get-Item -LiteralPath $package).Length -eq 0) { throw 'Empty package' }

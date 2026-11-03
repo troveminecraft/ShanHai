@@ -1,4 +1,4 @@
-## 0.4.0 — in development
+## 0.4.0 — 2026-11-04
 
 The latest changes target Windows **1.26.51.01 / LL 26.51.9**, kernel **2.225**. The retained Windows 26.20 package remains kernel 2.219; BDS is unchanged by this revision.
 
@@ -43,6 +43,9 @@ In mountains&seas worlds, `/locate biome` searches the world's frozen terrain re
 New 26.51 worlds use recipe **2.225** and a fixed game capability profile. Existing worlds retain their saved recipe and terrain, including 2.217. A world using 26.51-only forest content cannot open on 26.20. Sea level remains Y100 and the building range remains Y-64..511. The update also fixes world-to-world biome table reuse and seed preparation under non-ASCII paths.
 
 Partial terrain sections remaining invisible until approached remain under investigation. Native structure lock stalls and mesh-section observations are reported separately; cold generation measurements do not establish complete game loading performance.
+
+
+0.4.x maintenance priorities: [roadmap](docs/ROADMAP.md).
 
 ## 0.3.12 — 2026-10-31
 

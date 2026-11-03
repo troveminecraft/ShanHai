@@ -1,4 +1,4 @@
-# Known issues — 0.4.0 development
+# Known issues — 0.4.0
 
 - Some terrain sections remain invisible while foliage above them is visible, then recover when approached. Native structure lock stalls have been observed, but they do not by themselves explain persistent missing mesh sections. Per-height builder diagnostics now distinguish these cases; GPU publication is not measured.
 - Large view distances, cold regional planning, dense forests and native structure processing can still delay loading. Kernel benchmarks exclude the complete game/rendering pipeline.
@@ -9,3 +9,5 @@
 - Disposable derived caches are bounded separately from the saved world. New exploration still increases LevelDB world size; player blocks and unexplored-region boundaries are not deleted to reduce disk use.
 
 For reproducible reports, include the exact package/kernel identity, game and loader build, seed, coordinates, actions and a screenshot. The local diagnostic collector does not upload data.
+
+See the [0.4.x maintenance roadmap](ROADMAP.md).

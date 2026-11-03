@@ -1,6 +1,6 @@
 # mountains&seas · 山&海
 
-A terrain and structure generation mod for Minecraft Bedrock on Windows. Author: **peakarma**. Version **0.4.0 is in development**; the previous 0.4.0 release has been withdrawn.
+A terrain and structure generation mod for Minecraft Bedrock on Windows. Author: **peakarma**. Version **0.4.0**. [Download](https://github.com/troveminecraft/ShanHai/releases/tag/0.4.0).
 
 English · [简体中文](README.zh-CN.md)
 
@@ -20,12 +20,12 @@ Glaciers, volcanoes, cherry groves, mangroves and inland basins use regional can
 
 ## Compatibility
 
-| Minecraft for Windows | LeviLamina client | Retained package | Kernel revision |
+| Minecraft for Windows | LeviLamina client | Download package | Kernel revision |
 |---|---|---|---|
-| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.4.0.zip` | 2.225 |
-| 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.4.0.zip` | 2.219 |
+| 1.26.51.01 | 26.51.9 | `mountains-and-seas-0.4.0-Windows-MC1.26.51.01.zip` | 2.225 |
+| 1.26.20.04 | 26.20.7 | `mountains-and-seas-0.4.0-Windows-MC1.26.20.04.zip` | 2.219 |
 
-These packages are different development revisions. The latest 26.51 changes are not included in the retained 26.20 package. BDS supports **1.26.20.5 / LeviLamina 26.20.7** through its separate packages; this 26.51 revision does not update BDS. Android is archived. Other game/loader builds are unsupported.
+These packages contain different kernel revisions. The latest 26.51 changes are not included in the retained 26.20 package. BDS supports **1.26.20.5 / LeviLamina 26.20.7** through its separate packages; this 26.51 revision does not update BDS. Android is archived. Other game/loader builds are unsupported.
 
 Save and fully exit Minecraft before importing the matching ZIP into LeviLauncher. Enable **mountains&seas** and create a normal world. ZIP packages include their Python and Node.js runtime. Keep the previous mod folder outside `mods` as a rollback copy; do not enable duplicate copies.
 
@@ -35,6 +35,8 @@ Existing worlds keep their saved terrain recipe and generated blocks. New genera
 
 Derived terrain caches use lossless compression with a background-managed 512 MiB budget per world recipe. They are separate from saved blocks, structures and player data. Loading diagnostics retain three recognized sessions. Exploring new regions still grows the saved world.
 
-Some terrain sections may remain invisible while higher foliage sections are visible until the player approaches. This remains under investigation; generation timings alone do not establish a rendering fix. Dense terrain, distant exploration and native structure processing can still cause delays. See [known issues](docs/KNOWN_ISSUES.md), [loading diagnostics](docs/LOADING_DIAGNOSTICS.md), [forest compatibility](docs/FOREST_COMPATIBILITY.md) and [building from source](docs/DEVELOPMENT.md).
+Some terrain sections may remain invisible while higher foliage sections are visible until the player approaches. This remains a known issue scheduled for the 0.4.x maintenance line. Dense terrain, distant exploration and native structure processing can still cause delays. See [known issues](docs/KNOWN_ISSUES.md), [loading diagnostics](docs/LOADING_DIAGNOSTICS.md), [forest compatibility](docs/FOREST_COMPATIBILITY.md) and [building from source](docs/DEVELOPMENT.md).
 
 Original code uses [MIT](LICENSE); third-party components retain their [licenses](THIRD_PARTY_NOTICES.md).
+
+0.4.x maintenance priorities: [roadmap](docs/ROADMAP.md).

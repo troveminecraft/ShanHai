@@ -9,6 +9,15 @@ Minecraft build. Use one release per product version in each repository. Windows
 client packages are public; BDS packages remain in the private upstream repository.
 Android is no longer maintained.
 
+## Asset names
+
+Every downloadable package name includes the mod version, platform and exact game build. Use the format `mountains-and-seas-<mod version>-<platform>-MC<game build>.zip`.
+
+- `mountains-and-seas-0.4.0-Windows-MC1.26.51.01.zip`
+- `mountains-and-seas-0.4.0-Windows-MC1.26.20.04.zip`
+
+The package table also records the LeviLamina version, kernel revision and executable source commit. A shared mod version does not imply identical contents across game builds. `ports/package_windows.py --output-dir <directory>` derives the filename from the manifest and runtime target. Explicit `--output` remains available for local archive compatibility.
+
 ## Publishing
 
 1. Update manifests, version constants and the changelog. Pin the game build,

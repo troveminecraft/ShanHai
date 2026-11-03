@@ -5,6 +5,11 @@ P=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(P/'tools'))
 from check_release_text import check as check_release_text
 
+GAME_BUILDS={'26.20':'1.26.20.04','26.51':'1.26.51.01'}
+
+def asset_name(version,game_line):
+    return f'mountains-and-seas-{version}-Windows-MC{GAME_BUILDS[game_line]}.zip'
+
 def package(runtime,output,binary=None):
     check_release_text(P/'ports/windows-client/README.md')
     bundle=json.loads((runtime/'bundle.json').read_bytes())
@@ -30,9 +35,16 @@ def package(runtime,output,binary=None):
         archive.write(P/'docs/LOADING_DIAGNOSTICS.md',root+'LOADING_DIAGNOSTICS.md')
         archive.write(P/'THIRD_PARTY_NOTICES.md',root+'THIRD_PARTY_NOTICES.md')
         archive.write(P/'LICENSE',root+'LICENSE')
-    return dict(package=str(output),sha256=hashlib.sha256(output.read_bytes()).hexdigest(),runtimeIdentity=bundle['identity'],stable=False)
+    return dict(package=str(output),sha256=hashlib.sha256(output.read_bytes()).hexdigest(),runtimeIdentity=bundle['identity'])
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--runtime',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
+    p=argparse.ArgumentParser();p.add_argument('--runtime',type=Path,required=True)
+    destination=p.add_mutually_exclusive_group(required=True)
+    destination.add_argument('--output',type=Path)
+    destination.add_argument('--output-dir',type=Path,help='Name the ZIP using its mod version, platform and exact Minecraft build')
     p.add_argument('--binary',type=Path);a=p.parse_args()
+    if a.output_dir is not None:
+        version=json.loads((P/'ports/windows-client/manifest.json').read_bytes())['version']
+        line=json.loads((a.runtime/'game-target.json').read_bytes())['gameLine']
+        a.output=a.output_dir/asset_name(version,line)
     print(json.dumps(package(a.runtime,a.output,a.binary),indent=2))

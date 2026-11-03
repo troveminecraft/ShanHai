@@ -29,6 +29,7 @@ $node = (Get-Command node -ErrorAction Stop).Source
 & $Python -B (Join-Path $root 'ports/windows-client/build_runtime.py') --output (Join-Path $output 'runtime') --game-line $GameLine --python-home $pythonHome --node $node --template (Join-Path $root 'tests/fixtures/void-world/level.dat') --native-tool (Join-Path $kernel 'windows/x64/release/native-worldgen-check.exe')
 if ($LASTEXITCODE) { throw 'Runtime assembly failed' }
 $version = (Get-Content -LiteralPath (Join-Path $root 'ports/windows-client/manifest.json') -Raw | ConvertFrom-Json).version
-$packageName = if ($GameLine -eq '26.20') { "ShanHai-Windows-26.20-$version.zip" } else { "ShanHai-Windows-$version.zip" }
+$gameBuild = if ($GameLine -eq '26.20') { '1.26.20.04' } else { '1.26.51.01' }
+$packageName = "mountains-and-seas-$version-Windows-MC$gameBuild.zip"
 & $Python -B (Join-Path $root 'ports/package_windows.py') --runtime (Join-Path $output 'runtime') --binary (Join-Path $output 'client/windows/x64/release/karma-worldgen-client.dll') --output (Join-Path $output $packageName)
 if ($LASTEXITCODE) { throw 'Packaging failed' }

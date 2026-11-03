@@ -6,10 +6,11 @@
 
 ## Compatibility
 
-| Package | Minecraft build | LeviLamina | Architecture |
-| --- | --- | --- | --- |
-| Windows client | Exact Windows build | Exact client loader version | x64 |
-| BDS | Exact server build | Exact server loader version | x64 |
+| Download filename | Minecraft build | LeviLamina | Kernel | Architecture |
+| --- | --- | --- | --- | --- |
+| `mountains-and-seas-VERSION-Windows-MC<exact-build>.zip` | Exact Windows build | Exact client loader version | Exact kernel | x64 |
+
+List only the packages attached to this release. Record the executable source commit and SHA-256 for each asset in `release.json`; distinguish different game-build revisions.
 
 ## Installation
 

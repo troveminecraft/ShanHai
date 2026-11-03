@@ -1,6 +1,6 @@
 # 山&海 · mountains&seas
 
-Minecraft 基岩版 Windows 地形与结构生成模组。作者：**peakarma**。**0.4.0 仍在开发中**，此前的 0.4.0 发布已撤回。
+Minecraft 基岩版 Windows 地形与结构生成模组。作者：**peakarma**。版本 **0.4.0**。[下载](https://github.com/troveminecraft/ShanHai/releases/tag/0.4.0)。
 
 [English](README.md) · 简体中文
 
@@ -20,12 +20,12 @@ Minecraft 基岩版 Windows 地形与结构生成模组。作者：**peakarma**�
 
 ## 兼容范围
 
-| Minecraft Windows | LeviLamina 客户端 | 留存安装包 | 内核修订 |
+| Minecraft Windows | LeviLamina 客户端 | 下载包 | 内核修订 |
 |---|---|---|---|
-| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.4.0.zip` | 2.225 |
-| 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.4.0.zip` | 2.219 |
+| 1.26.51.01 | 26.51.9 | `mountains-and-seas-0.4.0-Windows-MC1.26.51.01.zip` | 2.225 |
+| 1.26.20.04 | 26.20.7 | `mountains-and-seas-0.4.0-Windows-MC1.26.20.04.zip` | 2.219 |
 
-两份 0.4.0 包处于不同开发修订。最新 26.51 改动未包含在留存的 26.20 包中。BDS 单独支持 **1.26.20.5 / LeviLamina 26.20.7**，本次 26.51 修订不更新 BDS。安卓封档，不支持其他游戏或加载器构建。
+两份 0.4.0 包包含不同内核修订。最新 26.51 改动未包含在留存的 26.20 包中。BDS 单独支持 **1.26.20.5 / LeviLamina 26.20.7**，本次 26.51 修订不更新 BDS。安卓封档，不支持其他游戏或加载器构建。
 
 保存并完全退出 Minecraft 后，在 LeviLauncher 对应实例导入匹配 ZIP，启用 mountains&seas，创建普通新世界。运行依赖已随包提供。升级时将旧模组目录备份到 `mods` 之外，保留配置及存档，避免启用两份模组。
 
@@ -35,6 +35,8 @@ Minecraft 基岩版 Windows 地形与结构生成模组。作者：**peakarma**�
 
 派生地形缓存采用无损压缩，每个世界配方由后台管理约 512 MiB 预算，与存档方块、结构和玩家数据分开。详细诊断保留最近三次可识别会话。持续探索仍会增加世界体积。
 
-“上方树叶可见、下方地形部分不可见，靠近后恢复”的问题仍在调查，不能以生成耗时或编译结果判定渲染已修复。密集地形、大视距、探索新区域和原生结构处理仍可能造成加载延迟。详见[已知问题](docs/KNOWN_ISSUES.md)、[加载诊断](docs/LOADING_DIAGNOSTICS.md)、[森林兼容](docs/FOREST_COMPATIBILITY.md)和[构建说明](docs/DEVELOPMENT.md)。
+“上方树叶可见、下方地形部分不可见，靠近后恢复”的问题列入 0.4.x 后续维护，0.4.0 中仍可能出现。密集地形、大视距、探索新区域和原生结构处理仍可能造成加载延迟。详见[已知问题](docs/KNOWN_ISSUES.md)、[加载诊断](docs/LOADING_DIAGNOSTICS.md)、[森林兼容](docs/FOREST_COMPATIBILITY.md)和[构建说明](docs/DEVELOPMENT.md)。
 
 原创代码使用 [MIT](LICENSE)，第三方组件保留各自[许可](THIRD_PARTY_NOTICES.md)。
+
+后续 0.4.x 维护项目见[路线记录](docs/ROADMAP.md)。
