@@ -192,12 +192,14 @@ void joinedCanopyForest(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surfa
  }
 }
 #include "BranchingCherry.inc"
+#include "NaturalCherry.inc"
 void centralCherryTree(int x0,int z0,std::vector<uint16_t>&raw,std::array<Surface,256>const&surfaces){
  if(!field.canopyForestsEnabled())return;using namespace forest_palette;
  auto a=field.centralCherrySite(x0+8,z0+8);if(!a.valid||nativeReserved(a.x,a.z))return;
  if(nativeReservations.intersects(a.x,a.z,int(std::ceil(a.trunkRadius*1.8))))return;
  if(C.value("cherryRevision",0)>=2){
   if(x0>a.x+80||x0+15<a.x-80||z0>a.z+80||z0+15<a.z-80)return;
+  if(C.value("cherryRevision",0)>=3){naturalCherryTree(x0,z0,raw,surfaces,a.x,a.z,a.ground,a.trunkRadius,a.phase);return;}
   branchingCherryTree(x0,z0,raw,surfaces,a.x,a.z,a.ground,a.trunkRadius,a.phase);return;
  }
  double crown=50.+a.trunkRadius*1.3;

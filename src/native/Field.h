@@ -56,6 +56,7 @@ class Field {
  bool continuousCoast=C.value("coastalContinuity",0)>=1;
  bool containedWaterways=C.value("waterContainment",0)>=1;
  bool voxelRiverConnections=C.value("waterContainment",0)>=2;
+ bool connectedLakeBeds=C.value("lakeJunctionRevision",0)>=1;
  bool headwardWaterways=C.value("waterfallRevision",0)>=1;
  double landscapeAltitude(double height)const{return elevationVariants?height-60.:elevatedLandscape?height-24.:height;}
  bool raisedSnowline=C.value("mountainSnowline",0)>=1;

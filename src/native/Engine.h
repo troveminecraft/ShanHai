@@ -1,5 +1,6 @@
 #pragma once
 #include "../rules/BranchingCherry.h"
+#include "../rules/NaturalCherry.h"
 #include "Field.h"
 #include "OreCluster.h"
 #include "JungleShapeCache.h"

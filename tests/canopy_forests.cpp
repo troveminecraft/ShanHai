@@ -12,9 +12,9 @@ struct CanopyForestRegression {
  static J recipe(J data){data.erase("regionalGeneration");data["version"]="karma-terrain-2.219.0-native-agent-a";
   data["config"]["forestEcologyRevision"]=3;data["capabilityProfile"]=forest_capabilities::CommonCanopy;return data;
  }
- static Chunks draw(J const&data,bool reverse,bool cherry,bool sloped=false,std::vector<std::array<int,4>> reservations={}){
+ static Chunks draw(J const&data,bool reverse,bool cherry,bool sloped=false,std::vector<std::array<int,4>> reservations={},int trunk=15,double phase=.7,std::vector<double>* timings=nullptr){
   Engine e(data,reservations);std::array<Surface,256> surfaces;surfaces.fill(ground(forest_capabilities::Pale));
-  if(cherry){Field::CherryGrove a{true,512,512,140,15,180.,150.,.7};e.field.cherryGroves.get(key2(0,0),[&]{return a;});}
+  if(cherry){Field::CherryGrove a{true,512,512,140,trunk,180.,150.,phase};e.field.cherryGroves.get(key2(0,0),[&]{return a;});}
   else {
    e.field.skinCache=Cache<uint64_t,Surface>(16384);
    for(int z=-8;z<72;++z)for(int x=-8;x<72;++x)e.field.skinCache.get(key2(x,z),[&]{auto s=surfaces[0];if(sloped)s.height=136+int(std::floor((x%32)/4.));return s;});
@@ -31,7 +31,9 @@ struct CanopyForestRegression {
   for(int z=begin;z<=end;z+=16)for(int x=begin;x<=end;x+=16)points.emplace_back(x,z);
   if(reverse)std::reverse(points.begin(),points.end());Chunks out;
   for(auto [x,z]:points){std::vector<uint16_t> raw(256*e.Height);for(int i=0;i<256;++i){surfaces[i].height=sloped?136+int(std::floor(((x+i%16)%32)/4.)):140;raw[i*e.Height+surfaces[i].height+64]=4;}
+   auto start=std::chrono::steady_clock::now();
    if(cherry)e.centralCherryTree(x,z,raw,surfaces);else e.joinedCanopyForest(x,z,raw,surfaces);
+   if(timings)timings->push_back(std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count());
    out.emplace(std::pair{x,z},std::move(raw));
   }return out;
  }
@@ -87,9 +89,10 @@ struct CanopyForestRegression {
   return {{"canopyLeaves",leaves},{"trunkAndBranchBlocks",wood},{"supportedLichen",lichen},{"lamps",lamps},{"hearts",hearts},
    {"cherryLeaves",cherryLeaves},{"cherryWood",cherryWood},{"cherryHeight",top-140},{"orderIndependentChunks",a.size()+c.size()},{"passed",true}};
  }
- static J branching(J data,std::string const&path){
-  data["config"]["cherryRevision"]=2;using namespace forest_palette;
-  auto a=draw(data,false,true),b=draw(data,true,true);assert(a==b);
+ static J branching(J data,std::string const&path,int revision=2,int trunk=15,double phase=.7){
+  data["config"]["cherryRevision"]=revision;using namespace forest_palette;
+  std::vector<double> timings;
+  auto a=draw(data,false,true,false,{},trunk,phase,&timings),b=draw(data,true,true,false,{},trunk,phase);assert(a==b);
   int leaves=0,wood=0,columns=0,top=0;std::set<std::array<int,3>> timber;
   std::ofstream binary(path+".voxels",std::ios::binary);
   for(int z=432;z<=607;++z)for(int x=432;x<=607;++x){bool covered=false;
@@ -98,15 +101,25 @@ struct CanopyForestRegression {
     if(id==CherryLog||id==CherryWood){++wood;timber.insert({x,y,z});}if(id)top=std::max(top,y);
    }columns+=covered;
   }
+  binary.close();
   // A detached ornamented crown must not pass a height-only assertion.
   std::vector<std::array<int,3>> queue;
   for(auto p:timber)if(p[1]==141)queue.push_back(p);
   for(auto p:queue)timber.erase(p);
   for(size_t i=0;i<queue.size();++i){auto p=queue[i];for(auto d:std::array<std::array<int,3>,6>{{{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}}}){
    auto q=std::array{p[0]+d[0],p[1]+d[1],p[2]+d[2]};if(timber.erase(q))queue.push_back(q);}}
-  assert(timber.empty());assert(top>=207&&top<=218&&wood>10000);
+  assert(timber.empty());assert(top>=207&&top<=218&&wood>(revision>=3?trunk*trunk*25:10000));
   assert(leaves>15000&&leaves<100000&&columns<8000);
-  return {{"leaves",leaves},{"wood",wood},{"height",top-140},{"leafColumns",columns},{"allWoodGroundConnected",true},{"chunksReordered",a.size()},{"passed",true}};
+  if(revision>=3)for(int variant=0;variant<64;++variant){auto model=worldgen_rules::natural_cherry::build(10+variant%11,variant*.71,
+    [&](int salt){return hash01(variant, salt, 89701);});
+   assert(model.branches.size()<1024&&model.tufts.size()<512);
+   for(auto const&b:model.branches)assert(std::max({std::abs(b.x),std::abs(b.z),std::abs(b.X),std::abs(b.Z)})+std::max(b.r,b.R)<80);
+   for(auto const&t:model.tufts)assert(std::max(std::abs(t.x),std::abs(t.z))+std::max(t.rx,t.rz)*1.12<80&&t.y+t.ry*1.1<80);
+  }
+  std::sort(timings.begin(),timings.end());
+  return {{"leaves",leaves},{"wood",wood},{"height",top-140},{"leafColumns",columns},{"trunkRadius",trunk},
+    {"geometryMs",{{"median",timings[timings.size()/2]},{"p95",timings[timings.size()*95/100]},{"maximum",timings.back()}}},
+    {"allWoodGroundConnected",true},{"chunksReordered",a.size()},{"passed",true}};
  }
  static J reservations(J data){
   data["config"]["forestReservationRevision"]=1;data["config"]["naturalForestRevision"]=1;
@@ -139,7 +152,7 @@ struct CanopyForestRegression {
  }
 };}
 int main(int argc,char**argv){try{
- if(argc!=4)return 2;nativegen::J data;std::ifstream(argv[1])>>data;data=nativegen::CanopyForestRegression::recipe(std::move(data));
- auto start=std::chrono::steady_clock::now();auto mode=std::string(argv[3]);auto result=mode=="reservations"?nativegen::CanopyForestRegression::reservations(data):mode=="branching"?nativegen::CanopyForestRegression::branching(data,argv[2]):mode=="sites"?nativegen::CanopyForestRegression::sites(data):mode=="natural"?nativegen::CanopyForestRegression::naturalGeometry(data):nativegen::CanopyForestRegression::geometry(data);
+ if(argc!=4&&argc!=6)return 2;nativegen::J data;std::ifstream(argv[1])>>data;data=nativegen::CanopyForestRegression::recipe(std::move(data));
+ auto start=std::chrono::steady_clock::now();auto mode=std::string(argv[3]);auto result=mode=="reservations"?nativegen::CanopyForestRegression::reservations(data):mode=="branching"||mode=="natural_cherry"?nativegen::CanopyForestRegression::branching(data,argv[2],mode=="natural_cherry"?3:2,argc==6?std::stoi(argv[4]):15,argc==6?std::stod(argv[5]):.7):mode=="sites"?nativegen::CanopyForestRegression::sites(data):mode=="natural"?nativegen::CanopyForestRegression::naturalGeometry(data):nativegen::CanopyForestRegression::geometry(data);
  result["seconds"]=std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();std::ofstream(argv[2])<<result.dump(2);std::cout<<result<<std::endl;
  }catch(std::exception const&e){std::cerr<<e.what()<<std::endl;return 1;}}

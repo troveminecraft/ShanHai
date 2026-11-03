@@ -1,6 +1,8 @@
 ## 0.4.0 — in development
 
-The latest changes target Windows **1.26.51.01 / LL 26.51.9**, kernel **2.223**. The retained Windows 26.20 package remains kernel 2.219; BDS is unchanged by this revision.
+The latest changes target Windows **1.26.51.01 / LL 26.51.9**, kernel **2.224**. The retained Windows 26.20 package remains kernel 2.219; BDS is unchanged by this revision.
+
+Giant cherry trees now grow curved, tapering leaders, secondary forks and fine twigs. Small irregular flower sprays follow the outer branches, with open gaps between them. River channels continue into submerged lake beds using the same cross-section, removing abrupt sand walls at regional lake mouths while retaining lake water levels and deep natural floors. These two rules apply to new recipes; saved recipes keep their previous shapes.
 
 Broader inland basins preserve subordinate hills and valleys. Giant cherry trees use visible branching wood and separate irregular foliage clusters; smaller cherries grow taller, with the largest groves favoured at Y200–300. Snowy plains have fewer fallen logs and suitable open ground can carry larger boulders.
 
@@ -8,7 +10,7 @@ Ruined portals clear vegetation around their occupied frame rather than the larg
 
 Biome searches directly enumerate authoritative regional candidates for rare habitats, expand those searches to 16,384 blocks and avoid a redundant dense scan after exhausting them. Ordinary glacier matching accepts its actual transition band. Every result is rechecked against the full saved terrain recipe. Mesh diagnostics now record bounded per-height section observations without renderer retries.
 
-Super-glacier cliff faces now carry a thin ice skin. Grass and ferns can share a cell with thin snow using Bedrock's native secondary block layer. New terrain uses recipe **2.223**; existing worlds retain their saved terrain recipe.
+Super-glacier cliff faces now carry a thin ice skin. Grass and ferns can share a cell with thin snow using Bedrock's native secondary block layer. New terrain uses recipe **2.224**; existing worlds retain their saved terrain recipe.
 
 Derived terrain caches use lossless compression and a 512 MiB background-managed budget per world recipe. Existing uncompressed caches remain readable. These disposable caches are separate from saved blocks, player data and structures. Detailed loading diagnostics retain the three most recent recognized sessions. World size still grows as new regions are explored.
 
@@ -38,7 +40,7 @@ New forest recipes place denser mangroves in warm, shallow-water inland basins w
 
 In mountains&seas worlds, `/locate biome` searches the world's frozen terrain recipe in the background. Ordinary worlds retain the native command. A bounded search reports incomplete work separately from an unavailable biome; it does not request or generate world chunks.
 
-New 26.51 worlds use recipe **2.223** and a fixed game capability profile. Existing worlds retain their saved recipe and terrain, including 2.217. A world using 26.51-only forest content cannot open on 26.20. Sea level remains Y100 and the building range remains Y-64..511. The update also fixes world-to-world biome table reuse and seed preparation under non-ASCII paths.
+New 26.51 worlds use recipe **2.224** and a fixed game capability profile. Existing worlds retain their saved recipe and terrain, including 2.217. A world using 26.51-only forest content cannot open on 26.20. Sea level remains Y100 and the building range remains Y-64..511. The update also fixes world-to-world biome table reuse and seed preparation under non-ASCII paths.
 
 Partial terrain sections remaining invisible until approached remain under investigation. Native structure lock stalls and mesh-section observations are reported separately; cold generation measurements do not establish complete game loading performance.
 

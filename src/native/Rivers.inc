@@ -113,7 +113,8 @@ void loadRivers(){
  if(riverSegments.size()>std::max<int64_t>(20000,int64_t(terrain_bounds::Chunks)*terrain_bounds::Chunks*20000/(1250*1250)))throw std::runtime_error("River segment budget exceeded");
 }
 void riverRelief(Surface&s,int wx,int wz,bool connectWater=true,bool fitWater=false){
- if(riverSegments.empty()||s.lake==1||s.stone>.01||s.volcanic>0)return;
+ bool receivingLake=s.lake==1&&connectedLakeBeds;
+ if(riverSegments.empty()||(s.lake==1&&!receivingLake)||s.stone>.01||s.volcanic>0)return;
  bool marine=s.water==seaLevelValue&&s.height<seaLevelValue;
  double x=wx-32768,z=wz-32768;auto it=riverBins.find(key2(int(std::floor(x/64)),int(std::floor(z/64))));if(it==riverBins.end())return;
  auto guards=riverTreeBins.find(key2(int(std::floor(x/64)),int(std::floor(z/64))));
@@ -246,7 +247,7 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true,bool fitWater=fa
   depthSum+=weight*depth;if(edge<1)slopeMax=std::max(slopeMax,slope);
   if(edge<best){best=edge;radius=r;dist=d;bankNx=(x-a.ax-t*dx)/std::max(.001,d);bankNz=(z-a.az-t*dz)/std::max(.001,d);}
  }
- if(weightSum<1e-12)return;
+ if(weightSum<1e-12||(receivingLake&&best>0))return;
  double main=mainSum/weightSum,inner=innerSum/weightSum;
  bankReach+=main*24;
  if(!coherentBankProfiles&&best>=bankReach)return;
@@ -268,7 +269,12 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true,bool fitWater=fa
  if(waterfallReach&&!marine)water=std::min(water,int(original)-(containedWaterways?0:1));
  if(best<=0&&!marine&&!waterfallForms.empty())water=waterfallWater(int(x),int(z),water,int(original));
  if(marine){water=seaLevelValue;slopeMax=0;}
- if(containedWaterways&&best<=0&&!marine&&(connectWater||fitWater)){
+ // The same submerged channel section continues through the actual lake
+ // mask. Skipping lake columns left a 5-6 block sand wall at every mouth.
+ // Preserve the receiver's water level and natural deep bottom; the finite
+ // segment footprint feathers excavation back into the untouched lake bed.
+ if(receivingLake){water=s.water;slopeMax=0;}
+ if(containedWaterways&&best<=0&&!marine&&!receivingLake&&(connectWater||fitWater)){
   // The voxel shoreline, rather than the spline centre, bounds a falling
   // water column. Keep downstream wet faces open, but fit water below the
   // actual dry side banks. The matching bank pass retains this same ground.
@@ -491,7 +497,7 @@ void riverRelief(Surface&s,int wx,int wz,bool connectWater=true,bool fitWater=fa
  s.height=int(std::floor(bed+1e-6));s.continuous=(s.height-seaLevelValue)/123.;s.e=s.continuous;
  if(localRiverBeds){s.riverShore=smooth(.35,.95,dist/std::max(1.,radius));s.riverSlope=bankSlopeSum/weightSum;}
  s.cliffLow=s.cliffHigh=-32768;s.drip=0;
- if(best<=0&&s.height<water){s.water=std::max(s.water,water);s.kind=2;s.river=1;s.lake=0;s.lakeFrozen=false;}
+ if(best<=0&&s.height<water){s.water=std::max(s.water,water);s.kind=2;s.river=1;if(!receivingLake){s.lake=0;s.lakeFrozen=false;}}
  else if(depositedBar){s.water=std::max(s.water,water);s.kind=2;s.riverDeposit=true;}
  waterfallErosion(s,wx,wz);
 }

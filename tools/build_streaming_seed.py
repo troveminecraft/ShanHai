@@ -22,7 +22,7 @@ def finish_recipe(data,target_game=None):
     data["config"].update(landscapeRevision=3,volcanoRevision=5,surfaceMoss=2,villageSpacing=16,lakeBasinsVersion=1,orderedVillages=2)
     data["config"].update(naturalForestRevision=1,mountainErosion=1,cliffTrees=1)
     data["config"].update(glacierCliffSkin=1,snowPlantLayers=1)
-    data["config"].update(basinRevision=3,cherryRevision=2,groundFeatureRevision=1,forestReservationRevision=1)
+    data["config"].update(basinRevision=3,cherryRevision=3,groundFeatureRevision=1,forestReservationRevision=1,lakeJunctionRevision=1)
     data["config"]["cave"].update(raisedCaveHeight=1,highMountainUnderground=1,uplandNetworks=1)
     data["config"]["smallPoolsVersion"]=3
     data["config"]["tallIceSpires"]=True

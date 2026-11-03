@@ -28,7 +28,7 @@ The 26.51 biome assets add `has_structure_abandoned_camp` to pale gardens and ch
 
 Existing numeric block and biome entries are frozen; new entries append. Old recipes keep their exact tables and generation behavior. New recipes identify the target capability profile, and both profile and recipe contents participate in cache identity. A 26.51-only world must not silently substitute missing blocks when opened on 26.20.
 
-Recipe profiles isolate block registries and seed caches. The compatibility table describes available native content, not identical package revisions: the current 26.51 package uses kernel 2.223, while the retained Windows 26.20 package uses 2.219. This 26.51 revision does not update BDS.
+Recipe profiles isolate block registries and seed caches. The compatibility table describes available native content, not identical package revisions: the current 26.51 package uses kernel 2.224, while the retained Windows 26.20 package uses 2.219. This 26.51 revision does not update BDS.
 
 The table above lists native biome asset identifiers. The mod command catalog instead uses `peakarma:` names and localized descriptions. In an active mountains&seas Overworld, it searches the current world's frozen recipe on a single cancellable background worker, without requesting chunks or borrowing a generation worker. Ordinary worlds and other dimensions retain the native command. Region-owned targets use direct candidates up to 16,384 blocks away; other targets use an 8,192-block radius, with a 45-second work deadline; a timeout is reported as incomplete, not as proof that the biome does not exist. Returned coordinates are checked against the actual generated biome; they are nearby matches, not an exhaustive nearest-block guarantee.
 
@@ -44,3 +44,5 @@ Large trees retain compact descriptors and write only the current chunk. River b
 ## Current 26.51 generation revision
 
 Kernel 2.223 widens basin landforms while retaining interior relief. Cherry revision 2 uses a compact branch skeleton with separate foliage clusters instead of a continuous elliptical roof; the largest groves favour Y200–300. Each chunk writes its own clipped part of a deterministic tree. Saved recipes retain earlier tree and basin shapes. Native structure reservations exclude a whole giant tree when its roots overlap the occupied footprint.
+
+Kernel 2.224 selects cherry revision 3 for new worlds. Curved leaders divide into secondary branches and fine twigs; small asymmetric flower sprays follow those twigs instead of forming rounded caps on heavy spokes. The roughly 70-block height and 10–20-block base radius remain. Each worker retains at most 16 compact skeletons and clips writes to the current chunk. No new chunk requests, native structures or block palette entries are introduced. Existing cherry revisions remain available for frozen recipes.
