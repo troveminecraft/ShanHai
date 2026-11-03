@@ -6,7 +6,7 @@ English · [简体中文](README.zh-CN.md)
 
 Sea level is **Y100**, with building space at **Y-64..511**. Mountains, broad inland basins, plateaus, rivers, lakes, waterfalls, volcanoes and super-glaciers share a seed-based terrain recipe. Basins retain internal hills and valleys rather than defining a single ecological biome.
 
-The current Windows 26.51 revision uses kernel **2.224**. Giant cherry trees have curved, tapering branches, multiple levels of forks and small flower sprays distributed along the outer twigs. River beds continue into lakes without an abrupt sand wall at the shoreline. Wider basins, taller small cherries, larger boulders and fewer snowy-plains fallen logs are retained. Cherry groves favour Y200–300 for their largest stands. Ruined portals use their occupied footprint for vegetation clearance; intersecting giant-tree roots exclude the whole tree.
+The current Windows 26.51 revision uses kernel **2.225**. Giant cherry trees have slimmer trunks and roots, curved tapering forks and a denser crown with a raised centre and lower outer branches, with open intervals between the flower sprays. River beds continue into lakes without an abrupt sand wall at the shoreline. Wider basins, taller small cherries, larger boulders and fewer snowy-plains fallen logs are retained. Cherry groves favour Y200–300 for their largest stands. Ruined portals use their occupied footprint for vegetation clearance; intersecting giant-tree roots exclude the whole tree.
 
 Dark and pale forests have connected canopies, 40–50-block trees with 5–7-block trunk radii, irregular spacing and natural-ground hollows. A hollow has a 66% chance of a jack-o’-lantern; pale hollows have an 11% chance of a natural creaking heart. Roots use bark-covered wood with supported glow lichen. Warm inland basins support dense mangroves rooted in shallow water. Windows 26.51 also supports native dappled-forest foliage and shelf mushrooms.
 
@@ -22,7 +22,7 @@ Glaciers, volcanoes, cherry groves, mangroves and inland basins use regional can
 
 | Minecraft for Windows | LeviLamina client | Retained package | Kernel revision |
 |---|---|---|---|
-| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.4.0.zip` | 2.224 |
+| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.4.0.zip` | 2.225 |
 | 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.4.0.zip` | 2.219 |
 
 These packages are different development revisions. The latest 26.51 changes are not included in the retained 26.20 package. BDS supports **1.26.20.5 / LeviLamina 26.20.7** through its separate packages; this 26.51 revision does not update BDS. Android is archived. Other game/loader builds are unsupported.

@@ -27,11 +27,12 @@ inline void limb(BranchingCherry& model,Curve const& c,double r,double R){
 }
 // All forks are anchored on their parent's curve. A compact seed-derived
 // skeleton is shared by clipped chunk writers; no full-tree voxel cache.
-template<class Random> BranchingCherry build(double trunk,double phase,Random random){
+template<class Random> BranchingCherry build(double trunk,double phase,Random random,bool fuller=false){
+ if(fuller)trunk*=.66;
  BranchingCherry out;int salt=0;auto next=[&]{return random(salt++);};
  auto direction=[&](double a,double d,double y){auto p=horizontal(a,d);p.y=y;return p;};
  Curve spine{{0,7,0},direction(phase-1.1,7+4*next(),24),direction(phase+.7,10+4*next(),42),direction(phase+.1,7+3*next(),63)};
- limb(out,spine,trunk*.73,.95);
+ limb(out,spine,trunk*(fuller?.63:.73),.95);
  auto blossom=[&](Curve const& twig,double angle,double size){
   // Small overlapping lobes make an elongated spray, rather than a ball at
   // the end of every spoke. The stem stays inside the complete flower spray.
@@ -78,6 +79,30 @@ template<class Random> BranchingCherry build(double trunk,double phase,Random ra
   auto tip=p+direction(a,7+5*next(),5+5*next());tip.y=std::min(69.,tip.y);
   Curve twig{p,p+direction(a-.4,3,4),tip-direction(a+.3,3,2),tip};
   limb(out,twig,1.3,.65);blossom(twig,a,2.6+next());
+ }
+ if(fuller){
+  // Fill some inner, upper crown gaps with supported shoots. Keep the
+  // existing outer forks and their open intervals instead of adding a roof.
+  for(int k=0;k<8;++k){double a=phase+.8+k*2.39996323;auto p=spine.at(.40+k*.047);
+   double reach=12+7*next();auto tip=p+direction(a,reach,4+5*next());
+   Curve shoot{p,p+direction(a-.4,reach*.25,5),tip-direction(a+.2,reach*.25,2),tip};
+   limb(out,shoot,1.5,1.);blossom(shoot,a,3.1+next());
+  }
+  // Upper shoots return over the leader to fill the central hollow in the
+  // silhouette. Flowers still follow individual forks, not a solid cap.
+  for(int k=0;k<6;++k){double a=phase+.35+k*2.39996323;auto p=spine.at(.76+k*.032);
+   auto tip=direction(a,5+7*next(),64+3*next());
+   Curve shoot{p,p+direction(a-.35,3,6),tip-direction(a+.2,3,2),tip};
+   limb(out,shoot,1.5,1.);blossom(shoot,a,3.2+next());
+  }
+  auto smooth=[](double a,double b,double h){double t=std::clamp((h-a)/(b-a),0.,1.);return t*t*(3-2*t);};
+  // Raise the centre and gently lower the outer upper forks: side views
+  // should arch over the trunk, not form an equally high rim around a bowl.
+  // Moving wood and foliage together keeps the flowers on their branches.
+  auto arch=[&](double x,double h,double z){double r=std::hypot(x,z);
+   return h+smooth(20,45,h)*(5*(1-smooth(8,28,r))-10*smooth(12,58,r));};
+  for(auto& b:out.branches){b.y=arch(b.x,b.y,b.z);b.Y=arch(b.X,b.Y,b.Z);}
+  for(auto& t:out.tufts){t.y=arch(t.x,t.y,t.z);t.rx*=1.12;t.rz*=1.12;t.ry*=1.10;}
  }
  return out;
 }

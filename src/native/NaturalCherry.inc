@@ -2,8 +2,9 @@ Cache<uint64_t,worldgen_rules::BranchingCherry> naturalCherryModels{16};
 void naturalCherryTree(int x0,int z0,std::vector<uint16_t>& raw,std::array<Surface,256> const& surfaces,
                        int ax,int az,int ground,int trunk,double phase){
  using namespace forest_palette;
+ bool fuller=C.value("cherryRevision",0)>=4;
  auto const& model=naturalCherryModels.get(key2(ax,az),[&]{
-  return worldgen_rules::natural_cherry::build(trunk,phase,[&](int salt){return hash01(ax,az,terrainSeed^(89701+salt));});
+  return worldgen_rules::natural_cherry::build(trunk,phase,[&](int salt){return hash01(ax,az,terrainSeed^(89701+salt));},fuller);
  });
  for(auto const& t:model.tufts){
   double X=ax+t.x,Z=az+t.z,Y=ground+t.y,reach=std::max(t.rx,t.rz)*1.12;
@@ -24,12 +25,13 @@ void naturalCherryTree(int x0,int z0,std::vector<uint16_t>& raw,std::array<Surfa
  }
  // Short fluted root flare joins the curved leader. Above it, the complete
  // wood skeleton (including the trunk) is curved and tapers through forks.
+ double rootRadius=trunk*(fuller?.66:1.);
  for(int i=0;i<256;++i){int x=x0+i%16,z=z0+i/16;if(nativeReserved(x,z))continue;
   auto const& s=surfaces[i];double dx=x-ax,dz=z-az,angle=std::atan2(dz,dx);
-  if(std::hypot(dx,dz)>trunk*1.8)continue;
+  if(std::hypot(dx,dz)>rootRadius*(fuller?1.55:1.8))continue;
   for(int y=std::max({s.height,s.water,s.lava})+1;y<=std::min(Height-65,ground+17);++y){
-   double h=y-ground,r=trunk*(1-.60*smooth(0.,21.,h));
-   r+=(1-smooth(0.,13.,h))*trunk*.65*std::pow(std::max(0.,std::cos(angle*7+phase)),4);
+   double h=y-ground,r=rootRadius*(1-.60*smooth(0.,21.,h));
+   r+=(1-smooth(0.,13.,h))*rootRadius*(fuller?.42:.65)*std::pow(std::max(0.,std::cos(angle*7+phase)),4);
    r*=1+.06*std::sin(angle*5+phase+h*.10);double bend=2.5*smooth(4.,18.,h);
    auto& b=raw[i*Height+y+64];
    if(std::hypot(dx-bend*std::cos(phase-1.1),dz-bend*std::sin(phase-1.1))<=r&&canopyReplaceable(b))b=CherryWood;
