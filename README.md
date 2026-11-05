@@ -1,7 +1,5 @@
 # mountains&seas · 山&海
 
-![mountains&seas](docs/assets/mountains-seas-en.webp)
-
 A terrain and structure generation mod for Minecraft Bedrock on Windows. Author: **peakarma**. Version **0.4.0**. [Download](https://github.com/troveminecraft/ShanHai/releases/tag/v0.4.0).
 
 English · [简体中文](README.zh-CN.md)
