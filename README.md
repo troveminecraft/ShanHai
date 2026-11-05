@@ -1,42 +1,47 @@
+<p align="center"><img src="docs/assets/shan-hai.png" alt="mountains&amp;seas — 山&amp;海" width="720"></p>
+
 # mountains&seas · 山&海
 
-A terrain and structure generation mod for Minecraft Bedrock on Windows. Author: **peakarma**. Version **0.4.0**. [Download](https://github.com/troveminecraft/ShanHai/releases/tag/v0.4.0).
+0.4.0 is in development; its previous release has been withdrawn. New mangrove recipes use dense shallow-water stands in warm inland basins, spanning at least 160 blocks. `/locate biome` searches the saved mountains&seas recipe in the background; ordinary worlds retain vanilla behavior.
 
 English · [简体中文](README.zh-CN.md)
 
-Sea level is **Y100**, with building space at **Y-64..511**. Mountains, broad inland basins, plateaus, rivers, lakes, waterfalls, volcanoes and super-glaciers share a seed-based terrain recipe. Basins retain internal hills and valleys rather than defining a single ecological biome.
+[Download 0.3.12](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.12) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
 
-The current Windows 26.51 revision uses kernel **2.225**. Giant cherry trees have slimmer trunks and roots, curved tapering forks and a denser crown with a raised centre and lower outer branches, with open intervals between the flower sprays. River beds continue into lakes without an abrupt sand wall at the shoreline. Wider basins, taller small cherries, larger boulders and fewer snowy-plains fallen logs are retained. Cherry groves favour Y200–300 for their largest stands. Ruined portals use their occupied footprint for vegetation clearance; intersecting giant-tree roots exclude the whole tree.
+mountains&seas is an Overworld terrain generation mod for Minecraft Bedrock on Windows, powered by LeviLamina. Follow rivers through mountain ranges, rolling highlands, forests, deserts and coastlines; explore caves, glaciers and volcanic terrain. Vanilla structures are placed according to the surrounding landscape.
 
-Dark and pale forests have connected canopies, 40–50-block trees with 5–7-block trunk radii, irregular spacing and natural-ground hollows. A hollow has a 66% chance of a jack-o’-lantern; pale hollows have an 11% chance of a natural creaking heart. Roots use bark-covered wood with supported glow lichen. Warm inland basins support dense mangroves rooted in shallow water. Windows 26.51 also supports native dappled-forest foliage and shelf mushrooms.
+## Requirements
 
-Villages target six times the earlier building count on compact, irregular plots with connected roads. Native building templates and the original initial resident/animal scale are retained. Terrain and bounded-footprint checks can reject unsuitable sites. Super-glacier cliffs carry a thin ice skin; grass and ferns can share a native block cell with thin snow.
+| Minecraft for Windows | LeviLamina client | Package |
+|---|---|---|
+| 1.26.51.01 | 26.51.9 | `ShanHai-Windows-0.4.0.zip` |
+| 1.26.20.04 | 26.20.7 | `ShanHai-Windows-26.20-0.4.0.zip` |
 
-## Biome search
+Windows x64 and an AVX2-capable CPU. Select the package matching your game version.
 
-In a mountains&seas world, `/locate biome peakarma:roofed_forest` searches the saved mod recipe. Suggestions and results include descriptions, in English by default and Chinese for a Chinese game language. Ordinary worlds retain the native command.
+## Install
 
-Glaciers, volcanoes, cherry groves, mangroves and inland basins use regional candidates up to 16,384 blocks away. Other searches use an 8,192-block radius. Results are verified against the full recipe; queries run on a separate cancellable background worker, without requesting world chunks. Results are nearby matches, not an exhaustive nearest-block guarantee. A 45-second work limit can produce an incomplete result.
+1. Download the ZIP matching your game version from the [0.4.0 release](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.12), using the compatibility table above.
+2. Save and fully close Minecraft. Import the ZIP into the matching instance through LeviLauncher’s mod manager.
+3. Enable the mod and create a new **normal** world with your chosen seed. Do not select a flat world.
 
-## Compatibility
+Use the release ZIP, rather than GitHub’s automatically generated source archive. Python and Node.js runtime dependencies are included; copying only the DLL is insufficient. The launcher entry is **mountains&seas**, by **peakarma**. For upgrades from the old entry, follow the migration steps below.
 
-| Minecraft for Windows | LeviLamina client | Download package | Kernel revision |
-|---|---|---|---|
-| 1.26.51.01 | 26.51.9 | `mountains-and-seas-0.4.0-Windows-MC1.26.51.01.zip` | 2.225 |
-| 1.26.20.04 | 26.20.7 | `mountains-and-seas-0.4.0-Windows-MC1.26.20.04.zip` | 2.219 |
+## Version 0.4.0
 
-These packages contain different kernel revisions. The latest 26.51 changes are not included in the retained 26.20 package. BDS supports **1.26.20.5 / LeviLamina 26.20.7** through its separate packages; this 26.51 revision does not update BDS. Android is archived. Other game/loader builds are unsupported.
+Adds dark forests, pale gardens, cherry groves and mangrove swamps to new worlds on both supported game versions. Minecraft 1.26.51.01 also gains dappled forests with poplar foliage, fallen logs and shelf mushrooms. Forests follow the existing climate and terrain; occasional large trees remain local features.
 
-Save and fully exit Minecraft before importing the matching ZIP into LeviLauncher. Enable **mountains&seas** and create a normal world. ZIP packages include their Python and Node.js runtime. Keep the previous mod folder outside `mods` as a rollback copy; do not enable duplicate copies.
+Pale trees include native natural creaking hearts; mangrove roots preserve water in the secondary block layer. Woodland mansions now require an actual dark forest. `/karma` adds forest entries 141–144, plus 145 on 26.51; existing numbers and optional teleport modes remain unchanged.
 
-Existing worlds keep their saved terrain recipe and generated blocks. New generation features require a new world recipe; updating the DLL does not redraw an old world. Worlds containing 26.51-only forest content cannot open on 26.20. Removing the mod does not guarantee compatible future terrain.
+New worlds use recipe **2.217** and a fixed game capability profile. Existing worlds retain their saved recipe and terrain, including 2.216. A world using 26.51-only forest content cannot open on 26.20. Sea level remains Y100 and the building range remains Y-64..511. The update also fixes world-to-world biome table reuse and seed preparation under non-ASCII paths.
 
-## Storage and known limits
+Dense terrain, large view distances and native structure processing can still cause loading delays. Nighttime creaking behavior and new forest save/reload behavior need further compatibility coverage across the supported game builds.
 
-Derived terrain caches use lossless compression with a background-managed 512 MiB budget per world recipe. They are separate from saved blocks, structures and player data. Loading diagnostics retain three recognized sessions. Exploring new regions still grows the saved world.
 
-Some terrain sections may remain invisible while higher foliage sections are visible until the player approaches. This remains a known issue scheduled for the 0.4.x maintenance line. Dense terrain, distant exploration and native structure processing can still cause delays. See [known issues](docs/KNOWN_ISSUES.md), [loading diagnostics](docs/LOADING_DIAGNOSTICS.md), [forest compatibility](docs/FOREST_COMPATIBILITY.md) and [building from source](docs/DEVELOPMENT.md).
+## Source and license
 
-Original code uses [MIT](LICENSE); third-party components retain their [licenses](THIRD_PARTY_NOTICES.md).
+This repository contains the shared terrain and structure rules, Windows adapter and build tools. See [BUILDING.md](docs/BUILDING.md), [kernel boundaries](docs/KERNEL_BOUNDARY.md) and [runtime documentation](docs/RUNTIME.md).
 
-0.4.x maintenance priorities: [roadmap](docs/ROADMAP.md).
+Original project code is licensed under [MIT](LICENSE). Third-party components and derived resources retain their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Minecraft itself and vanilla structure assets are not redistributed; templates are read from the local game installation.
+
+Windows startup now recognizes the measured LeviLauncher/PreLoader layouts without relaxing the pinned game-code checks. Worlds created while the mod failed to load are vanilla worlds and are not automatically converted; create a new normal world with the mod enabled.
