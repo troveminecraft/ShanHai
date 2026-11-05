@@ -5,21 +5,21 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.12"><img src="https://img.shields.io/badge/release-0.4.0-2ea44f" alt="0.4.0"></a>
+  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.4.0"><img src="https://img.shields.io/badge/release-0.4.0-2ea44f" alt="0.4.0"></a>
   <img src="https://img.shields.io/badge/Minecraft_Bedrock-1.26.51.01-62b47a" alt="Minecraft Bedrock 1.26.51.01">
   <img src="https://img.shields.io/badge/LeviLamina-26.51.9-00a896" alt="LeviLamina 26.51.9">
   <img src="https://img.shields.io/badge/Windows-x64-0078d4" alt="Windows x64">
 </p>
 
 <p align="center">
-  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.12">下载安装</a> ·
+  <a href="https://github.com/troveminecraft/ShanHai/releases/tag/v0.4.0">下载安装</a> ·
   <a href="docs/BUILDING.md">从源码构建</a> ·
   <a href="https://github.com/troveminecraft/ShanHai/issues">反馈问题</a>
 </p>
 
 # 山&海 · mountains&seas
 
-0.4.0 仍在开发中，之前的发布已撤回。新的红树林规则限定在温暖、湿润的内陆盆地，连片主要跨度至少 160 格，树木加密且根部落在浅水中的泥地上。`/locate biome` 在山海存档中后台检索冻结配方，普通存档保留原版行为。
+0.4.0 是当前版本。新的红树林规则限定在温暖、湿润的内陆盆地，连片主要跨度至少 160 格，树木加密且根部落在浅水中的泥地上。`/locate biome` 在山海存档中后台检索冻结配方，普通存档保留原版行为。
 
 [English](README.md) · 简体中文
 
@@ -46,7 +46,7 @@
 
 支持 **Minecraft for Windows 1.26.51.01 / LeviLamina 26.51.9** 与 **1.26.20.04 / LeviLamina 26.20.7** 两套客户端组合，需要支持 AVX2 的 Windows x64 电脑。可通过 LeviLauncher 管理游戏实例和模组。
 
-1. 在 [0.4.0 下载页](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.12) 选择与下表游戏版本对应的 ZIP。
+1. 在 [0.4.0 下载页](https://github.com/troveminecraft/ShanHai/releases/tag/v0.4.0) 选择与下表游戏版本对应的 ZIP。
 2. 完全退出 Minecraft，在 LeviLauncher 对应实例的模组管理中导入 ZIP。
 3. 确认模组已启用，启动游戏，创建一个普通新世界；不要选择超平坦。
 

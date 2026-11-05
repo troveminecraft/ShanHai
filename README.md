@@ -2,11 +2,11 @@
 
 # mountains&seas · 山&海
 
-0.4.0 is in development; its previous release has been withdrawn. New mangrove recipes use dense shallow-water stands in warm inland basins, spanning at least 160 blocks. `/locate biome` searches the saved mountains&seas recipe in the background; ordinary worlds retain vanilla behavior.
+0.4.0 is the current release. New mangrove recipes use dense shallow-water stands in warm inland basins, spanning at least 160 blocks. `/locate biome` searches the saved mountains&seas recipe in the background; ordinary worlds retain vanilla behavior.
 
 English · [简体中文](README.zh-CN.md)
 
-[Download 0.3.12](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.12) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
+[Download 0.4.0](https://github.com/troveminecraft/ShanHai/releases/tag/v0.4.0) · [Changelog](CHANGELOG.md) · [Build from source](docs/BUILDING.md) · [Report an issue](https://github.com/troveminecraft/ShanHai/issues)
 
 mountains&seas is an Overworld terrain generation mod for Minecraft Bedrock on Windows, powered by LeviLamina. Follow rivers through mountain ranges, rolling highlands, forests, deserts and coastlines; explore caves, glaciers and volcanic terrain. Vanilla structures are placed according to the surrounding landscape.
 
@@ -21,7 +21,7 @@ Windows x64 and an AVX2-capable CPU. Select the package matching your game versi
 
 ## Install
 
-1. Download the ZIP matching your game version from the [0.4.0 release](https://github.com/troveminecraft/ShanHai/releases/tag/v0.3.12), using the compatibility table above.
+1. Download the ZIP matching your game version from the [0.4.0 release](https://github.com/troveminecraft/ShanHai/releases/tag/v0.4.0), using the compatibility table above.
 2. Save and fully close Minecraft. Import the ZIP into the matching instance through LeviLauncher’s mod manager.
 3. Enable the mod and create a new **normal** world with your chosen seed. Do not select a flat world.
 
